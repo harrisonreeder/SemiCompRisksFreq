@@ -320,8 +320,8 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     if(frail_test >= 0){
       value$frailty_test <- c(
         stat=frail_test,
-        pval= 0.5 * (pchisq(q = frail_test,df = 0,lower.tail = FALSE) +
-                       pchisq(q = frail_test,df = 1,lower.tail = FALSE))
+        pval= 0.5 * (stats::pchisq(q = frail_test,df = 0,lower.tail = FALSE) +
+                       stats::pchisq(q = frail_test,df = 1,lower.tail = FALSE))
       )
     }
   }

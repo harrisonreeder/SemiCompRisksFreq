@@ -10,6 +10,8 @@
 #'   then the last\eqn{q} elements correspond with the regression parameters.
 #' @param y Numeric vector of length \eqn{n} with (possibly censored) non-terminal and terminal event times
 #' @param delta Numeric vector of length \eqn{n}  with indicator of 1 if the event was observed and 0 otherwise
+#' @param yL Numeric vector of length \eqn{n} with left-truncation times.
+#' @param anyLT Boolean (or 1/0) value that is \code{TRUE} (or 1) if there are any non-zero left truncation times, and \code{FALSE} (or 0) otherwise
 #' @param Xmat Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.
 #' @param hazard String specifying the form of the baseline hazard.
 #' @param basis Numeric matrix with \eqn{n} rows and \eqn{k} columns
@@ -18,6 +20,9 @@
 #' @param dbasis Numeric matrix with \eqn{n} rows and \eqn{k} columns
 #'   with piecewise/spline basis function derivative values at the corresponding \code{y} values.
 #'   Used only under Royston-Parmar model.
+#' @param basis_yL Numeric matrix with \eqn{n} rows and \eqn{k} columns
+#'   with piecewise/spline basis function values at the corresponding \code{yL} values.
+#'   Not used under Weibull model.
 #'
 #' @return Returns numeric sum of negative log likelihood contributions.
 #' @export
@@ -61,19 +66,7 @@ nll_uni_func <- function(para, y, delta, yL, anyLT, Xmat, hazard, basis, dbasis,
 #'   and specified Markov/semi-Markov transition assumption.
 #'   Typically, this function will not be used directly by the user, but as part of a
 #'   larger estimation procedure.
-#' @param para A numeric vector of parameters, arranged as follows:
-#'   the first \eqn{k} elements correspond to the baseline hazard parameters,
-#'   then the last\eqn{q} elements correspond with the regression parameters.
-#' @param y Numeric vector of length \eqn{n} with (possibly censored) non-terminal and terminal event times
-#' @param delta Numeric vector of length \eqn{n}  with indicator of 1 if the event was observed and 0 otherwise
-#' @param Xmat Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.
-#' @param hazard String specifying the form of the baseline hazard.
-#' @param basis Numeric matrix with \eqn{n} rows and \eqn{k} columns
-#'   with piecewise/spline basis function values at the corresponding \code{y} values.
-#'   Not used under Weibull model.
-#' @param dbasis Numeric matrix with \eqn{n} rows and \eqn{k} columns
-#'   with piecewise/spline basis function derivative values at the corresponding \code{y} values.
-#'   Used only under Royston-Parmar model.
+#' @inheritParams nll_uni_func
 #'
 #' @return Returns numeric sum of negative log likelihood contributions.
 #' @export

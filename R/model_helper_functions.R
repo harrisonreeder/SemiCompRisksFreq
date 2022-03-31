@@ -526,15 +526,9 @@ get_basis <- function(x,knots,hazard,deriv=FALSE){
 #' A function to generate principled starting values for optimization, based on
 #'   model specifications.
 #'
-#' @inheritParams nll_func
+#' @inheritParams nll_uni_func
 #' @inheritParams get_default_knots
 #' @inheritParams get_basis
-#' @param Xmat Numeric matrix with \eqn{n} rows and \eqn{q} columns containing covariates.
-#' @param basis Numeric matrix with \eqn{n} rows and \eqn{k} columns
-#'   with piecewise/spline basis function values at the corresponding \code{y} values.
-#' @param dbasis Numeric matrices with \eqn{n} rows and \eqn{k} columns
-#'   with piecewise/spline basis function derivative values at the corresponding \code{y} values.
-#'   Used only under Royston-Parmar model.
 #' @param sparse_start Boolean indicating whether to set all regression parameters
 #'   to 0 if \code{TRUE}, or to pre-estimate them using univariate models if \code{FALSE}.
 #'

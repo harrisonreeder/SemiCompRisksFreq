@@ -26,6 +26,10 @@ then the last\eqn{q} elements correspond with the regression parameters.}
 
 \item{delta}{Numeric vector of length \eqn{n}  with indicator of 1 if the event was observed and 0 otherwise}
 
+\item{yL}{Numeric vector of length \eqn{n} with left-truncation times.}
+
+\item{anyLT}{Boolean (or 1/0) value that is \code{TRUE} (or 1) if there are any non-zero left truncation times, and \code{FALSE} (or 0) otherwise}
+
 \item{Xmat}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
 \item{hazard}{String specifying the form of the baseline hazard.}
@@ -37,6 +41,10 @@ Not used under Weibull model.}
 \item{dbasis}{Numeric matrix with \eqn{n} rows and \eqn{k} columns
 with piecewise/spline basis function derivative values at the corresponding \code{y} values.
 Used only under Royston-Parmar model.}
+
+\item{basis_yL}{Numeric matrix with \eqn{n} rows and \eqn{k} columns
+with piecewise/spline basis function values at the corresponding \code{yL} values.
+Not used under Weibull model.}
 }
 \value{
 Returns numeric sum of negative log likelihood contributions.

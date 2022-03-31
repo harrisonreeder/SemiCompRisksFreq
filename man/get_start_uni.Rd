@@ -17,27 +17,28 @@ get_start_uni(
 )
 }
 \arguments{
-\item{y}{Numeric vector of length \eqn{n} with (possibly censored) event times}
+\item{y}{Numeric vector of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
 
 \item{delta}{Numeric vector of length \eqn{n}  with indicator of 1 if the event was observed and 0 otherwise}
 
-\item{Xmat}{Numeric matrix with \eqn{n} rows and \eqn{q} columns containing covariates.}
+\item{yL}{Numeric vector of length \eqn{n} with left-truncation times.}
+
+\item{anyLT}{Boolean (or 1/0) value that is \code{TRUE} (or 1) if there are any non-zero left truncation times, and \code{FALSE} (or 0) otherwise}
+
+\item{Xmat}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
 \item{knots}{Increasing vector of integers corresponding to the knots used
 in the desired spline or piecewise specification. Often an element of
 list generated from \code{\link{get_default_knots_list}}.}
 
 \item{basis}{Numeric matrix with \eqn{n} rows and \eqn{k} columns
-with piecewise/spline basis function values at the corresponding \code{y} values.}
+with piecewise/spline basis function values at the corresponding \code{y} values.
+Not used under Weibull model.}
 
 \item{hazard}{String specifying the form of the baseline hazard.}
 
 \item{sparse_start}{Boolean indicating whether to set all regression parameters
 to 0 if \code{TRUE}, or to pre-estimate them using univariate models if \code{FALSE}.}
-
-\item{dbasis}{Numeric matrices with \eqn{n} rows and \eqn{k} columns
-with piecewise/spline basis function derivative values at the corresponding \code{y} values.
-Used only under Royston-Parmar model.}
 }
 \value{
 A vector of starting parameter values.
