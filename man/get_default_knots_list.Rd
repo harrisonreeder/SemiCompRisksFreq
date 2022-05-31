@@ -18,19 +18,22 @@ get_default_knots_list(y1, y2, delta1, delta2, p01, p02, p03, hazard, model)
 \item{p01, p02, p03}{Integers indicating how many parameters the model for each
 transition baseline hazard should specify.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
-\item{model}{String specifying the transition assumption}
+\item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
 }
 \value{
 A list of three increasing sequences of integers, each corresponding to
 the knots for the flexible model on the corresponding transition baseline hazard.
 }
 \description{
-This function creates a list containing three numeric vectors. Each numeric vector
-is a sequence of increasing integers giving the location of knots used for
-spline and piecewise baseline hazard specifications. This function
-generates this list according to the conventions and recommended locations
-of these knots, which depends on the choice of hazard specification, number
-of knots requested, and distribution of observed event times.
+This function creates a list containing three numeric vectors of increasing integers giving the location of knots used for
+spline and piecewise baseline hazard specifications, corresponding with the
+illness-death model transition hazards. The knots are generated according to
+the description of \code{\link{get_default_knots}}.
 }

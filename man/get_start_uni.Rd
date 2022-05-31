@@ -35,7 +35,12 @@ list generated from \code{\link{get_default_knots_list}}.}
 with piecewise/spline basis function values at the corresponding \code{y} values.
 Not used under Weibull model.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
 \item{sparse_start}{Boolean indicating whether to set all regression parameters
 to 0 if \code{TRUE}, or to pre-estimate them using univariate models if \code{FALSE}.}

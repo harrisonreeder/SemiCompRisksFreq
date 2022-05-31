@@ -38,12 +38,17 @@ then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameter
 
 \item{Xmat3}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
 \item{frailty}{Boolean indicating whether a gamma distributed subject-specific frailty should
 be included. Currently this must be set to \code{TRUE}.}
 
-\item{model}{String specifying the transition assumption}
+\item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
 }
 \value{
 Returns numeric matrix with \eqn{n} rows and width same as length of \code{para} with gradient contributions

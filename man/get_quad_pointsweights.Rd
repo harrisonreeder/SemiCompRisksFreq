@@ -13,10 +13,12 @@ get_quad_pointsweights(n_quad, quad_method)
 Options are 'kronrod' for Gauss-Kronrod quadrature or 'legendre' for Gauss-Legendre quadrature.}
 }
 \value{
-A list with two named elements (points and weights), each
+A list with two named elements (\code{points} and \code{weights}), each
 of which is a numeric vector with length equal to the number of
 quadrature nodes
 }
 \description{
-Function to return quadrature points and weights
+This function stores quadrature points used for numerical integration by either
+Gauss-Kronrod or Gauss-Legendre rules. The values are pre-computed and stored for
+number of nodes equal to 7, 11, 15, 21, 31, 41, 51, or 61.
 }

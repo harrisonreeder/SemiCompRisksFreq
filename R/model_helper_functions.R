@@ -3,8 +3,13 @@
 ####HELPER FUNCTIONS FOR QUADRATURE####
 
 #' Function to return quadrature points and weights
+#'
+#' This function stores quadrature points used for numerical integration by either
+#' Gauss-Kronrod or Gauss-Legendre rules. The values are pre-computed and stored for
+#' number of nodes equal to 7, 11, 15, 21, 31, 41, 51, or 61.
+#'
 #' @inheritParams FreqID_HReg2
-#' @return A list with two named elements (points and weights), each
+#' @return A list with two named elements (\code{points} and \code{weights}), each
 #'   of which is a numeric vector with length equal to the number of
 #'   quadrature nodes
 get_quad_pointsweights <- function(n_quad, quad_method) {
@@ -426,13 +431,20 @@ transform_quad_points <- function(n_quad, quad_method, a, b) {
 #'   of these knots, which depends on the choice of hazard specification, number
 #'   of knots requested, and distribution of observed event times.
 #'
+#'
 #' @inheritParams nll_func
 #' @param y Numeric vector of length \eqn{n} with (possibly censored) event times
 #' @param delta Numeric vector of length \eqn{n}  with indicator of 1 if the event was observed and 0 otherwise
 #' @param p0 Integer indicating how many parameters the model for the baseline hazard should specify.
 #'
-#' @return A list of three increasing sequences of integers, each corresponding to
+#' @return A vector of increasing sequences of integers, each corresponding to
 #'   the knots for the flexible model on the corresponding transition baseline hazard.
+#'   For cubic B-splines on log-hazard: min 0, max is max observed value of \code{y},
+#'   \code{p0-4} internal knots placed at quantiles of observed events \code{y[delta==1]}.
+#'   For Royston-Parmar (restricted cubic spline on log-cumulative hazard): min and max at min and max observed event times,
+#'   \code{p0-2} internal knots placed at quantiles of observed events
+#'   For piecewise constant: min 0, remaining \code{p0-1} knots placed at quantiles of observed events.
+#'
 #' @export
 get_default_knots <- function(y,delta,p0,hazard){
   if(tolower(hazard) %in% c("bspline","bs")){
@@ -457,6 +469,8 @@ get_default_knots <- function(y,delta,p0,hazard){
 
 #' Get Basis Function Values for Flexible Hazard Specifications
 #'
+#' Generate a matrix of basis functions evaluated at each value of a vector \code{x}.
+#'
 #' @inheritParams nll_func
 #' @param x Numeric vector of event times (e.g., \code{y1} or \code{y2}) at which
 #'   to generate basis function values.
@@ -468,6 +482,8 @@ get_default_knots <- function(y,delta,p0,hazard){
 #'
 #' @return A matrix with each row corresponding to an element of the input, and
 #'   each column giving the corresponding basis function value.
+#'
+
 #' @import splines2
 #' @export
 get_basis <- function(x,knots,hazard,deriv=FALSE){
@@ -518,7 +534,6 @@ get_basis <- function(x,knots,hazard,deriv=FALSE){
   } else {return(NULL)}
   return(basis_out)
 }
-
 
 
 #' Get Starting Parameter Values for Univariate Model
@@ -617,12 +632,10 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots, basis,
 
 #' Generate List of Knot Location Vectors from Event Times
 #'
-#' This function creates a list containing three numeric vectors. Each numeric vector
-#'   is a sequence of increasing integers giving the location of knots used for
-#'   spline and piecewise baseline hazard specifications. This function
-#'   generates this list according to the conventions and recommended locations
-#'   of these knots, which depends on the choice of hazard specification, number
-#'   of knots requested, and distribution of observed event times.
+#' This function creates a list containing three numeric vectors of increasing integers giving the location of knots used for
+#'   spline and piecewise baseline hazard specifications, corresponding with the
+#'   illness-death model transition hazards. The knots are generated according to
+#'   the description of \code{\link{get_default_knots}}.
 #'
 #' @inheritParams nll_func
 #' @param p01,p02,p03 Integers indicating how many parameters the model for each
@@ -649,8 +662,9 @@ get_default_knots_list <- function(y1,y2,delta1,delta2,p01,p02,p03,hazard,model)
 
 #' Get Starting Parameter Values
 #'
-#' A function to generate principled starting values for optimization, based on
-#'   model specifications.
+#' A function to generate principled starting values for optimization of illness-death model, based on
+#'   model specifications. Approach is to generate values for each transition using \code{\link{get_start_uni}}.
+#'   For frailty-based illness-death models, a generic start value of 0.5 is chosen for frailty log-variance parameter.
 #'
 #' @inheritParams nll_func
 #' @inheritParams FreqID_HReg2
@@ -751,15 +765,15 @@ get_start <- function(y1,y2,delta1,delta2,
 
 
 
-#' Get Non-frailty model fit
+#' Get Non-Frailty Illness-Death Model Fit
 #'
-#' A function to generate principled starting values for optimization, based on
-#'   model specifications.
+#' A fitting function used to estimate a non-frailty illness-death model.
 #'
 #' @inheritParams nll_func
 #' @inheritParams FreqID_HReg2
 #'
-#' @param startVals_nf A vector of starting parameter values, without a frailty variance.
+#' @param startVals_nf A vector of starting parameter values without a frailty variance,
+#'   such as computed by \code{\link{get_start}}.
 #'
 #' @return A vector of starting parameter values.
 #' @export
@@ -866,6 +880,7 @@ get_nf_fit <- function(startVals_nf,y1,y2,delta1,delta2,
     Finv1 <- MASS::ginv(fit01$hessian)
     Finv2 <- MASS::ginv(fit02$hessian)
     Finv3 <- MASS::ginv(fit03$hessian)
+    #create block-diagonal matrix
     Finv <- rbind(
       cbind(Finv1[1:p01,1:p01],matrix(data=0,nrow=p01,ncol=p02+p03+sum(nP))),
       cbind(matrix(data=0,nrow=p02,ncol=p01),Finv2[1:p02,1:p02],matrix(data=0,nrow=p02,ncol=p03+sum(nP))),

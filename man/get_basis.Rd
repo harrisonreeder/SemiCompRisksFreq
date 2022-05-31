@@ -14,7 +14,12 @@ to generate basis function values.}
 in the desired spline or piecewise specification. Often an element of
 list generated from \code{\link{get_default_knots_list}}.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
 \item{deriv}{Boolean for whether returned values should be from derivatives of
 basis functions if \code{TRUE}, or original basis functions if \code{FALSE}.}
@@ -24,5 +29,5 @@ A matrix with each row corresponding to an element of the input, and
 each column giving the corresponding basis function value.
 }
 \description{
-Get Basis Function Values for Flexible Hazard Specifications
+Generate a matrix of basis functions evaluated at each value of a vector \code{x}.
 }

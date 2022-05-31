@@ -37,7 +37,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                         nP0=rep(4,3), startVals=NULL, hessian=TRUE,
                         quad_method="kronrod", n_quad=15,
                         optim_method="BFGS", control=NULL){
-  browser()
+  # browser()
 
   ##INITIALIZE OPTIONS##
   ##******************##
@@ -187,19 +187,18 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                    basis1=basis1,basis2=basis2,basis3=basis3)
   }
 
-
   # #check the non-frailty likelihood and gradient functions
-  grad1 <- ngrad_func(para=startVals,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                  Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                  hazard=hazard,frailty=FALSE,model=model,
-                  basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                  dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
-  grad2 <- pracma::grad(f = nll_func, x0=startVals,
-           y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-           Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-           hazard=hazard,frailty=FALSE,model=model,
-           basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-           dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+  # grad1 <- ngrad_func(para=startVals,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+  #                 Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+  #                 hazard=hazard,frailty=FALSE,model=model,
+  #                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+  #                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+  # grad2 <- pracma::grad(f = nll_func, x0=startVals,
+  #          y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+  #          Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+  #          hazard=hazard,frailty=FALSE,model=model,
+  #          basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+  #          dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
   # stopifnot(max(abs(grad1-grad2)) < 1e-5)
   # # cbind(grad1,grad2)
 

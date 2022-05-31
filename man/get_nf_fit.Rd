@@ -2,7 +2,7 @@
 % Please edit documentation in R/model_helper_functions.R
 \name{get_nf_fit}
 \alias{get_nf_fit}
-\title{Get Non-frailty model fit}
+\title{Get Non-Frailty Illness-Death Model Fit}
 \usage{
 get_nf_fit(
   startVals_nf,
@@ -29,7 +29,8 @@ get_nf_fit(
 )
 }
 \arguments{
-\item{startVals_nf}{A vector of starting parameter values, without a frailty variance.}
+\item{startVals_nf}{A vector of starting parameter values without a frailty variance,
+such as computed by \code{\link{get_start}}.}
 
 \item{y1}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
 
@@ -86,9 +87,14 @@ Used only under Royston-Parmar model.}
 with piecewise/spline basis function derivative values at the corresponding \code{y1} and \code{y2} values.
 Used only under Royston-Parmar model.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
-\item{model}{String specifying the transition assumption}
+\item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
 
 \item{control}{a list of control attributes passed directly into the \code{optim} function.}
 
@@ -101,6 +107,5 @@ should be computed and returned.}
 A vector of starting parameter values.
 }
 \description{
-A function to generate principled starting values for optimization, based on
-model specifications.
+A fitting function used to estimate a non-frailty illness-death model.
 }

@@ -60,12 +60,17 @@ Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and 
 while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
 Not used under Weibull model.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
 \item{frailty}{Boolean indicating whether a gamma distributed subject-specific frailty should
 be included. Currently this must be set to \code{TRUE}.}
 
-\item{model}{String specifying the transition assumption}
+\item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
 
 \item{sparse_start}{Boolean indicating whether to set all regression parameters
 to 0 if \code{TRUE}, or to pre-estimate them using univariate models if \code{FALSE}.}
@@ -74,6 +79,7 @@ to 0 if \code{TRUE}, or to pre-estimate them using univariate models if \code{FA
 A vector of starting parameter values.
 }
 \description{
-A function to generate principled starting values for optimization, based on
-model specifications.
+A function to generate principled starting values for optimization of illness-death model, based on
+model specifications. Approach is to generate values for each transition using \code{\link{get_start_uni}}.
+For frailty-based illness-death models, a generic start value of 0.5 is chosen for frailty log-variance parameter.
 }

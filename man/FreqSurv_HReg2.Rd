@@ -17,8 +17,7 @@ FreqSurv_HReg2(
   control = NULL,
   quad_method = "kronrod",
   n_quad = 15,
-  optim_method = if (tolower(hazard) \%in\% c("royston-parmar", "rp")) "BFGS" else
-    "L-BFGS-B"
+  optim_method = "BFGS"
 )
 }
 \arguments{
@@ -34,7 +33,12 @@ FreqSurv_HReg2(
 
 \item{subset}{a specification of the rows to be used: defaults to all rows. See \code{\link[stats]{model.frame}}.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
 \item{knots_vec}{Used for hazard specifications besides Weibull, a
 vector increasing sequence of integers, each corresponding to
@@ -43,7 +47,7 @@ the knots for the flexible model on the baseline hazard. If
 
 \item{p0}{Integer indicating how many baseline hazard parameters
 should be specified for each of the three transition hazards. This input is only relevant when
-hazard is something other than "weibull" and is superceded by knots_vec.}
+hazard is something other than \code{"weibull"} and is superceded by knots_vec.}
 
 \item{startVals}{A numeric vector of parameter starting values, arranged as follows:
 the first \eqn{k_1+k_2+k_3} elements correspond to the baseline hazard parameters,
@@ -56,11 +60,11 @@ should be computed and returned.}
 \item{control}{a list of control attributes passed directly into the \code{optim} function.}
 
 \item{quad_method}{String indicating which quadrature method to use to evaluate numerical integral of B-spline.
-Options are 'kronrod' for Gauss-Kronrod quadrature or 'legendre' for Gauss-Legendre quadrature.}
+Options are \code{"kronrod"} for Gauss-Kronrod quadrature or \code{"legendre"} for Gauss-Legendre quadrature.}
 
 \item{n_quad}{Scalar for number of Gaussian quadrature points used to evaluate numerical integral of B-spline.}
 
-\item{optim_method}{a string naming which \code{optim} method should be used.}
+\item{optim_method}{a string naming which \code{optim} method should be used for optimization.}
 }
 \value{
 \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.

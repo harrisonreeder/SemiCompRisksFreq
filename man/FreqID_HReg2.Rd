@@ -35,12 +35,17 @@ FreqID_HReg2(
 
 \item{subset}{a specification of the rows to be used: defaults to all rows. See \code{\link[stats]{model.frame}}.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
 \item{frailty}{Boolean indicating whether a gamma distributed subject-specific frailty should
 be included. Currently this must be set to \code{TRUE}.}
 
-\item{model}{String specifying the transition assumption}
+\item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
 
 \item{knots_list}{Used for hazard specifications besides Weibull, a
 list of three increasing sequences of integers, each corresponding to

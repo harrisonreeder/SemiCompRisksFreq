@@ -13,11 +13,21 @@ get_default_knots(y, delta, p0, hazard)
 
 \item{p0}{Integer indicating how many parameters the model for the baseline hazard should specify.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 }
 \value{
-A list of three increasing sequences of integers, each corresponding to
+A vector of increasing sequences of integers, each corresponding to
 the knots for the flexible model on the corresponding transition baseline hazard.
+For cubic B-splines on log-hazard: min 0, max is max observed value of \code{y},
+\code{p0-4} internal knots placed at quantiles of observed events \code{y[delta==1]}.
+For Royston-Parmar (restricted cubic spline on log-cumulative hazard): min and max at min and max observed event times,
+\code{p0-2} internal knots placed at quantiles of observed events
+For piecewise constant: min 0, remaining \code{p0-1} knots placed at quantiles of observed events.
 }
 \description{
 This function creates a list containing three numeric vectors. Each numeric vector

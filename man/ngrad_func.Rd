@@ -45,12 +45,17 @@ then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameter
 
 \item{Xmat3}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
-\item{hazard}{String specifying the form of the baseline hazard.}
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
 \item{frailty}{Boolean indicating whether a gamma distributed subject-specific frailty should
 be included. Currently this must be set to \code{TRUE}.}
 
-\item{model}{String specifying the transition assumption}
+\item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
 
 \item{basis1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
 with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
@@ -89,8 +94,8 @@ with piecewise/spline basis function derivative values at the corresponding \cod
 Used only under Royston-Parmar model.}
 }
 \value{
-Returns numeric vector of same length as \code{para} with sum of gradient contributions
-for the negative log likelihood.
+Returns numeric vector of same length and arrangement as \code{para}
+with sum of gradient contributions for the negative log likelihood.
 }
 \description{
 Function returning the gradient of the negative log-likelihood for the illness-death model,

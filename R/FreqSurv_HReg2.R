@@ -15,7 +15,7 @@
 #'   \code{NULL}, will be created by \code{\link{get_default_knots}}.
 #' @param p0 Integer indicating how many baseline hazard parameters
 #'   should be specified for each of the three transition hazards. This input is only relevant when
-#'   hazard is something other than "weibull" and is superceded by knots_vec.
+#'   hazard is something other than \code{"weibull"} and is superceded by knots_vec.
 #' @param startVals A numeric vector of parameter starting values, arranged as follows:
 #'   the first \eqn{k_1+k_2+k_3} elements correspond to the baseline hazard parameters,
 #'   then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameters.
@@ -25,8 +25,8 @@
 #' @param control a list of control attributes passed directly into the \code{optim} function.
 #' @param n_quad Scalar for number of Gaussian quadrature points used to evaluate numerical integral of B-spline.
 #' @param quad_method String indicating which quadrature method to use to evaluate numerical integral of B-spline.
-#'   Options are 'kronrod' for Gauss-Kronrod quadrature or 'legendre' for Gauss-Legendre quadrature.
-#' @param optim_method a string naming which \code{optim} method should be used.
+#'   Options are \code{"kronrod"} for Gauss-Kronrod quadrature or \code{"legendre"} for Gauss-Legendre quadrature.
+#' @param optim_method a string naming which \code{optim} method should be used for optimization.
 #'
 #' @return \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.
 #' @import Formula
@@ -34,7 +34,7 @@
 FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                          hazard=c("weibull"), knots_vec = NULL, p0=4,
                          startVals=NULL, hessian=TRUE, control=NULL, quad_method="kronrod", n_quad=15,
-                         optim_method = if(tolower(hazard) %in% c("royston-parmar","rp")) "BFGS" else "L-BFGS-B"){
+                         optim_method = "BFGS"){
   # browser()
   ##Check that chosen hazard is among available options
   if(!(tolower(hazard) %in% c("weibull","royston-parmar","bspline","piecewise","wb","pw","bs","rp"))){
@@ -99,7 +99,7 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
         basis <- basis - get_basis(x=yL,knots=knots_vec,hazard=hazard)
       }
     } else if(hazard %in% c("bspline","bs")){
-      if(anyLT){
+      if(anyLT){ #presence of left-truncation
         #note yL is lower bound of integral to account for left truncation
         y_quad <- c(y, transform_quad_points(n_quad=n_quad,
                                              quad_method=quad_method,
@@ -115,7 +115,7 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     } else if(hazard %in% c("royston-parmar","rp")){
       basis <- get_basis(x=y,knots=knots_vec,hazard=hazard)
       dbasis <- get_basis(x=y,knots=knots_vec,hazard=hazard,deriv=TRUE)
-      #royston-parmar model requires separate basis3 matrix for left truncation
+      #royston-parmar model requires separate matrix for left truncation
       basis_yL <- if(anyLT) get_basis(x=yL,knots=knots_vec,hazard=hazard) else NULL
     }
   } else{
@@ -123,6 +123,7 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     p0 <- 2 #must be weibull
   }
 
+  #if the user has not provided start values, we generate them here
   if(is.null(startVals)){
     startVals <- get_start_uni(y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,knots=knots_vec,
                                hazard=hazard,basis=basis)
@@ -134,14 +135,17 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   if(hazard %in% c("bspline","bs") & anyLT){ y <- y-yL }
 
 
-  #check the likelihood and gradient functions
-  grad1 <- ngrad_uni_func(para=startVals,
-                 y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                 basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT)
-  grad2 <- pracma::grad(f = nll_uni_func, x0=startVals,
-                 y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                 basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT)
-  stopifnot(max(abs(grad1-grad2)) < 1e-5)
+  # #check the likelihood and gradient functions
+  # grad1 <- ngrad_uni_func(para=startVals,
+  #                y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+  #                basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT)
+  # grad2 <- pracma::grad(f = nll_uni_func, x0=startVals,
+  #                y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+  #                basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT)
+  # if(max(abs(grad1-grad2)) >= 1e-5){
+  #   warning(paste0("gradient function and pracma::grad have max difference (on sum scale) of ",
+  #                  max(abs(grad1-grad2))))
+  # }
   # cbind(grad1,grad2)
 
 
