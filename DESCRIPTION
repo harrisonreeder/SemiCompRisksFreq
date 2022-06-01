@@ -19,6 +19,7 @@ LinkingTo:
 Imports: 
     Formula,
     MASS,
+    nleqslv,
     pracma,
     Rcpp,
     splines2,

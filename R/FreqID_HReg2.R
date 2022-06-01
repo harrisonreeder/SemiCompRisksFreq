@@ -37,7 +37,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                         nP0=rep(4,3), startVals=NULL, hessian=TRUE,
                         quad_method="kronrod", n_quad=15,
                         optim_method="BFGS", control=NULL){
-  # browser()
+  browser()
 
   ##INITIALIZE OPTIONS##
   ##******************##
@@ -181,144 +181,151 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   #if the user has not provided start values, we generate them here
   #we start by fitting non-frailty model, so startVals is generated without frailty variance
   if(is.null(startVals)){
-    startVals <- get_start(y1=y1,y2=y2,delta1=delta1,delta2=delta2,
+    startVals_nf <- get_start(y1=y1,y2=y2,delta1=delta1,delta2=delta2,
                    Xmat1=Xmat1,Xmat2=Xmat2,Xmat3=Xmat3,
                    hazard=hazard,frailty=FALSE,model=model,knots_list=knots_list,
                    basis1=basis1,basis2=basis2,basis3=basis3)
-  }
 
-  # #check the non-frailty likelihood and gradient functions
-  # grad1 <- ngrad_func(para=startVals,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-  #                 Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-  #                 hazard=hazard,frailty=FALSE,model=model,
-  #                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-  #                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
-  # grad2 <- pracma::grad(f = nll_func, x0=startVals,
-  #          y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-  #          Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-  #          hazard=hazard,frailty=FALSE,model=model,
-  #          basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-  #          dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
-  # stopifnot(max(abs(grad1-grad2)) < 1e-5)
-  # # cbind(grad1,grad2)
+    # nll_ltheta_func <- function(x){
+    #   nll_func(para=c(startVals_nf[1:sum(nP0)],x,startVals_nf[-(1:sum(nP0))]),
+    #          y1=y1, y2=y2,
+    #          delta1=delta1, delta2=delta2,
+    #          Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+    #          hazard=hazard,frailty=frailty,model=model,
+    #          basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+    #          dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)}
+    # start_ltheta <- stats::optimize(f = nll_ltheta_func,interval = c(-10,5))$minimum
+    start_ltheta <- log(1)
+
+    startVals <- c(startVals_nf[1:sum(nP0)],start_ltheta,startVals_nf[-(1:sum(nP0))])
+  } else{
+    startVals_nf <- if(frailty) startVals[-(nP0+1)] else startVals
+  }
 
   ##FIT MODEL##
   ##*********##
   if(!frailty){
     #instead of fitting a non-frailty model directly, we fit it as three
     #univariate models for the three transitions.
-    value <- get_nf_fit(startVals_nf=startVals,
+    value <- get_nf_fit(startVals_nf=startVals_nf,
                 y1=y1, y2=y2, delta1=delta1, delta2=delta2,
                 Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                 hazard=hazard,model=model,
                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
                 control=con, hessian=hessian,optim_method=optim_method)
-
-    # #compute and store final gradient of negative log likelihood
-    # value$fit_nf$ngrad <- ngrad_func(para=value$fit_nf,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-    #                         Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-    #                         hazard=hazard,frailty=FALSE,model=model,
-    #                         basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-    #                         dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+    #compute and store final gradient of log likelihood
+    value$grad <- -ngrad_func(para=value$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                      Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                      hazard=hazard,frailty=FALSE,model=model,
+                      basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                      dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
 
   } else{
 
+    #create list that we will fill with results
     value <- list()
-    #First, maximize the likelihood without a frailty using univariate functions
-    value$fit_nf <- get_nf_fit(startVals_nf=startVals,
-                        y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                        Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                        hazard=hazard,model=model,
-                        basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                        dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                        control=con, hessian=hessian,optim_method=optim_method)
 
-    # #compute and store final gradient of negative log likelihood
-    # value$fit_nf$ngrad <- ngrad_func(para=value$fit_nf,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-    #                         Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-    #                         hazard=hazard,frailty=FALSE,model=model,
-    #                         basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-    #                         dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
 
-    # #Alternatively, maximize the likelihood without a frailty using joint function
-    # fit0_nf <- stats::optim(par=startVals, fn=nll_func, gr=ngrad_func,
-    #                         y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-    #                         Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-    #                         hazard=hazard,frailty=FALSE,model=model,
-    #                         basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-    #                         dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-    #                         control=con, hessian=hessian,method=optim_method)
-    # c(fit0_nf$value,value$fit_nf$logLike); cbind(value$fit_nf$estimate,fit0_nf$par)
-    # value$fit_nf <- list(estimate=fit0_nf$par,
-    #                      Finv=if(hessian) MASS::ginv(fit0_nf$hessian) else NA,
-    #                      logLike=-fit0_nf$value,
-    #                      optim_details=list(counts=fit0_nf$counts,
-    #                                         convergence=fit0_nf$convergence,
-    #                                         message=fit0_nf$message),
-    #                      startVals=startVals[-(sum(nP0)+1)])
+    #two options for optimization approaches: optim(), and nleqslv()
+    if(tolower(optim_method)=="nleqslv"){
 
-    #now, use nonfrailty estimates and a frailty variance value of 0.1 as start values
-    #for frailty-based illness-death model
-    startVals2 <- c(startVals[1:sum(nP0)],log(0.1),startVals[-(1:sum(nP0))])
+      fit0 <- tryCatch(nleqslv::nleqslv(x=startVals, fn=ngrad_func,
+                                    method="Broyden",global = "dbldog",
+                                    y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                                    Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                                    hazard=hazard,frailty=frailty,model=model,
+                                    basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                                    dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                                    control=con, jacobian=hessian),
+                       error=function(cnd){message(cnd); cat("\n")
+                         return(list(fail=TRUE, formula=form2,
+                                     hazard=hazard,frailty=frailty,model=model,
+                                     startVals=startVals,knots_list=knots_list,
+                                     basis1=basis1,basis2=basis2,basis3=basis3,
+                                     dbasis1=dbasis1,dbasis2=dbasis2,dbasis3=dbasis3,
+                                     control=control))})
+      #If optimization fails, return list of inputs and flag "fail=TRUE"
+      if(!is.null(fit0$fail)){ return(fit0)}
+      if (!(fit0$termcd %in% c(1,2))){warning("check convergence.")}
 
-    # #check the frailty likelihood and gradient functions
-    # grad1 <- ngrad_func(para=startVals2,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-    #                     Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-    #                     hazard=hazard,frailty=frailty,model=model,
-    #                     basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-    #                     dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
-    # grad2 <- pracma::grad(f = nll_func, x0=startVals2,
-    #                       y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-    #                       Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-    #                       hazard=hazard,frailty=frailty,model=model,
-    #                       basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-    #                       dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
-    # stopifnot(max(abs(grad1-grad2)) < 1e-5)
-    # # cbind(grad1,grad2)
+      #prepare the results from the nleqslv function into the output format
+      value$estimate <- fit0$x
+      value$Finv <- if(hessian) MASS::ginv(fit0$jac) else NA
+      value$logLike <- -nll_func(para=value$estimate,y1=y1, y2=y2,
+                                 delta1=delta1, delta2=delta2,
+                                 Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                                 hazard=hazard,frailty=frailty,model=model,
+                                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+      #WHAT TO DO IF THIS IS NaN, which has occurred for royston-parmar model
 
-    fit0 <- tryCatch(stats::optim(par=startVals2, fn=nll_func, gr=ngrad_func,
-                        y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                        Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                        hazard=hazard,frailty=frailty,model=model,
-                        basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                        dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                        control=con, hessian=hessian,method=optim_method),
-                     error=function(cnd){message(cnd); cat("\n")
-                       return(list(fail=TRUE, formula=form2,
-                                   hazard=hazard,frailty=frailty,model=model,
-                                   startVals=startVals,knots_list=knots_list,
-                                   basis1=basis1,basis2=basis2,basis3=basis3,
-                                   dbasis1=dbasis1,dbasis2=dbasis2,dbasis3=dbasis3,
-                                   control=control))})
-    #If optimization fails, return list of inputs and flag "fail=TRUE"
-    if(!is.null(fit0$fail)){ return(fit0)}
-    if (!(fit0$convergence %in% c(0,1))){warning("check convergence.")}
+      value$optim_details <- list(counts=fit0$iter,
+                                  convergence=fit0$termcd,
+                                  message=fit0$message)
+      value$grad <- -fit0$fvec
 
-    #prepare the results from the optim function into the output format
-    value$estimate <- fit0$par
-    value$Finv <- if(hessian) MASS::ginv(fit0$hessian) else NA
-    value$logLike <- -fit0$value
+    } else{ #use method from optim()
 
-    # #compute and store final gradient of negative log likelihood
-    # value$ngrad <- ngrad_func(para=fit0$par,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-    #                         Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-    #                         hazard=hazard,frailty=FALSE,model=model,
-    #                         basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-    #                         dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+      fit0 <- tryCatch(stats::optim(par=startVals, fn=nll_func, gr=ngrad_func,
+                                    y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                                    Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                                    hazard=hazard,frailty=frailty,model=model,
+                                    basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                                    dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                                    control=con, hessian=hessian,method=optim_method),
+                       error=function(cnd){message(cnd); cat("\n")
+                         return(list(fail=TRUE, formula=form2,
+                                     hazard=hazard,frailty=frailty,model=model,
+                                     startVals=startVals,knots_list=knots_list,
+                                     basis1=basis1,basis2=basis2,basis3=basis3,
+                                     dbasis1=dbasis1,dbasis2=dbasis2,dbasis3=dbasis3,
+                                     control=control))})
+      #If optimization fails, return list of inputs and flag "fail=TRUE"
+      if(!is.null(fit0$fail)){ return(fit0)}
+      if (!(fit0$convergence %in% c(0,1))){warning("check convergence.")}
 
-    value$optim_details <- list(counts=fit0$counts,
-                                     convergence=fit0$convergence,
-                                     message=fit0$message)
-    value$startVals <- startVals2
+      #prepare the results from the optim function into the output format
+      value$estimate <- fit0$par
+      value$Finv <- if(hessian) MASS::ginv(fit0$hessian) else NA
+      value$logLike <- -fit0$value
+      value$optim_details <- list(counts=fit0$counts,
+                                  convergence=fit0$convergence,
+                                  message=fit0$message)
+      #compute and store final gradient of log likelihood
+      value$grad <- as.vector(-ngrad_func(para=value$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                                Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                                hazard=hazard,frailty=frailty,model=model,
+                                basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
+    }
+    value$startVals <- startVals
     myLabels <- c(myLabels, "log(theta)")
 
-    #compute a likelihood-ratio test for the frailty, just for fun
+
+
+    ##FINALLY, OPTIONALLY COMPUTE NON-FRAILTY MODEL FOR COMPARISON##
+    #First, maximize the likelihood without a frailty using univariate functions
+    value$fit_nf <- get_nf_fit(startVals_nf=startVals_nf,
+                               y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                               Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                               hazard=hazard,model=model,
+                               basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                               dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                               control=con, hessian=hessian,optim_method=optim_method)
+    #compute and store final gradient of log likelihood (non-frailty model)
+    value$fit_nf$grad <- as.vector(-ngrad_func(para=value$fit_nf$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                                     Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                                     hazard=hazard,frailty=FALSE,model=model,
+                                     basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                                     dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
+    #compute a likelihood-ratio test for the frailty
     #if the frailty likelihood is below the non-frailty likelihood, set to 0
     frail_test <- max(0,2*(value$logLike - value$fit_nf$logLike))
     if(frail_test >= 0){
       value$frailty_test <- c(
         stat=frail_test,
+        #corrected null distribution
         pval= 0.5 * (stats::pchisq(q = frail_test,df = 0,lower.tail = FALSE) +
                        stats::pchisq(q = frail_test,df = 1,lower.tail = FALSE))
       )
@@ -338,6 +345,8 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   value$ymax <- max(y2)
   value$n_quad <- n_quad
   value$quad_method <- quad_method
+
+
   value$class <- c("Freq_HReg2","ID","Ind",
                    switch(tolower(hazard),
                           weibull="Weibull",wb="Weibull",
