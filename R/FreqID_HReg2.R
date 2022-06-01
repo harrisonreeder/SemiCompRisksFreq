@@ -230,8 +230,6 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
                 control=con, hessian=hessian,optim_method=optim_method)
 
-    value$Finv = if(hessian) MASS::ginv(value$nhess) else NA
-
     ##FINALLY, OPTIONALLY COMPUTE NON-FRAILTY MODEL FOR COMPARISON##
     #First, maximize the likelihood without a frailty using univariate functions
     fit_nf <- get_fit_nf(startVals_nf=startVals_nf,
@@ -241,17 +239,30 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
                control=con, hessian=hessian,optim_method=optim_method)
+
+    if(!is.null(value$fail)){
+      return(list(fail=TRUE, formula=form2,
+                  hazard=hazard,frailty=frailty,model=model,
+                  startVals=startVals,knots_list=knots_list,
+                  basis1=basis1,basis2=basis2,basis3=basis3,
+                  dbasis1=dbasis1,dbasis2=dbasis2,dbasis3=dbasis3,
+                  optim_method=optim_method,control=con,fit_nf=fit_nf))
+    }
+
     #compute a likelihood-ratio test for the frailty
     #if the frailty likelihood is below the non-frailty likelihood, set to 0
     frail_test_stat <- max(0,2*(value$logLike - fit_nf$logLike))
-    if(frail_test_stat >= 0){
+    if(!is.na(frail_test_stat) & frail_test_stat >= 0){
       frailty_test <- c(
         stat=frail_test_stat,
         #corrected null distribution (mixture of chi-squareds)
         pval= 0.5 * (stats::pchisq(q = frail_test_stat,df = 0,lower.tail = FALSE) +
                        stats::pchisq(q = frail_test_stat,df = 1,lower.tail = FALSE))
       )
-    } else{frailty_test <- NULL}
+    } else{frailty_test <- c(stat=NA,pval=NA)}
+
+    value$Finv = if(hessian) MASS::ginv(value$nhess) else NA
+
   }
 
   ##PREPARE OUTPUTS##
@@ -268,7 +279,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
              knots_list=knots_list,
              myLabels=myLabels,
              formula=form2,nP=nP,nP0=nP0,nobs=length(y1),ymax=max(y2),n_quad=n_quad,
-             quad_method=quad_method,optim_method=optim_method,
+             quad_method=quad_method,optim_method=optim_method,control=con,
              frailty=frailty,
              frailty_test = if(frailty) frailty_test else NULL,
              fit_nf = if(frailty) fit_nf else NULL)

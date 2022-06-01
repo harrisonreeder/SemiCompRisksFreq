@@ -173,7 +173,7 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     knots_vec=knots_vec,
     myLabels=myLabels,
     formula=form2,nP=nP,nP0=nP0,nobs=length(y),ymax=max(y),n_quad=n_quad,
-    quad_method=quad_method,optim_method=optim_method)
+    quad_method=quad_method,optim_method=optim_method,control=con)
 
   value$class <- c("Freq_HReg2","Surv","Ind",
                    switch(tolower(hazard),

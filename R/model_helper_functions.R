@@ -646,81 +646,104 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
                         basis, dbasis, basis_yL, hazard,
                         control, hessian, optim_method){
 
-  #two options for optimization approaches: optim(), and nleqslv()
-  if(tolower(optim_method)=="nlm"){
-    fit0 <- tryCatch(stats::nlm(p=startVals, #print.level = 2,
-                                f = nll_ngrad_uni_func,
-                                y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                basis=basis,dbasis=dbasis,
-                                basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                                iterlim=if(!is.null(control)) control$maxit else 100,
-                                hessian=hessian),
-                     error=function(cnd){
-                       message(cnd)
-                       cat("\n")
-                       return(NULL)
-                     })
-    if(is.null(fit0)){ return(list(fail=TRUE))}
-    if (!(fit0$code %in% c(1,2))){warning("check convergence.")}
-    final_est <- fit0$estimate
-    final_ll <- -fit0$minimum
-    final_grad <- -fit0$gradient
-    final_nhess <- if(hessian) fit0$hessian else NA
-    optim_details = list(counts=fit0$iterations,
-                         convergence=fit0$code,
-                         message=NULL)
+  best_ll <- -Inf
+  output <- list(fail=TRUE)
 
-  } else if(tolower(optim_method)=="nleqslv"){
-    fit0 <- tryCatch(nleqslv::nleqslv(x=startVals,fn = ngrad_uni_func,
-                                      method = "Broyden", global="dbldog",
-                                      y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                      basis=basis,dbasis=dbasis,
-                                      basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                                      control=control, jacobian=hessian),
-                     error=function(cnd){
-                       message(cnd)
-                       cat("\n")
-                       return(NULL)
-                     })
-    if(is.null(fit0)){ return(list(fail=TRUE))}
-    if (!(fit0$termcd %in% c(1,2))){warning("check convergence.")}
-    final_est <- fit0$x
-    final_ll <- -nll_uni_func(para=final_est, y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                              basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT)
-    final_grad <- -fit0$fvec
-    final_nhess <- if(hessian) fit0$jac else NA
-    optim_details = list(counts=fit0$iter,
-                         convergence=fit0$termcd,
-                         message=fit0$message)
+  #loop through multiple options!
+  for(meth in optim_method){
 
-  } else{ #use method from optim()
-    fit0 <- tryCatch(stats::optim(par=startVals, fn=nll_uni_func, gr=ngrad_uni_func,
+    #two options for optimization approaches: optim(), and nleqslv()
+    if(tolower(meth)=="nlm"){
+      fit0 <- tryCatch(stats::nlm(p=startVals, #print.level = 2,
+                                  f = nll_ngrad_uni_func,
                                   y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                  basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                                  control=control, hessian=hessian,method = optim_method),
-                     error=function(cnd){
-                       message(cnd)
-                       cat("\n")
-                       return(NULL)
-                     })
-    if(is.null(fit0)){ return(list(fail=TRUE))}
-    if (!(fit0$convergence %in% c(0,1))){warning("check convergence.")}
-    final_est <- fit0$par
-    final_ll <- -fit0$value
-    final_grad <- as.vector(-ngrad_uni_func(para=final_est, y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                            basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT))
-    final_nhess <- if(hessian) fit0$hessian else NA
-    optim_details = list(counts=fit0$counts,
-                         convergence=fit0$convergence,
-                         message=fit0$message)
+                                  basis=basis,dbasis=dbasis,
+                                  basis_yL=basis_yL,yL=yL,anyLT=anyLT,
+                                  iterlim=if(!is.null(control)) control$maxit else 100,
+                                  hessian=hessian),
+                       error=function(cnd){message(cnd);cat("\n");return(NULL)})
+      if(is.null(fit0)){ next }
+      if (!(fit0$code %in% c(1,2))){warning("for method ",meth,"check convergence.")}
+      final_ll <- -fit0$minimum
+      if(final_ll <= best_ll){next}
+      best_ll <- final_ll
+      final_est <- fit0$estimate
+      final_grad <- -fit0$gradient
+      final_nhess <- if(hessian) fit0$hessian else NA
+      optim_details = list(optim_method=meth,
+                           counts=fit0$iterations,
+                           convergence=fit0$code,
+                           message=NULL)
+
+    } else if(tolower(meth)=="nleqslv"){
+      fit0 <- tryCatch(nleqslv::nleqslv(x=startVals,fn = ngrad_uni_func,
+                                        method = "Broyden", global="dbldog",
+                                        y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+                                        basis=basis,dbasis=dbasis,
+                                        basis_yL=basis_yL,yL=yL,anyLT=anyLT,
+                                        control=control,
+                                        # control=if(is.null(control$allowSingular)) c(control,allowSingular=TRUE) else control,
+                                        jacobian=hessian),
+                       error=function(cnd){message(cnd);cat("\n");return(NULL)})
+      if(is.null(fit0)){ next }
+      if (!(fit0$termcd %in% c(1,2))){warning("for method ",meth,"check convergence.")}
+
+      #if the final value of nleqslv actually causes an error, catch it and set likelihood to -Inf
+      final_ll <- tryCatch(-nll_uni_func(para=fit0$x, y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+                                basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT),
+                           error=function(cnd){message(cnd);cat("\n");return(-Inf)})
+      if(final_ll <= best_ll){next}
+      best_ll <- final_ll
+      final_est <- fit0$x
+      final_grad <- -fit0$fvec
+      final_nhess <- if(hessian) fit0$jac else NA
+      optim_details = list(optim_method=meth,
+                           counts=fit0$iter,
+                           convergence=fit0$termcd,
+                           message=fit0$message)
+
+    } else{ #use method from optim()
+
+      # fit0 <- try(stats::optim(par=startVals, fn=nll_uni_func, gr=ngrad_uni_func,
+      #                          y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+      #                          basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT,
+      #                          control=control, hessian=hessian,method = meth))
+      # if(class(fit0)=="try-error"){ next }
+
+      #this is being a little weird today, in browser when L-BFGS fails it stops like a normal error
+      fit0 <- tryCatch(stats::optim(par=startVals, fn=nll_uni_func, gr=ngrad_uni_func,
+                                    y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+                                    basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT,
+                                    control=control, hessian=hessian,method = meth),
+                       error=function(cnd){message(cnd);cat("\n");return(NULL)})
+      if(is.null(fit0)){ next }
+      if (!(fit0$convergence %in% c(0,1))){warning("for method ",meth,"check convergence.")}
+      final_ll <- -fit0$value
+      if(final_ll <= best_ll){next}
+      best_ll <- final_ll
+      final_est <- fit0$par
+      final_grad <- as.vector(-ngrad_uni_func(para=final_est, y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+                                              basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT))
+      final_nhess <- if(hessian) fit0$hessian else NA
+      optim_details = list(optim_method=meth,
+                           counts=fit0$counts,
+                           convergence=fit0$convergence,
+                           message=fit0$message)
+    }
+
   }
 
-  list(estimate=final_est,
-       logLike=final_ll,
-       grad=final_grad,
-       nhess=final_nhess,
-       optim_details=optim_details,
-       startVals=startVals)
+  #if any of the methods worked, then set the output to correspond with the best method
+  if(best_ll > -Inf){
+    output <- list(estimate=final_est,
+                   logLike=final_ll,
+                   grad=final_grad,
+                   nhess=final_nhess,
+                   optim_details=optim_details,
+                   startVals=startVals)
+  }
+  output
+
 }
 
 
@@ -998,98 +1021,117 @@ get_fit_frail <- function(startVals,y1,y2,delta1,delta2,
                        hazard,model,frailty,control,hessian,optim_method){
   # browser()
 
+  best_ll <- -Inf
+  output <- list(fail=TRUE)
 
-  #two options for optimization approaches: optim(), and nleqslv()
-  if(tolower(optim_method)=="nlm"){
-    fit0 <- tryCatch(stats::nlm(p=startVals, f=nll_ngrad_func,
-                                y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                                Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                                hazard=hazard,frailty=frailty,model=model,
-                                basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                                iterlim=if(!is.null(control)) control$maxit else 100,
-                                hessian=hessian),
-                     error=function(cnd){
-                       message(cnd)
-                       cat("\n")
-                       return(NULL)
-                     })
-    if(is.null(fit0)){ return(list(fail=TRUE))}
-    if (!(fit0$code %in% c(1,2))){warning("check convergence.")}
-    final_est <- fit0$estimate
-    final_ll <- -fit0$minimum
-    final_grad <- -fit0$gradient
-    final_nhess <- if(hessian) fit0$hessian else NA
-    optim_details = list(counts=fit0$iterations,
-                         convergence=fit0$code,
-                         message=NULL)
+  #loop through multiple options!
+  for(meth in optim_method){
 
-  } else if(tolower(optim_method)=="nleqslv"){
-    fit0 <- tryCatch(nleqslv::nleqslv(x=startVals, fn=ngrad_func,
-                        method="Broyden",global = "dbldog",
-                        y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                        Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                        hazard=hazard,frailty=frailty,model=model,
-                        basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                        dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                        control=control, jacobian=hessian),
-                     error=function(cnd){
-                       message(cnd)
-                       cat("\n")
-                       return(NULL)
-                     })
-    if(is.null(fit0)){ return(list(fail=TRUE))}
-    if (!(fit0$termcd %in% c(1,2))){warning("check convergence.")}
-    final_est <- fit0$x
-    final_ll <- -nll_func(para=final_est, y1=y1, y2=y2,
-                              delta1=delta1, delta2=delta2,
-                              Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                              hazard=hazard,frailty=frailty,model=model,
-                              basis1=basis1, basis2=basis2,
-                              basis3=basis3, basis3_y1=basis3_y1,
-                              dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
-    final_grad <- -fit0$fvec
-    final_nhess <- if(hessian) fit0$jac else NA
-    optim_details = list(counts=fit0$iter,
-                         convergence=fit0$termcd,
-                         message=fit0$message)
 
-  } else{ #use method from optim()
-    fit0 <- tryCatch(stats::optim(par=startVals, fn=nll_func, gr=ngrad_func,
-                        y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                        Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                        hazard=hazard,frailty=frailty,model=model,
-                        basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                        dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                        control=control, hessian=hessian,method=optim_method),
-                     error=function(cnd){
-                       message(cnd)
-                       cat("\n")
-                       return(NULL)
-                     })
-    if(is.null(fit0)){ return(list(fail=TRUE))}
-    if (!(fit0$convergence %in% c(0,1))){warning("check convergence.")}
-    final_est <- fit0$par
-    final_ll <- -fit0$value
-    final_grad <- as.vector(-ngrad_func(para=final_est, y1=y1, y2=y2,
-                                delta1=delta1, delta2=delta2,
-                                Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                                hazard=hazard,frailty=frailty,model=model,
-                                basis1=basis1, basis2=basis2,
-                                basis3=basis3, basis3_y1=basis3_y1,
-                                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
-    final_nhess <- if(hessian) fit0$hessian else NA
-    optim_details = list(counts=fit0$counts,
-                         convergence=fit0$convergence,
-                         message=fit0$message)
+    #two options for optimization approaches: optim(), and nleqslv()
+    if(tolower(meth)=="nlm"){
+      fit0 <- tryCatch(stats::nlm(p=startVals, f=nll_ngrad_func,
+                                  y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                                  Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                                  hazard=hazard,frailty=frailty,model=model,
+                                  basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                                  dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                                  iterlim=if(!is.null(control)) control$maxit else 100,
+                                  hessian=hessian),
+                       error=function(cnd){message(cnd);cat("\n");return(NULL)})
+      if(is.null(fit0)){ next }
+      if (!(fit0$code %in% c(1,2))){warning("check convergence.")}
+      final_ll <- -fit0$minimum
+      if(final_ll <= best_ll){next}
+      best_ll <- final_ll
+      final_est <- fit0$estimate
+      final_grad <- -fit0$gradient
+      final_nhess <- if(hessian) fit0$hessian else NA
+      optim_details = list(optim_method=meth,
+                           counts=fit0$iterations,
+                           convergence=fit0$code,
+                           message=NULL)
+
+    } else if(tolower(meth)=="nleqslv"){
+      fit0 <- tryCatch(nleqslv::nleqslv(x=startVals, fn=ngrad_func,
+                          method="Broyden",global = "dbldog",
+                          y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                          Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                          hazard=hazard,frailty=frailty,model=model,
+                          basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                          dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                          control=control,
+                          # control=if(is.null(control$allowSingular)) c(control,allowSingular=TRUE) else control,
+                          jacobian=hessian),
+                       error=function(cnd){message(cnd);cat("\n");return(NULL)})
+      if(is.null(fit0)){ return(list(fail=TRUE))}
+      if (!(fit0$termcd %in% c(1,2))){warning("check convergence.")}
+      #if the final value of nleqslv actually causes an error, catch it and set likelihood to -Inf
+      final_ll <- tryCatch(-nll_func(para=fit0$x, y1=y1, y2=y2,
+                            delta1=delta1, delta2=delta2,
+                            Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                            hazard=hazard,frailty=frailty,model=model,
+                            basis1=basis1, basis2=basis2,
+                            basis3=basis3, basis3_y1=basis3_y1,
+                            dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3),
+                           error=function(cnd){
+                             message(cnd)
+                             cat("\n")
+                             return(-Inf)
+                           })
+
+      if(final_ll <= best_ll){next}
+      best_ll <- final_ll
+      final_est <- fit0$x
+      final_grad <- -fit0$fvec
+      final_nhess <- if(hessian) fit0$jac else NA
+      optim_details = list(optim_method=meth,
+                           counts=fit0$iter,
+                           convergence=fit0$termcd,
+                           message=fit0$message)
+
+    } else{ #use method from optim()
+      fit0 <- tryCatch(stats::optim(par=startVals, fn=nll_func, gr=ngrad_func,
+                          y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                          Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                          hazard=hazard,frailty=frailty,model=model,
+                          basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                          dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                          control=control, hessian=hessian,method=meth),
+                       error=function(cnd){message(cnd);cat("\n");return(NULL)})
+      if(is.null(fit0)){ return(list(fail=TRUE))}
+      if (!(fit0$convergence %in% c(0,1))){warning("check convergence.")}
+      final_ll <- -fit0$value
+      if(final_ll <= best_ll){next}
+      best_ll <- final_ll
+      final_est <- fit0$par
+      final_grad <- as.vector(-ngrad_func(para=final_est, y1=y1, y2=y2,
+                                  delta1=delta1, delta2=delta2,
+                                  Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                                  hazard=hazard,frailty=frailty,model=model,
+                                  basis1=basis1, basis2=basis2,
+                                  basis3=basis3, basis3_y1=basis3_y1,
+                                  dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
+      final_nhess <- if(hessian) fit0$hessian else NA
+      optim_details = list(optim_method=meth,
+                           counts=fit0$counts,
+                           convergence=fit0$convergence,
+                           message=fit0$message)
+    }
   }
 
-  list(estimate=final_est,
-       logLike=final_ll,
-       grad=final_grad,
-       nhess=final_nhess,
-       optim_details=optim_details,
-       startVals=startVals)
+
+  #if any of the methods worked, then set the output to correspond with the best method
+  if(best_ll > -Inf){
+    output <- list(estimate=final_est,
+                   logLike=final_ll,
+                   grad=final_grad,
+                   nhess=final_nhess,
+                   optim_details=optim_details,
+                   startVals=startVals)
+  }
+
+  output
 }
 
 
