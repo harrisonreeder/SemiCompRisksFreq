@@ -112,8 +112,27 @@ ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat, hazard, basis, dbasi
 
 
 
-
-
+#' Combined function with Negative Log-Likelihood Function and Gradient for Univariate Survival Model
+#'
+#' Function returning the negative log-likelihood for the illness-death model,
+#'   under specified baseline hazard, and specified frailty,
+#'   and specified Markov/semi-Markov transition assumption.
+#'   Typically, this function will not be used directly by the user, but as part of a
+#'   larger estimation procedure.
+#' @inheritParams nll_uni_func
+#'
+#' @return Returns numeric sum of negative log likelihood contributions.
+#' @export
+nll_ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat, hazard,
+                               basis, dbasis, basis_yL){
+  value <- nll_uni_func(para=para, y=y, delta=delta, yL=yL,
+              anyLT=anyLT, Xmat=Xmat, hazard=hazard,
+              basis=basis, dbasis=dbasis, basis_yL=basis_yL)
+  attr(value,"gradient") <- ngrad_uni_func(para=para, y=y, delta=delta, yL=yL,
+                               anyLT=anyLT, Xmat=Xmat, hazard=hazard,
+                               basis=basis, dbasis=dbasis, basis_yL=basis_yL)
+  value
+}
 
 
 
@@ -365,6 +384,38 @@ ngrad_func <- function(para, y1, y2, delta1, delta2, Xmat1, Xmat2, Xmat3,
   } else {stop("please choose hazard of 'weibull', 'bspline', 'royston-parmar', or 'piecewise'")}
   return( ngrad )
 }
+
+
+#' Combined function with Negative Log-Likelihood Function and Gradient for Univariate Survival Model
+#'
+#' Function returning the negative log-likelihood for the illness-death model,
+#'   under specified baseline hazard, and specified frailty,
+#'   and specified Markov/semi-Markov transition assumption.
+#'   Typically, this function will not be used directly by the user, but as part of a
+#'   larger estimation procedure.
+#' @inheritParams nll_func
+#'
+#' @return Returns numeric sum of negative log likelihood contributions.
+#' @export
+nll_ngrad_func <- function(para, y1, y2, delta1, delta2, Xmat1, Xmat2, Xmat3,
+                           hazard, frailty, model,
+                           basis1, basis2, basis3, basis3_y1,
+                           dbasis1, dbasis2, dbasis3){
+  value <- nll_func(para=para, y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                    Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                    hazard=hazard, frailty=frailty, model=model,
+                    basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                    dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+  attr(value,"gradient") <- ngrad_func(para=para, y1=y1, y2=y2,
+                             delta1=delta1, delta2=delta2,
+                             Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                             hazard=hazard, frailty=frailty, model=model,
+                             basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                             dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+  value
+}
+
+
 
 
 

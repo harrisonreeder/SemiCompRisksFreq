@@ -648,12 +648,12 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
 
   #two options for optimization approaches: optim(), and nleqslv()
   if(tolower(optim_method)=="nlm"){
-    fit0 <- tryCatch(stats::nlm(p=startVals,
+    fit0 <- tryCatch(stats::nlm(p=startVals, #print.level = 2,
                                 f = nll_ngrad_uni_func,
                                 y=y, delta=delta,Xmat=Xmat,hazard=hazard,
                                 basis=basis,dbasis=dbasis,
                                 basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                                iterlim=if(!is.null(control)) control$maxit else NULL,
+                                iterlim=if(!is.null(control)) control$maxit else 100,
                                 hessian=hessian),
                      error=function(cnd){
                        message(cnd)
@@ -665,7 +665,7 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
     final_est <- fit0$estimate
     final_ll <- -fit0$minimum
     final_grad <- -fit0$gradient
-    final_Finv <- if(hessian) MASS::ginv(fit0$hessian) else NA
+    final_nhess <- if(hessian) fit0$hessian else NA
     optim_details = list(counts=fit0$iterations,
                          convergence=fit0$code,
                          message=NULL)
@@ -688,7 +688,7 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
     final_ll <- -nll_uni_func(para=final_est, y=y, delta=delta,Xmat=Xmat,hazard=hazard,
                               basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT)
     final_grad <- -fit0$fvec
-    final_Finv <- if(hessian) MASS::ginv(fit0$jac) else NA
+    final_nhess <- if(hessian) fit0$jac else NA
     optim_details = list(counts=fit0$iter,
                          convergence=fit0$termcd,
                          message=fit0$message)
@@ -709,17 +709,18 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
     final_ll <- -fit0$value
     final_grad <- as.vector(-ngrad_uni_func(para=final_est, y=y, delta=delta,Xmat=Xmat,hazard=hazard,
                                             basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT))
-    final_Finv <- if(hessian) MASS::ginv(fit0$hessian) else NA
+    final_nhess <- if(hessian) fit0$hessian else NA
     optim_details = list(counts=fit0$counts,
                          convergence=fit0$convergence,
                          message=fit0$message)
   }
 
   list(estimate=final_est,
-       logLik=final_ll,
+       logLike=final_ll,
        grad=final_grad,
-       Finv=final_Finv)
-
+       nhess=final_nhess,
+       optim_details=optim_details,
+       startVals=startVals)
 }
 
 
@@ -873,14 +874,12 @@ get_start <- function(y1,y2,delta1,delta2,
 #'
 #' @return A vector of starting parameter values.
 #' @export
-get_nf_fit <- function(startVals_nf,y1,y2,delta1,delta2,
+get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,
                        Xmat1,Xmat2,Xmat3, knots_list,
                        basis1,basis2,basis3,basis3_y1,
                        dbasis1,dbasis2,dbasis3,
                        hazard,model,control,hessian,optim_method){
   # browser()
-
-  use_nleqslv <- tolower(optim_method == "nleqslv")
 
   #generate starting values based on the chosen form of the baseline hazard.
 
@@ -899,43 +898,8 @@ get_nf_fit <- function(startVals_nf,y1,y2,delta1,delta2,
   start3 <- c(startVals_nf[(1+p01+p02):(p01+p02+p03)],
               if(nP[3]>0) startVals_nf[(1+nP0_tot+nP[1]+nP[2]):(nP0_tot+nP[1]+nP[2]+nP[3])] )
 
+  #prepare event indicator for second transition model fit
   delta_cr <- ifelse(y1 < y2, 0, delta2)
-
-  #call one of two optimization functions: nleqslv or optim
-  if(use_nleqslv){
-    #fit first transition model (time to nonterminal event, terminal as censoring)
-    fit01 <- tryCatch(nleqslv::nleqslv(x = start1, fn = ngrad_uni_func,
-                                   method="Broyden",global = "dbldog",
-                                   y=y1, delta=delta1, yL=numeric(0), anyLT=0,
-                                   Xmat=Xmat1, hazard=hazard,
-                                   basis = basis1, dbasis=dbasis1, control=control,
-                                   jacobian=hessian),
-                      error=function(cnd){ message(cnd); cat("\n"); return(NULL)})
-    #fit second transition model (time to terminal event, nonterminal as censoring)
-    fit02 <- tryCatch(nleqslv::nleqslv(x = start2, fn = ngrad_uni_func,
-                                   method="Broyden",global = "dbldog",
-                                   y=y1, delta=delta_cr, yL=numeric(0), anyLT=0,
-                                   Xmat=Xmat2, hazard=hazard,
-                                   basis = basis2, dbasis=dbasis2, control=control,
-                                   jacobian=hessian),
-                      error=function(cnd){ message(cnd); cat("\n"); return(NULL)})
-
-  } else{
-    fit01 <- tryCatch(stats::optim(par = start1, fn = nll_uni_func, gr = ngrad_uni_func,
-                                   y=y1, delta=delta1, yL=numeric(0), anyLT=0,
-                                   Xmat=Xmat1, hazard=hazard,
-                                   basis = basis1, dbasis=dbasis1, control=control,
-                                   hessian=hessian,method = optim_method),
-                      error=function(cnd){ message(cnd); cat("\n"); return(NULL)})
-    #fit second transition model (time to terminal event, nonterminal as censoring)
-    fit02 <- tryCatch(stats::optim(par = start2, fn = nll_uni_func, gr = ngrad_uni_func,
-                                   y=y1, delta=delta_cr, yL=numeric(0), anyLT=0,
-                                   Xmat=Xmat2, hazard=hazard,
-                                   basis = basis2, dbasis=dbasis2, control=control,
-                                   hessian=hessian,method = optim_method),
-                      error=function(cnd){ message(cnd); cat("\n"); return(NULL)})
-  }
-
 
   #prepare inputs for third transition model fit
   anyLT <- as.numeric(tolower(model)=="markov") #markov model is left-truncated
@@ -958,71 +922,39 @@ get_nf_fit <- function(startVals_nf,y1,y2,delta1,delta2,
     if(anyLT){
       #note yL is lower bound of integral to account for left truncation
       y_quad_sub <- c(y_sub, transform_quad_points(n_quad=n_quad,
-                                           quad_method=quad_method,
-                                           a=yL_sub,b=y_sub))
+                                                   quad_method=quad_method,
+                                                   a=yL_sub,b=y_sub))
       y_sub <- y_sub - yL_sub #under left truncation, bspline inputs difference as y
     } else{
       y_quad_sub <- c(y_sub, transform_quad_points(n_quad=n_quad,
-                                           quad_method=quad_method,
-                                           a=0,b=y_sub))
+                                                   quad_method=quad_method,
+                                                   a=0,b=y_sub))
     }
     basis3_sub <- stats::predict(basis3,y_quad_sub)
     attr(x=basis3_sub,which="quad_method") <- tolower(quad_method)
   }
 
-  if(use_nleqslv){
-    fit03 <- tryCatch(nleqslv::nleqslv(x = start3, fn = ngrad_uni_func,
-                                   method="Broyden",global = "dbldog",
-                                   y = y_sub, delta = delta2_sub,
-                                   Xmat = Xmat3_sub, hazard=hazard,
-                                   basis = basis3_sub, dbasis = dbasis3_sub,
-                                   yL = yL_sub, basis_yL = basis3_y1_sub, anyLT=anyLT,
-                                   control=control, jacobian=hessian),
-                      error=function(cnd){ message(cnd); cat("\n"); return(NULL)})
-  } else{
-    fit03 <- tryCatch(stats::optim(par = start3, fn = nll_uni_func, gr = ngrad_uni_func,
-                                   y = y_sub, delta = delta2_sub,
-                                   Xmat = Xmat3_sub, hazard=hazard,
-                                   basis = basis3_sub, dbasis = dbasis3_sub,
-                                   yL = yL_sub, basis_yL = basis3_y1_sub, anyLT=anyLT,
-                                   control=control, hessian=hessian,method = optim_method),
-                      error=function(cnd){ message(cnd); cat("\n"); return(NULL)})
+  fit01 <- get_fit_uni(startVals=start1, y=y1, delta=delta1, yL=numeric(0), anyLT=0,
+                       Xmat=Xmat1, hazard=hazard, basis=basis1, dbasis=dbasis1,
+                       control=control, hessian=hessian, optim_method=optim_method)
+  fit02 <- get_fit_uni(startVals=start2, y=y1, delta=delta_cr, yL=numeric(0), anyLT=0,
+                       Xmat=Xmat2, hazard=hazard, basis = basis2, dbasis=dbasis2,
+                       control=control, hessian=hessian, optim_method=optim_method)
+  fit03 <- get_fit_uni(startVals=start3, y=y_sub, delta=delta2_sub,
+                       Xmat=Xmat3_sub, hazard=hazard, basis=basis3_sub, dbasis=dbasis3_sub,
+                       yL=yL_sub, basis_yL=basis3_y1_sub, anyLT=anyLT,
+                       control=control, hessian=hessian, optim_method=optim_method)
+
+  #if any of the three fail, scrap the whole thing!
+  if(any(!is.null(fit01$fail),!is.null(fit02$fail),!is.null(fit03$fail))){
+    return(list(fail=TRUE,logLike=NA))
   }
 
-  if(any(is.null(fit01),is.null(fit02),is.null(fit03))){return(list(fail=TRUE,logLik=NA))}
-
-  if(use_nleqslv){
-    logLike_ind <- c(
-      -nll_uni_func(para=fit01$x, y=y1, delta=delta1, yL=numeric(0), anyLT=0,
-                      Xmat=Xmat1, hazard=hazard, basis = basis1, dbasis=dbasis1),
-      -nll_uni_func(para=fit02$x, y=y1, delta=delta_cr, yL=numeric(0), anyLT=0,
-                      Xmat=Xmat2, hazard=hazard, basis = basis2, dbasis=dbasis2),
-      -nll_uni_func(para=fit03$x, y = y_sub, delta = delta2_sub, Xmat = Xmat3_sub, hazard=hazard,
-                      basis = basis3_sub, dbasis = dbasis3_sub,
-                      yL = yL_sub, basis_yL = basis3_y1_sub, anyLT=anyLT))
-    optim_details = list(
-      list(counts=fit01$iter,convergence=fit01$termcd,message=fit01$message),
-      list(counts=fit02$iter,convergence=fit02$termcd,message=fit02$message),
-      list(counts=fit03$iter,convergence=fit03$termcd,message=fit03$message))
-  } else{
-    logLike_ind <- c(-fit01$value,-fit02$value,-fit03$value)
-    optim_details = list(
-      list(counts=fit01$counts,convergence=fit01$convergence,message=fit01$message),
-      list(counts=fit02$counts,convergence=fit02$convergence,message=fit02$message),
-      list(counts=fit03$counts,convergence=fit03$convergence,message=fit03$message))
-  }
-
-  phi1 <- if(use_nleqslv) fit01$x[1:p01] else fit01$par[1:p01]
-  phi2 <- if(use_nleqslv) fit02$x[1:p02] else fit02$par[1:p02]
-  phi3 <- if(use_nleqslv) fit03$x[1:p03] else fit03$par[1:p03]
-  beta1 <- if(use_nleqslv) fit01$x[-(1:p01)] else fit01$par[-(1:p01)]
-  beta2 <- if(use_nleqslv) fit02$x[-(1:p02)] else fit02$par[-(1:p02)]
-  beta3 <- if(use_nleqslv) fit03$x[-(1:p03)] else fit03$par[-(1:p03)]
-
+  #if needed, construct block-diagonal vcov matrix
   if(hessian){
-    Finv1 <- if(use_nleqslv) MASS::ginv(fit01$jac) else MASS::ginv(fit01$hessian)
-    Finv2 <- if(use_nleqslv) MASS::ginv(fit02$jac) else MASS::ginv(fit02$hessian)
-    Finv3 <- if(use_nleqslv) MASS::ginv(fit03$jac) else MASS::ginv(fit03$hessian)
+    Finv1 <- MASS::ginv(fit01$nhess)
+    Finv2 <- MASS::ginv(fit02$nhess)
+    Finv3 <- MASS::ginv(fit03$nhess)
     #create block-diagonal matrix
     Finv <- rbind(
       cbind(Finv1[1:p01,1:p01],matrix(data=0,nrow=p01,ncol=p02+p03+sum(nP))),
@@ -1034,14 +966,132 @@ get_nf_fit <- function(startVals_nf,y1,y2,delta1,delta2,
   }
 
   return(list(
-    estimate=c(phi1,phi2,phi3,beta1,beta2,beta3),
+    estimate=c(fit01$estimate[1:p01],fit02$estimate[1:p02],fit03$estimate[1:p03],
+       fit01$estimate[-(1:p01)],fit02$estimate[-(1:p02)],fit03$estimate[-(1:p03)]),
     Finv = if(hessian) Finv else NA,
-    logLike = sum(logLike_ind),
-    logLike_ind = logLike_ind,
-    optim_details = optim_details,
+    grad = c(fit01$grad[1:p01],fit02$grad[1:p02],fit03$grad[1:p03],
+             fit01$grad[-(1:p01)],fit02$grad[-(1:p02)],fit03$grad[-(1:p03)]),
+    logLike = sum(fit01$logLike,fit02$logLike,fit03$logLike),
+    logLike_ind = c(fit01$logLike,fit02$logLike,fit03$logLike),
+    optim_details = list(fit01$optim_details,fit02$optim_details,fit03$optim_details),
     startVals=startVals_nf
   ))
 
 }
+
+
+
+
+#' Get Frailty Illness-Death Model Fit
+#'
+#' A fitting function used to estimate a non-frailty illness-death model.
+#'
+#' @inheritParams nll_func
+#' @inheritParams FreqID_HReg2
+#'
+#' @return A vector of starting parameter values.
+#' @export
+get_fit_frail <- function(startVals,y1,y2,delta1,delta2,
+                       Xmat1,Xmat2,Xmat3, knots_list,
+                       basis1,basis2,basis3,basis3_y1,
+                       dbasis1,dbasis2,dbasis3,
+                       hazard,model,frailty,control,hessian,optim_method){
+  # browser()
+
+
+  #two options for optimization approaches: optim(), and nleqslv()
+  if(tolower(optim_method)=="nlm"){
+    fit0 <- tryCatch(stats::nlm(p=startVals, f=nll_ngrad_func,
+                                y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                                Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                                hazard=hazard,frailty=frailty,model=model,
+                                basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                                iterlim=if(!is.null(control)) control$maxit else 100,
+                                hessian=hessian),
+                     error=function(cnd){
+                       message(cnd)
+                       cat("\n")
+                       return(NULL)
+                     })
+    if(is.null(fit0)){ return(list(fail=TRUE))}
+    if (!(fit0$code %in% c(1,2))){warning("check convergence.")}
+    final_est <- fit0$estimate
+    final_ll <- -fit0$minimum
+    final_grad <- -fit0$gradient
+    final_nhess <- if(hessian) fit0$hessian else NA
+    optim_details = list(counts=fit0$iterations,
+                         convergence=fit0$code,
+                         message=NULL)
+
+  } else if(tolower(optim_method)=="nleqslv"){
+    fit0 <- tryCatch(nleqslv::nleqslv(x=startVals, fn=ngrad_func,
+                        method="Broyden",global = "dbldog",
+                        y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                        Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                        hazard=hazard,frailty=frailty,model=model,
+                        basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                        dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                        control=control, jacobian=hessian),
+                     error=function(cnd){
+                       message(cnd)
+                       cat("\n")
+                       return(NULL)
+                     })
+    if(is.null(fit0)){ return(list(fail=TRUE))}
+    if (!(fit0$termcd %in% c(1,2))){warning("check convergence.")}
+    final_est <- fit0$x
+    final_ll <- -nll_func(para=final_est, y1=y1, y2=y2,
+                              delta1=delta1, delta2=delta2,
+                              Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                              hazard=hazard,frailty=frailty,model=model,
+                              basis1=basis1, basis2=basis2,
+                              basis3=basis3, basis3_y1=basis3_y1,
+                              dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+    final_grad <- -fit0$fvec
+    final_nhess <- if(hessian) fit0$jac else NA
+    optim_details = list(counts=fit0$iter,
+                         convergence=fit0$termcd,
+                         message=fit0$message)
+
+  } else{ #use method from optim()
+    fit0 <- tryCatch(stats::optim(par=startVals, fn=nll_func, gr=ngrad_func,
+                        y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                        Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                        hazard=hazard,frailty=frailty,model=model,
+                        basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                        dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                        control=control, hessian=hessian,method=optim_method),
+                     error=function(cnd){
+                       message(cnd)
+                       cat("\n")
+                       return(NULL)
+                     })
+    if(is.null(fit0)){ return(list(fail=TRUE))}
+    if (!(fit0$convergence %in% c(0,1))){warning("check convergence.")}
+    final_est <- fit0$par
+    final_ll <- -fit0$value
+    final_grad <- as.vector(-ngrad_func(para=final_est, y1=y1, y2=y2,
+                                delta1=delta1, delta2=delta2,
+                                Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                                hazard=hazard,frailty=frailty,model=model,
+                                basis1=basis1, basis2=basis2,
+                                basis3=basis3, basis3_y1=basis3_y1,
+                                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
+    final_nhess <- if(hessian) fit0$hessian else NA
+    optim_details = list(counts=fit0$counts,
+                         convergence=fit0$convergence,
+                         message=fit0$message)
+  }
+
+  list(estimate=final_est,
+       logLike=final_ll,
+       grad=final_grad,
+       nhess=final_nhess,
+       optim_details=optim_details,
+       startVals=startVals)
+}
+
+
 
 

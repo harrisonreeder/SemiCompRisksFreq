@@ -123,12 +123,6 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     p0 <- 2 #must be weibull
   }
 
-  #if the user has not provided start values, we generate them here
-  if(is.null(startVals)){
-    startVals <- get_start_uni(y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,knots=knots_vec,
-                               hazard=hazard,basis=basis)
-  }
-
   #in bspline loglikelihood, passed in y is only used to define "weights"
   #for quadrature, which now must account for change of bounds above.
   #So, we just redefine y to be this difference.
@@ -148,71 +142,38 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   ##GET MLE##
   ##*******##
 
-  #two options for optimization approaches: optim(), and nleqslv()
-  if(tolower(optim_method)=="nleqslv"){
-    fit0 <- tryCatch(nleqslv::nleqslv(x=startVals,fn = ngrad_uni_func,
-                                      method = "Broyden", global="dbldog",
-                                      y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                      basis=basis,dbasis=dbasis,
-                                      basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                                      control=con, jacobian=hessian),
-                     error=function(cnd){
-                       message(cnd)
-                       cat("\n")
-                       return(list(fail=TRUE,formula=form2,hazard=hazard,
-                                   startVals=startVals,knots_vec=knots_vec,
-                                   basis=basis,dbasis=dbasis,
-                                   control=control))
-                     })
-    if(!is.null(fit0$fail)){ return(fit0)}
-    if (!(fit0$termcd %in% c(1,2))){warning("check convergence.")}
-    final_est <- fit0$x
-    final_ll <- -nll_uni_func(para=final_est, y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                              basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT)
-    final_grad <- -fit0$fvec
-    final_invhess <- if(hessian) MASS::ginv(fit0$jac) else NA
-    optim_details = list(counts=fit0$iter,
-                         convergence=fit0$termcd,
-                         message=fit0$message,
-                         startVals=startVals)
-
-  } else{ #use method from optim()
-
-    fit0 <- tryCatch(stats::optim(par=startVals, fn=nll_uni_func, gr=ngrad_uni_func,
-                                  y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                  basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                                  control=con, hessian=hessian,method = optim_method),
-                     error=function(cnd){
-                       message(cnd)
-                       cat("\n")
-                       return(list(fail=TRUE,formula=form2,hazard=hazard,
-                                   startVals=startVals,knots_vec=knots_vec,
-                                   basis=basis,dbasis=dbasis,
-                                   control=control))
-                     })
-    if(!is.null(fit0$fail)){ return(fit0)}
-    if (!(fit0$convergence %in% c(0,1))){warning("check convergence.")}
-    final_est <- fit0$par
-    final_ll <- -fit0$value
-    final_grad <- as.vector(-ngrad_uni_func(para=final_est, y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                  basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT))
-    final_invhess <- if(hessian) MASS::ginv(fit0$hessian) else NA
-    optim_details = list(counts=fit0$counts,
-                         convergence=fit0$convergence,
-                         message=fit0$message)
+  #if the user has not provided start values, we generate them here
+  if(is.null(startVals)){
+    startVals <- get_start_uni(y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,knots=knots_vec,
+                               hazard=hazard,basis=basis)
   }
 
-  value <- list(estimate = final_est,
-                Finv = final_invhess,
-                logLike = final_ll,
-                optim_details = optim_details,
-                grad=final_grad,
-                startVals=startVals,
-                knots_vec = knots_vec,
-                myLabels = myLabels,
-                formula = form2,
-                nP=nP, nP0=nP0, nobs=length(y), ymax=max(y),
-                n_quad=n_quad, quad_method=quad_method)
+  #now, run the fitting function, which calls the correct optimization engine
+  value <- get_fit_uni(startVals=startVals, y=y, delta=delta,
+                      Xmat=Xmat,hazard=hazard,
+                      basis=basis,dbasis=dbasis,
+                      basis_yL=basis_yL,yL=yL,anyLT=anyLT,
+                      control=con, hessian=hessian, optim_method=optim_method)
+  #if the fit fails, then return
+  if(!is.null(value$fail)){
+    return(list(fail=TRUE,formula=form2,hazard=hazard,
+                startVals=startVals,knots_vec=knots_vec,
+                basis=basis,dbasis=dbasis,
+                control=control,optim_method=optim_method))
+  }
+
+  #add the other quantities to the output
+  value <- list(
+    estimate=value$estimate,
+    logLike=value$logLike,
+    grad=value$grad,
+    optim_details=value$optim_details,
+    Finv= if(hessian) MASS::ginv(value$nhess) else NA,
+    startVals=startVals,
+    knots_vec=knots_vec,
+    myLabels=myLabels,
+    formula=form2,nP=nP,nP0=nP0,nobs=length(y),ymax=max(y),n_quad=n_quad,
+    quad_method=quad_method,optim_method=optim_method)
 
   value$class <- c("Freq_HReg2","Surv","Ind",
                    switch(tolower(hazard),

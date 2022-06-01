@@ -1,7 +1,7 @@
 
 #' @export
 logLik.Freq_HReg2 <- function (object, ...){
-  val <- object$logLik; class(val) <- "logLik"
+  val <- object$logLike; class(val) <- "logLik"
   attr(x = val,which = "df") <- length(object$estimate)
   attr(x = val,which = "nobs") <- object$nobs
   val

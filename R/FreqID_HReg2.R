@@ -37,7 +37,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                         nP0=rep(4,3), startVals=NULL, hessian=TRUE,
                         quad_method="kronrod", n_quad=15,
                         optim_method="BFGS", control=NULL){
-  browser()
+  # browser()
 
   ##INITIALIZE OPTIONS##
   ##******************##
@@ -169,23 +169,27 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
 
   ##Store a few values for the output##
   ##*********************************##
-  nP <- c(ncol(Xmat1), ncol(Xmat2), ncol(Xmat3))
-  nP0 <- c(p01,p02,p03)
   if(tolower(hazard) %in% c("weibull","wb")){
     myLabels <- c("log(kappa1)", "log(alpha1)", "log(kappa2)",
                   "log(alpha2)", "log(kappa3)", "log(alpha3)")
   } else{
     myLabels <- c(paste0("phi1",1:p01),paste0("phi2",1:p02),paste0("phi3",1:p03))
   }
+  nP <- c(ncol(Xmat1), ncol(Xmat2), ncol(Xmat3))
+  nP0 <- c(p01,p02,p03)
+
+  ##FIT MODEL##
+  ##*********##
 
   #if the user has not provided start values, we generate them here
   #we start by fitting non-frailty model, so startVals is generated without frailty variance
   if(is.null(startVals)){
     startVals_nf <- get_start(y1=y1,y2=y2,delta1=delta1,delta2=delta2,
-                   Xmat1=Xmat1,Xmat2=Xmat2,Xmat3=Xmat3,
-                   hazard=hazard,frailty=FALSE,model=model,knots_list=knots_list,
-                   basis1=basis1,basis2=basis2,basis3=basis3)
+                              Xmat1=Xmat1,Xmat2=Xmat2,Xmat3=Xmat3,
+                              hazard=hazard,frailty=FALSE,model=model,knots_list=knots_list,
+                              basis1=basis1,basis2=basis2,basis3=basis3)
 
+    ##this is leftover from an attempt to add a step where we initialized theta at a coordinatewise max
     # nll_ltheta_func <- function(x){
     #   nll_func(para=c(startVals_nf[1:sum(nP0)],x,startVals_nf[-(1:sum(nP0))]),
     #          y1=y1, y2=y2,
@@ -202,150 +206,72 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     startVals_nf <- if(frailty) startVals[-(nP0+1)] else startVals
   }
 
-  ##FIT MODEL##
-  ##*********##
+
   if(!frailty){
     #instead of fitting a non-frailty model directly, we fit it as three
     #univariate models for the three transitions.
-    value <- get_nf_fit(startVals_nf=startVals_nf,
+    value <- get_fit_nf(startVals_nf=startVals_nf,
                 y1=y1, y2=y2, delta1=delta1, delta2=delta2,
                 Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                 hazard=hazard,model=model,
                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
                 control=con, hessian=hessian,optim_method=optim_method)
-    #compute and store final gradient of log likelihood
-    value$grad <- -ngrad_func(para=value$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                      Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                      hazard=hazard,frailty=FALSE,model=model,
-                      basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                      dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
 
   } else{
 
-    #create list that we will fill with results
-    value <- list()
-
-
-    #two options for optimization approaches: optim(), and nleqslv()
-    if(tolower(optim_method)=="nleqslv"){
-
-      fit0 <- tryCatch(nleqslv::nleqslv(x=startVals, fn=ngrad_func,
-                                    method="Broyden",global = "dbldog",
-                                    y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                                    Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                                    hazard=hazard,frailty=frailty,model=model,
-                                    basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                                    dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                                    control=con, jacobian=hessian),
-                       error=function(cnd){message(cnd); cat("\n")
-                         return(list(fail=TRUE, formula=form2,
-                                     hazard=hazard,frailty=frailty,model=model,
-                                     startVals=startVals,knots_list=knots_list,
-                                     basis1=basis1,basis2=basis2,basis3=basis3,
-                                     dbasis1=dbasis1,dbasis2=dbasis2,dbasis3=dbasis3,
-                                     control=control))})
-      #If optimization fails, return list of inputs and flag "fail=TRUE"
-      if(!is.null(fit0$fail)){ return(fit0)}
-      if (!(fit0$termcd %in% c(1,2))){warning("check convergence.")}
-
-      #prepare the results from the nleqslv function into the output format
-      value$estimate <- fit0$x
-      value$Finv <- if(hessian) MASS::ginv(fit0$jac) else NA
-      value$logLike <- -nll_func(para=value$estimate,y1=y1, y2=y2,
-                                 delta1=delta1, delta2=delta2,
-                                 Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                                 hazard=hazard,frailty=frailty,model=model,
-                                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
-      #WHAT TO DO IF THIS IS NaN, which has occurred for royston-parmar model
-
-      value$optim_details <- list(counts=fit0$iter,
-                                  convergence=fit0$termcd,
-                                  message=fit0$message)
-      value$grad <- -fit0$fvec
-
-    } else{ #use method from optim()
-
-      fit0 <- tryCatch(stats::optim(par=startVals, fn=nll_func, gr=ngrad_func,
-                                    y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                                    Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                                    hazard=hazard,frailty=frailty,model=model,
-                                    basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                                    dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                                    control=con, hessian=hessian,method=optim_method),
-                       error=function(cnd){message(cnd); cat("\n")
-                         return(list(fail=TRUE, formula=form2,
-                                     hazard=hazard,frailty=frailty,model=model,
-                                     startVals=startVals,knots_list=knots_list,
-                                     basis1=basis1,basis2=basis2,basis3=basis3,
-                                     dbasis1=dbasis1,dbasis2=dbasis2,dbasis3=dbasis3,
-                                     control=control))})
-      #If optimization fails, return list of inputs and flag "fail=TRUE"
-      if(!is.null(fit0$fail)){ return(fit0)}
-      if (!(fit0$convergence %in% c(0,1))){warning("check convergence.")}
-
-      #prepare the results from the optim function into the output format
-      value$estimate <- fit0$par
-      value$Finv <- if(hessian) MASS::ginv(fit0$hessian) else NA
-      value$logLike <- -fit0$value
-      value$optim_details <- list(counts=fit0$counts,
-                                  convergence=fit0$convergence,
-                                  message=fit0$message)
-      #compute and store final gradient of log likelihood
-      value$grad <- as.vector(-ngrad_func(para=value$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                                Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                                hazard=hazard,frailty=frailty,model=model,
-                                basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
-    }
-    value$startVals <- startVals
     myLabels <- c(myLabels, "log(theta)")
 
+    value <- get_fit_frail(startVals=startVals,
+                y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                hazard=hazard,model=model,frailty=frailty,
+                basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                control=con, hessian=hessian,optim_method=optim_method)
 
+    value$Finv = if(hessian) MASS::ginv(value$nhess) else NA
 
     ##FINALLY, OPTIONALLY COMPUTE NON-FRAILTY MODEL FOR COMPARISON##
     #First, maximize the likelihood without a frailty using univariate functions
-    value$fit_nf <- get_nf_fit(startVals_nf=startVals_nf,
-                               y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                               Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                               hazard=hazard,model=model,
-                               basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                               dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                               control=con, hessian=hessian,optim_method=optim_method)
-    #compute and store final gradient of log likelihood (non-frailty model)
-    value$fit_nf$grad <- as.vector(-ngrad_func(para=value$fit_nf$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                                     Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                                     hazard=hazard,frailty=FALSE,model=model,
-                                     basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                                     dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
+    fit_nf <- get_fit_nf(startVals_nf=startVals_nf,
+               y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+               Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+               hazard=hazard,model=model,
+               basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+               dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+               control=con, hessian=hessian,optim_method=optim_method)
     #compute a likelihood-ratio test for the frailty
     #if the frailty likelihood is below the non-frailty likelihood, set to 0
-    frail_test <- max(0,2*(value$logLike - value$fit_nf$logLike))
-    if(frail_test >= 0){
-      value$frailty_test <- c(
-        stat=frail_test,
-        #corrected null distribution
-        pval= 0.5 * (stats::pchisq(q = frail_test,df = 0,lower.tail = FALSE) +
-                       stats::pchisq(q = frail_test,df = 1,lower.tail = FALSE))
+    frail_test_stat <- max(0,2*(value$logLike - fit_nf$logLike))
+    if(frail_test_stat >= 0){
+      frailty_test <- c(
+        stat=frail_test_stat,
+        #corrected null distribution (mixture of chi-squareds)
+        pval= 0.5 * (stats::pchisq(q = frail_test_stat,df = 0,lower.tail = FALSE) +
+                       stats::pchisq(q = frail_test_stat,df = 1,lower.tail = FALSE))
       )
-    }
+    } else{frailty_test <- NULL}
   }
 
   ##PREPARE OUTPUTS##
   ##***************##
-  myLabels <- c(myLabels,colnames(Xmat1),colnames(Xmat2),colnames(Xmat3))
-  value$knots_list <- knots_list
-  value$myLabels <- myLabels
-  value$frailty <- frailty
-  value$formula <- form2
-  value$nP <- nP
-  value$nP0 <- nP0
-  value$nobs <- length(y1)
-  value$ymax <- max(y2)
-  value$n_quad <- n_quad
-  value$quad_method <- quad_method
+  myLabels=c(myLabels,colnames(Xmat1),colnames(Xmat2),colnames(Xmat3))
 
+  value <- list(
+             estimate=value$estimate,
+             logLike=value$logLike,
+             grad=value$grad,
+             optim_details=value$optim_details,
+             Finv=value$Finv,
+             startVals=startVals,
+             knots_list=knots_list,
+             myLabels=myLabels,
+             formula=form2,nP=nP,nP0=nP0,nobs=length(y1),ymax=max(y2),n_quad=n_quad,
+             quad_method=quad_method,optim_method=optim_method,
+             frailty=frailty,
+             frailty_test = if(frailty) frailty_test else NULL,
+             fit_nf = if(frailty) fit_nf else NULL)
 
   value$class <- c("Freq_HReg2","ID","Ind",
                    switch(tolower(hazard),
