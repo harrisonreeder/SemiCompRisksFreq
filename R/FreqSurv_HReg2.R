@@ -27,6 +27,7 @@
 #' @param quad_method String indicating which quadrature method to use to evaluate numerical integral of B-spline.
 #'   Options are \code{"kronrod"} for Gauss-Kronrod quadrature or \code{"legendre"} for Gauss-Legendre quadrature.
 #' @param optim_method a string naming which \code{optim} method should be used for optimization.
+#' @param extra_starts Integer giving the number of extra starts to try when optimizing.
 #'
 #' @return \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.
 #' @import Formula
@@ -34,7 +35,7 @@
 FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                          hazard=c("weibull"), knots_vec = NULL, p0=4,
                          startVals=NULL, hessian=TRUE, control=NULL, quad_method="kronrod", n_quad=15,
-                         optim_method = "BFGS"){
+                         optim_method = "BFGS", extra_starts=0){
   # browser()
   ##Check that chosen hazard is among available options
   if(!(tolower(hazard) %in% c("weibull","royston-parmar","bspline","piecewise","wb","pw","bs","rp"))){
@@ -152,28 +153,34 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   value <- get_fit_uni(startVals=startVals, y=y, delta=delta,
                       Xmat=Xmat,hazard=hazard,
                       basis=basis,dbasis=dbasis,
-                      basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                      control=con, hessian=hessian, optim_method=optim_method)
+                      basis_yL=basis_yL,yL=yL,anyLT=anyLT, control=con,
+                      hessian=hessian, optim_method=optim_method,
+                      extra_starts=extra_starts)
   #if the fit fails, then return
   if(!is.null(value$fail)){
     return(list(fail=TRUE,formula=form2,hazard=hazard,
                 startVals=startVals,knots_vec=knots_vec,
                 basis=basis,dbasis=dbasis,
-                control=control,optim_method=optim_method))
+                control=control,optim_method=optim_method,
+                extra_starts=extra_starts))
   }
 
   #add the other quantities to the output
   value <- list(
-    estimate=value$estimate,
+    estimate=as.vector(value$estimate),
     logLike=value$logLike,
-    grad=value$grad,
+    grad=as.vector(value$grad),
     optim_details=value$optim_details,
     Finv= if(hessian) MASS::ginv(value$nhess) else NA,
-    startVals=startVals,
+    startVals=value$startVals,
     knots_vec=knots_vec,
     myLabels=myLabels,
     formula=form2,nP=nP,nP0=nP0,nobs=length(y),ymax=max(y),n_quad=n_quad,
-    quad_method=quad_method,optim_method=optim_method,control=con)
+    quad_method=quad_method,optim_method=optim_method,extra_starts=extra_starts,
+    control=con)
+
+  names(value$estimate) <- names(startVals)
+  names(value$grad) <- names(startVals)
 
   value$class <- c("Freq_HReg2","Surv","Ind",
                    switch(tolower(hazard),

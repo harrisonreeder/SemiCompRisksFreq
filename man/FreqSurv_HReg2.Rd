@@ -17,7 +17,8 @@ FreqSurv_HReg2(
   control = NULL,
   quad_method = "kronrod",
   n_quad = 15,
-  optim_method = "BFGS"
+  optim_method = "BFGS",
+  extra_starts = 0
 )
 }
 \arguments{
@@ -65,6 +66,8 @@ Options are \code{"kronrod"} for Gauss-Kronrod quadrature or \code{"legendre"} f
 \item{n_quad}{Scalar for number of Gaussian quadrature points used to evaluate numerical integral of B-spline.}
 
 \item{optim_method}{a string naming which \code{optim} method should be used for optimization.}
+
+\item{extra_starts}{Integer giving the number of extra starts to try when optimizing.}
 }
 \value{
 \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.

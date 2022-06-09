@@ -26,7 +26,8 @@ get_fit_frail(
   frailty,
   control,
   hessian,
-  optim_method
+  optim_method,
+  extra_starts
 )
 }
 \arguments{
@@ -109,6 +110,8 @@ be included. Currently this must be set to \code{TRUE}.}
 should be computed and returned.}
 
 \item{optim_method}{a string naming which \code{optim} method should be used.}
+
+\item{extra_starts}{Integer giving the number of extra starts to try when optimizing.}
 }
 \value{
 A vector of starting parameter values.

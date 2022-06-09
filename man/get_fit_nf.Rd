@@ -25,7 +25,8 @@ get_fit_nf(
   model,
   control,
   hessian,
-  optim_method
+  optim_method,
+  extra_starts
 )
 }
 \arguments{
@@ -102,6 +103,8 @@ Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} res
 should be computed and returned.}
 
 \item{optim_method}{a string naming which \code{optim} method should be used.}
+
+\item{extra_starts}{Integer giving the number of extra starts to try when optimizing.}
 }
 \value{
 A vector of starting parameter values.

@@ -16,10 +16,11 @@ FreqID_HReg2(
   nP0 = rep(4, 3),
   startVals = NULL,
   hessian = TRUE,
+  control = NULL,
   quad_method = "kronrod",
   n_quad = 15,
   optim_method = "BFGS",
-  control = NULL
+  extra_starts = 0
 )
 }
 \arguments{
@@ -65,6 +66,8 @@ If set to \code{NULL}, will be generated automatically using \code{\link{get_sta
 \item{hessian}{Boolean indicating whether the hessian (aka, the inverse of the covariance matrix)
 should be computed and returned.}
 
+\item{control}{a list of control attributes passed directly into the \code{optim} function.}
+
 \item{quad_method}{String indicating which quadrature method to use to evaluate numerical integral of B-spline.
 Options are 'kronrod' for Gauss-Kronrod quadrature or 'legendre' for Gauss-Legendre quadrature.}
 
@@ -72,7 +75,7 @@ Options are 'kronrod' for Gauss-Kronrod quadrature or 'legendre' for Gauss-Legen
 
 \item{optim_method}{a string naming which \code{optim} method should be used.}
 
-\item{control}{a list of control attributes passed directly into the \code{optim} function.}
+\item{extra_starts}{Integer giving the number of extra starts to try when optimizing.}
 }
 \value{
 \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.

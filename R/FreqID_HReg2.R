@@ -28,15 +28,16 @@
 #' @param quad_method String indicating which quadrature method to use to evaluate numerical integral of B-spline.
 #'   Options are 'kronrod' for Gauss-Kronrod quadrature or 'legendre' for Gauss-Legendre quadrature.
 #' @param optim_method a string naming which \code{optim} method should be used.
+#' @param extra_starts Integer giving the number of extra starts to try when optimizing.
 #'
 #' @return \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.
 #' @import Formula
 #' @export
 FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                         hazard=c("weibull"), frailty=TRUE, model, knots_list=NULL,
-                        nP0=rep(4,3), startVals=NULL, hessian=TRUE,
+                        nP0=rep(4,3), startVals=NULL, hessian=TRUE, control=NULL,
                         quad_method="kronrod", n_quad=15,
-                        optim_method="BFGS", control=NULL){
+                        optim_method="BFGS", extra_starts=0){
   # browser()
 
   ##INITIALIZE OPTIONS##
@@ -201,7 +202,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     # start_ltheta <- stats::optimize(f = nll_ltheta_func,interval = c(-10,5))$minimum
     start_ltheta <- log(1)
 
-    startVals <- c(startVals_nf[1:sum(nP0)],start_ltheta,startVals_nf[-(1:sum(nP0))])
+    startVals <- c(startVals_nf[1:sum(nP0)],ltheta=start_ltheta,startVals_nf[-(1:sum(nP0))])
   } else{
     startVals_nf <- if(frailty) startVals[-(nP0+1)] else startVals
   }
@@ -216,7 +217,8 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                 hazard=hazard,model=model,
                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                control=con, hessian=hessian,optim_method=optim_method)
+                control=con, hessian=hessian,optim_method=optim_method,
+                extra_starts=extra_starts)
 
   } else{
 
@@ -228,7 +230,8 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                 hazard=hazard,model=model,frailty=frailty,
                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                control=con, hessian=hessian,optim_method=optim_method)
+                control=con, hessian=hessian,optim_method=optim_method,
+                extra_starts=extra_starts)
 
     ##FINALLY, OPTIONALLY COMPUTE NON-FRAILTY MODEL FOR COMPARISON##
     #First, maximize the likelihood without a frailty using univariate functions
@@ -238,7 +241,8 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                hazard=hazard,model=model,
                basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-               control=con, hessian=hessian,optim_method=optim_method)
+               control=con, hessian=hessian,optim_method=optim_method,
+               extra_starts=extra_starts)
 
     if(!is.null(value$fail)){
       return(list(fail=TRUE, formula=form2,
@@ -261,7 +265,10 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
       )
     } else{frailty_test <- c(stat=NA,pval=NA)}
 
-    value$Finv = if(hessian) MASS::ginv(value$nhess) else NA
+    if(hessian){
+      value$Finv <- tryCatch(MASS::ginv(value$nhess),
+                              error=function(cnd){message(cnd);cat("\n");return(NA)})
+    } else{ NA }
 
   }
 
@@ -270,19 +277,24 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   myLabels=c(myLabels,colnames(Xmat1),colnames(Xmat2),colnames(Xmat3))
 
   value <- list(
-             estimate=value$estimate,
+             estimate=as.vector(value$estimate),
              logLike=value$logLike,
-             grad=value$grad,
+             grad=as.vector(value$grad),
              optim_details=value$optim_details,
              Finv=value$Finv,
-             startVals=startVals,
+             startVals=value$startVals,
              knots_list=knots_list,
              myLabels=myLabels,
              formula=form2,nP=nP,nP0=nP0,nobs=length(y1),ymax=max(y2),n_quad=n_quad,
-             quad_method=quad_method,optim_method=optim_method,control=con,
+             quad_method=quad_method,optim_method=optim_method,
+             extra_starts=extra_starts,control=con,
              frailty=frailty,
              frailty_test = if(frailty) frailty_test else NULL,
              fit_nf = if(frailty) fit_nf else NULL)
+
+  names(value$estimate) <- if(frailty) names(startVals) else names(startVals_nf)
+  names(value$grad) <- if(frailty) names(startVals) else names(startVals_nf)
+
 
   value$class <- c("Freq_HReg2","ID","Ind",
                    switch(tolower(hazard),
