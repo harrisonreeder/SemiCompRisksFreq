@@ -69,17 +69,18 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   #to account for possible left truncation, look on the left side of the formula
   #if there are two pieces on the left side, the first is the left truncation variable
   if(length(form2)[1] == 2){
-    yL <- model.part(Formula, data = data, lhs = 1)[[1]]
-    time1 <- Formula::model.part(Formula, data = data, lhs = 2)
+    yL <- model.part(form2, data = data, lhs = 1)[[1]]
+    time1 <- Formula::model.part(form2, data = data, lhs = 2)
   } else if(length(form2)[1] == 1){
     yL <- 0
-    time1 <- Formula::model.part(Formula, data = data, lhs = 1)
+    time1 <- Formula::model.part(form2, data = data, lhs = 1)
   }
+  anyLT <- as.numeric(any(yL>0))
+
   y <- time1[[1]]
   delta <- time1[[2]]
-  Xmat <- as.matrix(stats::model.frame(stats::formula(Formula, lhs = 0, rhs = 1),
+  Xmat <- as.matrix(stats::model.frame(stats::formula(form2, lhs = 0, rhs = 1),
                                        data = data))
-  anyLT <- as.numeric(any(yL>0))
 
   ##PREPARE KNOTS AND BASIS FUNCTIONS FOR FLEXIBLE MODELS##
   ##*****************************************************##

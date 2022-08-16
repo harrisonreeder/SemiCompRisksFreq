@@ -255,15 +255,15 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
 
     #compute a likelihood-ratio test for the frailty
     #if the frailty likelihood is below the non-frailty likelihood, set to 0
-    frail_test_stat <- max(0,2*(value$logLike - fit_nf$logLike))
-    if(!is.na(frail_test_stat) & frail_test_stat >= 0){
-      frailty_test <- c(
-        stat=frail_test_stat,
+    frail_lrtest_stat <- max(0,2*(value$logLike - fit_nf$logLike))
+    if(!is.na(frail_lrtest_stat) & frail_lrtest_stat >= 0){
+      frailty_lrtest <- c(
+        stat=frail_lrtest_stat,
         #corrected null distribution (mixture of chi-squareds)
-        pval= 0.5 * (stats::pchisq(q = frail_test_stat,df = 0,lower.tail = FALSE) +
-                       stats::pchisq(q = frail_test_stat,df = 1,lower.tail = FALSE))
+        pval= 0.5 * (stats::pchisq(q = frail_lrtest_stat,df = 0,lower.tail = FALSE) +
+                       stats::pchisq(q = frail_lrtest_stat,df = 1,lower.tail = FALSE))
       )
-    } else{frailty_test <- c(stat=NA,pval=NA)}
+    } else{frailty_lrtest <- c(stat=NA,pval=NA)}
 
     if(hessian){
       value$Finv <- tryCatch(MASS::ginv(value$nhess),
@@ -289,7 +289,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
              quad_method=quad_method,optim_method=optim_method,
              extra_starts=extra_starts,control=con,
              frailty=frailty,
-             frailty_test = if(frailty) frailty_test else NULL,
+             frailty_lrtest = if(frailty) frailty_lrtest else NULL,
              fit_nf = if(frailty) fit_nf else NULL)
 
   names(value$estimate) <- if(frailty) names(startVals) else names(startVals_nf)
