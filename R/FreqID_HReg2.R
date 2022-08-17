@@ -39,7 +39,6 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                         quad_method="kronrod", n_quad=15,
                         optim_method="BFGS", extra_starts=0){
   # browser()
-
   ##INITIALIZE OPTIONS##
   ##******************##
   #technically na.fail I think is the only one currently implemented
@@ -48,12 +47,10 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     stop("na.action should be either na.fail or na.omit")
   }
   #Check that chosen hazard is among available options
-  if(!(tolower(hazard) %in% c("weibull","royston-parmar","bspline",
-                              "piecewise","wb","pw","bs","rp"))){
-    stop("valid choices of hazard are 'weibull', 'royston-parmar', or 'piecewise'")
-  } else{
-    hazard <- tolower(hazard)
-  }
+  hazard_options <- c("weibull","wb","piecewise","pw","royston-parmar","rp","bspline","bs")
+  if(!(tolower(hazard) %in% hazard_options)){
+    stop(paste0("valid choices of hazard are '", paste(hazard_options,collapse = "', '"),"'"))
+  } else{ hazard <- tolower(hazard) }
   #prepare "control" list that is passed to optim function
   #by default sets maxit to 1000, and otherwise overwrites defaults with user inputs
   con=list(maxit=1000)
@@ -63,7 +60,6 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
 
   ##DATA PREPROCESSING##
   ##******************##
-
   #rearrange input Formula object (which stores the different pieces of the input formula)
   #This line ensures that the formula is of type Formula, and not just formula
   #the below manipulations require special methods of Formula.
@@ -71,20 +67,28 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   #arrange data into correct form, extracting subset of variables
   #and observations needed in model
   data <- stats::model.frame(form2,data=data,na.action=na.action,subset=subset)
-  #create matrices storing two outcomes, and then component vectors
-  time1 <- Formula::model.part(form2, data=data, lhs=1)
-  time2 <- Formula::model.part(form2, data=data, lhs=2)
+
+  #to account for possible left truncation, look on the left side of the formula
+  #if there are two pieces on the left side, the first is the left truncation variable
+  if(length(form2)[1] == 3){
+    yL <- model.part(form2, data = data, lhs = 1)[[1]]
+    #create matrices storing two outcomes, and then component vectors
+    time1 <- Formula::model.part(form2, data=data, lhs=2)
+    time2 <- Formula::model.part(form2, data=data, lhs=3)
+  } else if(length(form2)[1] == 2){
+    yL <- 0
+    time1 <- Formula::model.part(form2, data=data, lhs=1)
+    time2 <- Formula::model.part(form2, data=data, lhs=2)
+  }
+  anyLT <- as.numeric(any(yL>0))
   y1 <- time1[[1]]
   delta1 <- time1[[2]]
   y2 <- time2[[1]]
   delta2 <- time2[[2]]
   #Create covariate matrices for each of three transition hazards
-  Xmat1 <- as.matrix(stats::model.frame(stats::formula(form2, lhs=0, rhs=1),
-                                        data=data))
-  Xmat2 <- as.matrix(stats::model.frame(stats::formula(form2, lhs=0, rhs=2),
-                                        data=data))
-  Xmat3 <- as.matrix(stats::model.frame(stats::formula(form2, lhs=0, rhs=3),
-                                        data=data))
+  Xmat1 <- as.matrix(stats::model.frame(stats::formula(form2, lhs=0, rhs=1),data=data))
+  Xmat2 <- as.matrix(stats::model.frame(stats::formula(form2, lhs=0, rhs=2),data=data))
+  Xmat3 <- as.matrix(stats::model.frame(stats::formula(form2, lhs=0, rhs=3),data=data))
 
   ##PREPARE KNOTS AND BASIS FUNCTIONS FOR FLEXIBLE MODELS##
   ##*****************************************************##
@@ -102,6 +106,13 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     if(hazard %in% c("royston-parmar","rp")){
       basis1 <- get_basis(x=y1,knots=knots_list[[1]],hazard=hazard)
       basis2 <- get_basis(x=y1,knots=knots_list[[2]],hazard=hazard)
+      if(anyLT){
+        basis1_yL <- get_basis(x=yL,knots=knots_list[[1]],hazard=hazard)
+        basis2_yL <- get_basis(x=yL,knots=knots_list[[2]],hazard=hazard)
+      } else{
+        basis1_yL <- NULL
+        basis2_yL <- NULL
+      }
       #royston-parmar model also uses a set of derivative basis functions
       dbasis1 <- get_basis(x=y1,knots=knots_list[[1]],hazard=hazard,deriv=TRUE)
       dbasis2 <- get_basis(x=y1,knots=knots_list[[2]],hazard=hazard,deriv=TRUE)
@@ -115,10 +126,16 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
         #royston-parmar model requires separate basis3_y1 matrix
         basis3_y1 <-  get_basis(x=y1,knots=knots_list[[3]],hazard=hazard)
       }
-
     } else if(hazard %in% c("piecewise","pw")){
       basis1 <- get_basis(x=y1,knots=knots_list[[1]],hazard=hazard)
       basis2 <- get_basis(x=y1,knots=knots_list[[2]],hazard=hazard)
+      if(anyLT){
+        basis1_yL <- get_basis(x=yL,knots=knots_list[[1]],hazard=hazard)
+        basis2_yL <- get_basis(x=yL,knots=knots_list[[2]],hazard=hazard)
+      } else{
+        basis1_yL <- NULL
+        basis2_yL <- NULL
+      }
       #piecewise constant model also uses a set of derivative basis functions
       dbasis1 <- get_basis(x=y1,knots=knots_list[[1]],hazard=hazard,deriv=TRUE)
       dbasis2 <- get_basis(x=y1,knots=knots_list[[2]],hazard=hazard,deriv=TRUE)
@@ -133,25 +150,27 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
         dbasis3 <- get_basis(x=y2,knots=knots_list[[3]],hazard=hazard,deriv=TRUE)
         basis3_y1 <- NULL
       }
-
     } else if(hazard %in% c("bspline","bs")){
       #for bspline, evaluate bases at observed times
       #as well as all quadrature points for numerical integration
+      #plan is the following:
+        #first, for any non-frailty model fits we will directly create basis1 and basis2
+        #incorporating yL as a left truncation time
+        #then, before fitting the frailty model, redefine basis1 and basis2 without left truncation
+        #and also generate separate basis1_yL and basis2_yL accordingly (this is because of how frailty is computed).
       y1_quad <- c(y1,transform_quad_points(n_quad=n_quad,
                                             quad_method=quad_method,
-                                            a=0,b=y1))
+                                            a=yL,b=y1)) #note that for a start, incorporate left truncation in here
       basis1 <- get_basis(x=y1_quad, knots=knots_list[[1]],hazard=hazard)
       basis2 <- get_basis(x=y1_quad, knots=knots_list[[2]],hazard=hazard)
       if(tolower(model)=="semi-markov"){
-        y2y1_quad <- c(y2-y1, transform_quad_points(n_quad=n_quad,
-                                                    quad_method=quad_method,
-                                                    a=0,b=y2-y1))
+        y2y1_quad <- c(y2-y1, transform_quad_points(n_quad=n_quad,a=0,b=y2-y1,
+                                                    quad_method=quad_method))
         basis3 <- get_basis(x=y2y1_quad,knots=knots_list[[3]],hazard=hazard)
         dbasis3 <- NULL
-      } else{ #markov
-        y2_quad <- c(y2, transform_quad_points(n_quad=n_quad,
-                                                 quad_method=quad_method,
-                                                 a=y1,b=y2))
+      } else{ #markov (i.e., time to y2 treating y1 as left-truncation time)
+        y2_quad <- c(y2, transform_quad_points(n_quad=n_quad,a=y1,b=y2,
+                                                 quad_method=quad_method))
         basis3 <- get_basis(x=y2_quad,knots=knots_list[[3]],hazard=hazard)
         basis3_y1 <- dbasis3 <- NULL
       }
@@ -161,7 +180,6 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
         attr(x=basis3,which="quad_method") <- tolower(quad_method)
     }
     p01 <- ncol(basis1); p02 <- ncol(basis2); p03 <- ncol(basis3)
-
   } else{ #if not a flexible method, must be weibull
     basis1 <- basis2 <- basis3 <- basis3_y1 <-
       dbasis1 <- dbasis2 <- dbasis3 <- NULL
@@ -181,74 +199,129 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
 
   ##FIT MODEL##
   ##*********##
-
   #if the user has not provided start values, we generate them here
   #we start by fitting non-frailty model, so startVals is generated without frailty variance
   if(is.null(startVals)){
-    startVals_nf <- get_start(y1=y1,y2=y2,delta1=delta1,delta2=delta2,
+    startVals_nf <- get_start(y1=y1,y2=y2,delta1=delta1,delta2=delta2,yL=yL,anyLT=anyLT,
                               Xmat1=Xmat1,Xmat2=Xmat2,Xmat3=Xmat3,
                               hazard=hazard,frailty=FALSE,model=model,knots_list=knots_list,
                               basis1=basis1,basis2=basis2,basis3=basis3)
-
-    ##this is leftover from an attempt to add a step where we initialized theta at a coordinatewise max
-    # nll_ltheta_func <- function(x){
-    #   nll_func(para=c(startVals_nf[1:sum(nP0)],x,startVals_nf[-(1:sum(nP0))]),
-    #          y1=y1, y2=y2,
-    #          delta1=delta1, delta2=delta2,
-    #          Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-    #          hazard=hazard,frailty=frailty,model=model,
-    #          basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-    #          dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)}
-    # start_ltheta <- stats::optimize(f = nll_ltheta_func,interval = c(-10,5))$minimum
+    #In old code I also had a step where we initialized theta at coordinatewise max
     start_ltheta <- log(1)
-
     startVals <- c(startVals_nf[1:sum(nP0)],ltheta=start_ltheta,startVals_nf[-(1:sum(nP0))])
   } else{
     startVals_nf <- if(frailty) startVals[-(nP0+1)] else startVals
   }
 
+  #check non-frailty gradient function
+  grad1_nf <- ngrad_func(para = startVals_nf,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                         Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                         hazard=hazard,model=model,frailty=FALSE,
+                         basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                         basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                         dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+  grad2_nf <- pracma::grad(f = nll_func,x0 = startVals_nf,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                           Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                           hazard=hazard,model=model,frailty=FALSE,
+                           basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                           basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                           dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+  if(max(abs(grad1_nf-grad2_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
+  # if(max(abs(grad1_nf-grad2_nf)) >= 1e-4){warning("check gradient of non-frailty model")}
+  # cbind(grad1_nf,grad2_nf)
 
   if(!frailty){
-    #instead of fitting a non-frailty model directly, we fit it as three
-    #univariate models for the three transitions.
+    #non-frailty model fit as three univariate models for the three transitions.
     value <- get_fit_nf(startVals_nf=startVals_nf,
-                y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                 Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                 hazard=hazard,model=model,
                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                basis1_yL=basis1_yL, basis2_yL=basis2_yL,
                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
                 control=con, hessian=hessian,optim_method=optim_method,
                 extra_starts=extra_starts)
-
   } else{
+    #Even for frailty model fit, optionally fit non-frailty model for comparison
+    fit_nf <- get_fit_nf(startVals_nf=startVals_nf,
+                         y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                         Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                         hazard=hazard,model=model,
+                         basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                         basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                         dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                         control=con, hessian=hessian,optim_method=optim_method,
+                         extra_starts=extra_starts)
 
-    myLabels <- c(myLabels, "log(theta)")
+    #check gradient of individual non-frailty fits against gradient function
+    grad3_nf <- ngrad_func(para = fit_nf$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                           Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                           hazard=hazard,model=model,frailty=FALSE,
+                           basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                           basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                           dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+    grad4_nf <- pracma::grad(f = nll_func, x0 = fit_nf$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                             Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                             hazard=hazard,model=model,frailty=FALSE,
+                             basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                             basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                             dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+    if(max(abs(grad3_nf+fit_nf$grad)) >= 1e-4){stop("check gradient of non-frailty model")}
+    # if(max(abs(grad3_nf+fit_nf$grad)) >= 1e-4){warning("check gradient of non-frailty model")}
+    # cbind(fit_nf$grad,grad3_nf,grad4_nf)
 
+    #now, update the basis matrices if we're
+    #1. using a b-spline specification
+    #2. have left truncation (and a frailty)
+    if(hazard %in% c("bspline","bs") && anyLT && frailty){
+      y1_quad <- c(y1,transform_quad_points(n_quad=n_quad,a=0,b=y1,
+                                            quad_method=quad_method))
+      basis1 <- get_basis(x=y1_quad, knots=knots_list[[1]],hazard=hazard)
+      basis2 <- get_basis(x=y1_quad, knots=knots_list[[2]],hazard=hazard)
+      yL_quad <- c(y1,transform_quad_points(n_quad=n_quad,a=0,b=yL,
+                                            quad_method=quad_method))
+      basis1_yL <- get_basis(x=yL_quad, knots=knots_list[[1]],hazard=hazard)
+      basis2_yL <- get_basis(x=yL_quad, knots=knots_list[[2]],hazard=hazard)
+      #lastly, we add attribute storing quadrature method
+      attr(x=basis1,which="quad_method") <- attr(x=basis2,which="quad_method") <-
+        attr(x=basis1_yL,which="quad_method") <- attr(x=basis2_yL,which="quad_method") <-
+        tolower(quad_method)
+    }
+
+    #check frailty-based gradient functions
+    grad1 <- ngrad_func(para = startVals,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+               Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+               hazard=hazard,model=model,frailty=frailty,
+               basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+               basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+               dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+    grad2 <- pracma::grad(f = nll_func,x0 = startVals,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                 Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                 hazard=hazard,model=model,frailty=frailty,
+                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                 basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+    if(max(abs(grad1-grad2)) >= 1e-4){stop("check gradient of non-frailty model")}
+    # if(max(abs(grad1-grad2)) >= 1e-4){warning("check gradient of non-frailty model")}
+    # cbind(grad1,grad2)
+
+    #Now, fit frailty model
     value <- get_fit_frail(startVals=startVals,
-                y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                 Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                 hazard=hazard,model=model,frailty=frailty,
                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                basis1_yL=basis1_yL, basis2_yL=basis2_yL,
                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
                 control=con, hessian=hessian,optim_method=optim_method,
                 extra_starts=extra_starts)
-
-    ##FINALLY, OPTIONALLY COMPUTE NON-FRAILTY MODEL FOR COMPARISON##
-    #First, maximize the likelihood without a frailty using univariate functions
-    fit_nf <- get_fit_nf(startVals_nf=startVals_nf,
-               y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-               Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-               hazard=hazard,model=model,
-               basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-               dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-               control=con, hessian=hessian,optim_method=optim_method,
-               extra_starts=extra_starts)
 
     if(!is.null(value$fail)){
       return(list(fail=TRUE, formula=form2,
                   hazard=hazard,frailty=frailty,model=model,
                   startVals=startVals,knots_list=knots_list,
                   basis1=basis1,basis2=basis2,basis3=basis3,
+                  basis1_yL=basis1_yL, basis2_yL=basis2_yL,
                   dbasis1=dbasis1,dbasis2=dbasis2,dbasis3=dbasis3,
                   optim_method=optim_method,control=con,fit_nf=fit_nf))
     }
@@ -257,25 +330,21 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     #if the frailty likelihood is below the non-frailty likelihood, set to 0
     frail_lrtest_stat <- max(0,2*(value$logLike - fit_nf$logLike))
     if(!is.na(frail_lrtest_stat) & frail_lrtest_stat >= 0){
-      frailty_lrtest <- c(
-        stat=frail_lrtest_stat,
+      frailty_lrtest <- c(stat=frail_lrtest_stat,
         #corrected null distribution (mixture of chi-squareds)
         pval= 0.5 * (stats::pchisq(q = frail_lrtest_stat,df = 0,lower.tail = FALSE) +
-                       stats::pchisq(q = frail_lrtest_stat,df = 1,lower.tail = FALSE))
-      )
+                       stats::pchisq(q = frail_lrtest_stat,df = 1,lower.tail = FALSE)))
     } else{frailty_lrtest <- c(stat=NA,pval=NA)}
 
-    if(hessian){
-      value$Finv <- tryCatch(MASS::ginv(value$nhess),
-                              error=function(cnd){message(cnd);cat("\n");return(NA)})
+    if(hessian){ value$Finv <- tryCatch(MASS::ginv(value$nhess),
+                        error=function(cnd){message(cnd);cat("\n");return(NA)})
     } else{ NA }
-
+    myLabels <- c(myLabels, "log(theta)")
   }
 
   ##PREPARE OUTPUTS##
   ##***************##
   myLabels=c(myLabels,colnames(Xmat1),colnames(Xmat2),colnames(Xmat3))
-
   value <- list(
              estimate=as.vector(value$estimate),
              logLike=value$logLike,
@@ -294,8 +363,6 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
 
   names(value$estimate) <- if(frailty) names(startVals) else names(startVals_nf)
   names(value$grad) <- if(frailty) names(startVals) else names(startVals_nf)
-
-
   value$class <- c("Freq_HReg2","ID","Ind",
                    switch(tolower(hazard),
                           weibull="Weibull",wb="Weibull",

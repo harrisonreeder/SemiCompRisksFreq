@@ -16,6 +16,7 @@ get_quad_pointsweights <- function(n_quad, quad_method) {
   if (!is.numeric(n_quad) || (length(n_quad) > 1L)) {
     stop("'n_quad' should be a numeric vector of length 1.")
   }
+
   if(tolower(quad_method)=="kronrod"){ #calculated using: https://keisan.casio.com/exec/system/1289382036
     if (n_quad == 61) {
       list( points = c(
@@ -204,6 +205,7 @@ get_quad_pointsweights <- function(n_quad, quad_method) {
           0.450916538658474142345,0.401397414775962222905,0.268488089868333440729,
           0.104656226026467265194))
     } else stop("'n_quad' must be either 7, 11, 15, 21, 31, 41, 51, or 61.")
+
   } else if (tolower(quad_method) == "legendre"){ #calculated using: https://keisan.casio.com/exec/system/1280624821
     if (n_quad == 61) {
       list(points = c(
@@ -392,8 +394,6 @@ get_quad_pointsweights <- function(n_quad, quad_method) {
       0.129484966168869693271))
     } else stop("'n_quad' must be either 7, 11, 15, 21, 31, 41, 51, or 61.")
   } else stop("'quad_method' must be either 'kronrod' or 'legendre' ")
-
-
 }
 
 #' Return transformed Gaussian quadrature points based on the specified integral limits
@@ -417,8 +417,6 @@ transform_quad_points <- function(n_quad, quad_method, a, b) {
 }
 
 ####HELPER KNOT AND BASIS FUNCTIONS####
-
-
 
 ####Univariate####
 
@@ -464,6 +462,7 @@ get_default_knots <- function(y,delta,p0,hazard){
     #transform them in the get_basis function (makes the knots themselves more interpretable and consistent)
     knots_temp <- stats::quantile(y[delta==1],quantile_seq)
   } else {return(NULL)}
+
   return(knots_temp)
 }
 
@@ -483,35 +482,35 @@ get_default_knots <- function(y,delta,p0,hazard){
 #' @return A matrix with each row corresponding to an element of the input, and
 #'   each column giving the corresponding basis function value.
 #'
-
 #' @import splines2
 #' @export
 get_basis <- function(x,knots,hazard,deriv=FALSE){
   # browser()
   #the exact form of the knots passed into this function come from the above function
-
   if(tolower(hazard) %in% c("bspline","bs")){
     if(deriv){return(NULL)}
-    basis_out <- splines::bs(x = x,
-                             knots = knots[-c(1,length(knots))],
-                             Boundary.knots = knots[c(1,length(knots))],intercept = TRUE)
+    basis_out <- splines::bs(x = x, knots = knots[-c(1,length(knots))],
+                    Boundary.knots = knots[c(1,length(knots))],intercept = TRUE)
   } else if(tolower(hazard) %in% c("piecewise","pw")){
     if(deriv){
       # this is what the actual matrix of piecewise constant basis functions looks like
-      basis_out <- splines2::bSpline(x,knots=knots[-1], Boundary.knots = c(knots[1],1e305),
-                                      degree = 0,intercept = TRUE)
+      basis_out <- splines2::bSpline(x,knots=knots[-1], degree = 0,
+                     Boundary.knots = c(knots[1],1e305),intercept = TRUE)
       #To make things more efficient, we could use the "dbasis"
       #slot to hold a vector indicating which interval each individual is in.
       #subtract one to account for 0-indexing of C++
       # basis_out <- findInterval(x = x, vec = knots) - 1
     } else{
-      basis_out <- splines2::ibs(x,knots=knots[-1], Boundary.knots = c(knots[1],1e305),
-                                 degree = 0,intercept = TRUE)
+      basis_out <- splines2::ibs(x,knots=knots[-1], degree = 0,
+                     Boundary.knots = c(knots[1],1e305), intercept = TRUE)
     }
 
   } else if(tolower(hazard) %in% c("royston-parmar","rp")){
-    knots_log <- log(knots) #for rp we generate basis on log scale, which means transforming knots and data
-    if(any(is.infinite(knots_log) | is.na(knots_log))){stop("For royston-parmar model, all knots must be positive.")}
+    #for rp we generate basis on log scale, by transforming knots and data
+    knots_log <- log(knots)
+    if(any(is.infinite(knots_log) | is.na(knots_log))){
+      stop("For royston-parmar model, all knots must be positive.")
+    }
     temp_log <- log(x)
     temp_log[is.infinite(temp_log)] <- NA
     if(deriv){
@@ -520,18 +519,23 @@ get_basis <- function(x,knots,hazard,deriv=FALSE){
       #                Boundary.knots = knots_log[c(1,length(knots_log))],
       #                intercept = TRUE,derivs=1)
       basis_out <- ns_d(x = temp_log,knots = knots_log[-c(1,length(knots_log))],
-                        Boundary.knots = knots_log[c(1,length(knots_log))],intercept = TRUE)
-      basis_out[is.na(basis_out)] <- 1 #can't set this to 0, because it is then logged and that causes a mess even when it multiplies with delta1delta2 and would otherwise be 0
+                    Boundary.knots = knots_log[c(1,length(knots_log))],intercept = TRUE)
+      #can't set this to 0, because it is then logged and that causes a mess
+      #even when it multiplies with delta1*delta2 and would otherwise be 0
+      basis_out[is.na(basis_out)] <- 1
     } else{
       # basis_out <- splines2::naturalSpline(x = temp_log,
       #                  knots = knots_log[-c(1,length(knots_log))],
       #                  Boundary.knots = knots_log[c(1,length(knots_log))],
       #                  intercept = TRUE)
       basis_out <- splines::ns(x = temp_log,knots = knots_log[-c(1,length(knots_log))],
-                               Boundary.knots = knots_log[c(1,length(knots_log))],intercept = TRUE)
-      basis_out[is.na(basis_out)] <- 0 #This doesn't cause a problem for illness-death model because the changed rows are zeroed out of the likelihood by deltas
+                    Boundary.knots = knots_log[c(1,length(knots_log))],intercept = TRUE)
+      #This doesn't cause a problem for illness-death model
+      #because the changed rows are zeroed out of the likelihood by deltas
+      basis_out[is.na(basis_out)] <- 0
     }
   } else {return(NULL)}
+
   return(basis_out)
 }
 
@@ -552,10 +556,7 @@ get_basis <- function(x,knots,hazard,deriv=FALSE){
 #' @export
 get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots, basis,
                           hazard, sparse_start=FALSE){
-  #generate starting values based on the chosen form of the baseline hazard.
-
   # browser()
-  #number of parameters in each arm dictated by number of covariate columns in each matrix
   p <- if(!is.null(Xmat)) ncol(Xmat) else 0
   n <- length(y)
 
@@ -567,7 +568,8 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots, basis,
     form_temp <- stats::update.formula(form_temp, .~ Xmat)
   }
 
-  #now, how we generate start values depends on baseline hazard...
+  #now, how we generate start values depends on baseline hazard
+  #for weibull, fit weibull model built into survival (ignoring left truncation)
   if(tolower(hazard) %in% c("weibull","wb")){
     fit_survreg <- survival::survreg(form_temp, dist="weibull")
     alpha <- 1/fit_survreg$scale
@@ -579,7 +581,6 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots, basis,
     }
     return(c(lkappa=logkappa,lalpha=log(alpha),beta))
   }
-
   #all others are basis methods, so grab p0
   p0 <- ncol(basis)
 
@@ -599,22 +600,15 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots, basis,
     H0_fit <- survival::basehaz(fit_coxph, centered = F)
     beta <- if(sparse_start) numeric(p) else stats::coef(fit_coxph)
     if(tolower(hazard) %in% c("bspline", "bs")){
-      #adapt an approach by cathy lee:
-      #generate grid points from which to
+      #adapt an approach by cathy lee: generate grid points from which to
       #regress bspline basis onto smoothed Cox hazard
       yvals <- seq(min(y), max(y), length=500) ## get plenty of y-values
       yvals_basis <- stats::predict(basis, yvals)
-
       #generate smoothed baseline hazard from Cox model fit
       H0_fit_interpolate <- stats::smooth.spline(H0_fit$time, H0_fit$hazard,
-                                                 df = length(knots)+3+1) #same df as model specification
+                             df = length(knots)+3+1) #same df as specified model
       h0_fit_interpolate <- stats::predict(H0_fit_interpolate,x = yvals,deriv = 1)
-      if(any(h0_fit_interpolate$y <= 0)){ #this causes an error because log(0)=-Inf, which lm.fit doesn't handle
-        # #omit any values with negative hazards
-        # yvals_basis <- yvals_basis[h0_fit_interpolate$y > 0,]
-        # h0_fit_interpolate$y <- h0_fit_interpolate$y[h0_fit_interpolate$y > 0]
-        # if(length(h0_fit_interpolate$y)<2){stop("approximate hazard to generate start values is negative! Manually enter start values.")}
-
+      if(any(h0_fit_interpolate$y <= 0)){ #lm.fit can't handle log(0)=-Inf
         #replace negative values with smallest positive observed value.
         pos_min <- min(h0_fit_interpolate$y[h0_fit_interpolate$y>0])
         if(length(pos_min)==0){stop("approximate hazard to generate start values is negative! Manually enter start values.")}
@@ -667,7 +661,6 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots, basis,
 get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
                         basis, dbasis, basis_yL, hazard,
                         control, hessian, optim_method, extra_starts){
-
   best_ll <- -Inf
   output <- list(fail=TRUE)
 
@@ -676,23 +669,23 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
     if(extra_start_iter == 1){ #first time, just use the default starts
       startVals_update <- startVals
     } else{ #Perturb the start values with additive and multiplicative noise
-      startVals_update <- (startVals + stats::rnorm(n = length(startVals),mean = 0,sd=0.7)) *
-        stats::runif(n = length(startVals),min = 0.9, max = 1.1) #adding random multiplicative and additive noise
+      startVals_update <- (startVals +
+          stats::rnorm(n = length(startVals),mean = 0,sd=0.7)) *
+          stats::runif(n = length(startVals),min = 0.9, max = 1.1)
     }
 
     #loop through multiple optimization options!
+    #three options for optimization approaches: nlm(), optim(), and nleqslv()
     for(meth in optim_method){
-      # print(meth)
-
-      #two options for optimization approaches: optim(), and nleqslv()
+      #print(meth)
       if(tolower(meth)=="nlm"){
         fit0 <- tryCatch(stats::nlm(p=startVals_update, #print.level = 2,
-                                    f = nll_ngrad_uni_func,
-                                    y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                    basis=basis,dbasis=dbasis,
-                                    basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                                    iterlim=if(!is.null(control)) control$maxit else 100,
-                                    hessian=hessian),
+                          f = nll_ngrad_uni_func,
+                          y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+                          basis=basis,dbasis=dbasis,
+                          basis_yL=basis_yL,yL=yL,anyLT=anyLT,
+                          iterlim=if(!is.null(control)) control$maxit else 100,
+                          hessian=hessian),
                          error=function(cnd){message(cnd);cat("\n");return(NULL)})
         if(is.null(fit0)){ next }
         if (!(fit0$code %in% c(1,2))){warning("for method ",meth,"check convergence.")}
@@ -703,28 +696,23 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
         final_grad <- -fit0$gradient
         final_nhess <- if(hessian) fit0$hessian else NA
         final_startVals <- startVals_update
-        optim_details = list(optim_method=meth,
-                             extra_starts=extra_starts,
-                             counts=fit0$iterations,
-                             convergence=fit0$code,
+        optim_details = list(optim_method=meth, extra_starts=extra_starts,
+                             counts=fit0$iterations, convergence=fit0$code,
                              message=NULL)
 
       } else if(tolower(meth)=="nleqslv"){
         fit0 <- tryCatch(nleqslv::nleqslv(x=startVals_update,fn = ngrad_uni_func,
-                                          method = "Broyden", global="dbldog",
-                                          y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                          basis=basis,dbasis=dbasis,
-                                          basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                                          control=control,
-                                          # control=if(is.null(control$allowSingular)) c(control,allowSingular=TRUE) else control,
-                                          jacobian=hessian),
+                                      method = "Broyden", global="dbldog",
+                                      y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+                                      basis=basis,dbasis=dbasis,
+                                      basis_yL=basis_yL,yL=yL,anyLT=anyLT,
+                                      control=control, jacobian=hessian),
                          error=function(cnd){message(cnd);cat("\n");return(NULL)})
         if(is.null(fit0)){ next }
         if (!(fit0$termcd %in% c(1,2))){warning("for method ",meth,"check convergence.")}
-
         #if the final value of nleqslv actually causes an error, catch it and set likelihood to -Inf
         final_ll <- tryCatch(-nll_uni_func(para=fit0$x, y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                  basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT),
+                                basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT),
                              error=function(cnd){message(cnd);cat("\n");return(-Inf)})
         if(is.na(final_ll)){final_ll <- -Inf}
         if(final_ll <= best_ll){next}
@@ -733,25 +721,15 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
         final_grad <- -fit0$fvec
         final_nhess <- if(hessian) fit0$jac else NA
         final_startVals <- startVals_update
-        optim_details = list(optim_method=meth,
-                             extra_starts=extra_starts,
-                             counts=fit0$iter,
-                             convergence=fit0$termcd,
+        optim_details = list(optim_method=meth, extra_starts=extra_starts,
+                             counts=fit0$iter, convergence=fit0$termcd,
                              message=fit0$message)
 
       } else{ #use method from optim()
-
-        # fit0 <- try(stats::optim(par=startVals_update, fn=nll_uni_func, gr=ngrad_uni_func,
-        #                          y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-        #                          basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-        #                          control=control, hessian=hessian,method = meth))
-        # if(class(fit0)=="try-error"){ next }
-
-        #this is being a little weird today, in browser when L-BFGS fails it stops like a normal error
         fit0 <- tryCatch(stats::optim(par=startVals_update, fn=nll_uni_func, gr=ngrad_uni_func,
-                                      y=y, delta=delta,Xmat=Xmat,hazard=hazard,
-                                      basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT,
-                                      control=control, hessian=hessian,method = meth),
+                          y=y, delta=delta,Xmat=Xmat,hazard=hazard,
+                          basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT,
+                          control=control, hessian=hessian,method = meth),
                          error=function(cnd){message(cnd);cat("\n");return(NULL)})
         if(is.null(fit0)){ next }
         if (!(fit0$convergence %in% c(0,1))){warning("for method ",meth,"check convergence.")}
@@ -763,15 +741,11 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
                                                 basis=basis,dbasis=dbasis,basis_yL=basis_yL,yL=yL,anyLT=anyLT))
         final_nhess <- if(hessian) fit0$hessian else NA
         final_startVals <- startVals_update
-        optim_details = list(optim_method=meth,
-                             extra_starts=extra_starts,
-                             counts=fit0$counts,
-                             convergence=fit0$convergence,
+        optim_details = list(optim_method=meth, extra_starts=extra_starts,
+                             counts=fit0$counts, convergence=fit0$convergence,
                              message=fit0$message)
       }
-
     }
-
   }
 
   #if any of the methods worked, then set the output to correspond with the best method
@@ -784,10 +758,7 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
                    startVals=final_startVals)
   }
   output
-
 }
-
-
 
 ####Illness-Death####
 
@@ -806,17 +777,11 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
 #'   the knots for the flexible model on the corresponding transition baseline hazard.
 #' @export
 get_default_knots_list <- function(y1,y2,delta1,delta2,p01,p02,p03,hazard,model){
-
   delta2_cr <- ifelse(y1<y2,0,delta2)
   knots1 <- get_default_knots(y = y1, delta = delta1,p0 = p01,hazard = hazard)
   knots2 <- get_default_knots(y = y1, delta = delta2_cr, p0 = p02, hazard=hazard)
   knots3 <- get_default_knots(y = if(tolower(model)=="semi-markov") (y2-y1)[delta1==1] else y2[delta1==1],
                               delta = delta2[delta1==1], p0 = p03, hazard=hazard)
-
-  # knots1 <- get_default_knots(y = y1, delta = delta1,p0 = p01,hazard = hazard)
-  # knots2 <- get_default_knots(y = y1, delta = (1-delta1)*delta2, p0 = p02, hazard=hazard)
-  # knots3 <- get_default_knots(y = if(tolower(model)=="semi-markov") y2-y1 else y2,
-  #                             delta = delta1*delta2, p0 = p03, hazard=hazard)
   return(list(knots1,knots2,knots3))
 }
 
@@ -834,7 +799,7 @@ get_default_knots_list <- function(y1,y2,delta1,delta2,p01,p02,p03,hazard,model)
 #'
 #' @return A vector of starting parameter values.
 #' @export
-get_start <- function(y1,y2,delta1,delta2,
+get_start <- function(y1,y2,delta1,delta2,yL,anyLT,
                       Xmat1,Xmat2,Xmat3, knots_list,
                       basis1,basis2,basis3,
                       hazard,frailty,model,sparse_start=FALSE){
@@ -842,31 +807,28 @@ get_start <- function(y1,y2,delta1,delta2,
   p01 <- if(tolower(hazard) %in% c("weibull","wb")) 2 else ncol(basis1)
   p02 <- if(tolower(hazard) %in% c("weibull","wb")) 2 else ncol(basis2)
   p03 <- if(tolower(hazard) %in% c("weibull","wb")) 2 else ncol(basis3)
-
   #start values for first transition hazard
-  start1 <- get_start_uni(y = y1, delta = delta1, anyLT = 0, Xmat = Xmat1,
-                  knots = knots_list[[1]], basis = basis1,
-                  hazard = hazard, sparse_start=sparse_start)
-
+  start1 <- get_start_uni(y = y1, delta = delta1, yL = yL, anyLT = anyLT,
+                          Xmat = Xmat1, knots = knots_list[[1]], basis = basis1,
+                          hazard = hazard, sparse_start=sparse_start)
   #start values for second transition hazard
   #define new indicator for terminal event, treating non-terminal as competing risk
   delta_cr <- ifelse(y1 < y2, 0, delta2)
-  start2 <- get_start_uni(y = y1, delta = delta_cr, anyLT = 0, Xmat = Xmat2,
-                    knots = knots_list[[2]], basis = basis2,
-                    hazard = hazard, sparse_start=sparse_start)
-
+  start2 <- get_start_uni(y = y1, delta = delta_cr, yL = yL, anyLT = anyLT,
+                          Xmat = Xmat2, knots = knots_list[[2]], basis = basis2,
+                          hazard = hazard, sparse_start=sparse_start)
   #prepare inputs for third transition model fit
-  anyLT <- as.numeric(tolower(model)=="markov") #markov model is left-truncated
-  y_sub <- if(anyLT) y2[delta1==1] else (y2-y1)[delta1==1]
-  yL_sub <- if(anyLT) y1[delta1==1] else numeric(0)
+  ismarkov <- as.numeric(tolower(model)=="markov") #markov model is left-truncated
+  y_sub <- if(ismarkov) y2[delta1==1] else (y2-y1)[delta1==1]
+  yL_sub <- if(ismarkov) y1[delta1==1] else numeric(0)
   delta2_sub <- delta2[delta1==1]
   Xmat3_sub <- Xmat3[delta1==1,,drop=FALSE]
-  #in all cases basis is used for getting p0 and using relevant predict() function,
+  #basis is only ever used for getting p0 and using relevant predict() function,
   #so no need to subset it.
 
-  start3 <- get_start_uni(y = y_sub, delta = delta2_sub, yL = yL_sub, anyLT = anyLT,
-                          Xmat = Xmat3_sub, knots = knots_list[[3]],
-                          basis = basis3, hazard = hazard, sparse_start=sparse_start)
+  start3 <- get_start_uni(y = y_sub, delta = delta2_sub, yL = yL_sub,
+                anyLT = ismarkov, Xmat = Xmat3_sub, knots = knots_list[[3]],
+                basis = basis3, hazard = hazard, sparse_start=sparse_start)
 
   phi1 <- start1[1:p01]
   phi2 <- start2[1:p02]
@@ -886,21 +848,15 @@ get_start <- function(y1,y2,delta1,delta2,
   if(length(beta3) > 0){
     names(beta3) <- if(!is.null(colnames(Xmat3))) paste0(colnames(Xmat3),"_3") else NULL
   }
-  startVals <- c(phi1,phi2,phi3,
-               ltheta= if(frailty) 1 else NULL,
+  startVals <- c(phi1,phi2,phi3, ltheta= if(frailty) 1 else NULL,
                beta1,beta2,beta3)
 
-  #I used to have this final tester to try and tweak the starting values
-  #if the starting values selected were not admissible, but I think it's
-  #unnecessary now.
-
+  # #Used to test royston-parmar starting values to see if they were admissible,
+  # #but I think it's unnecessary now.
   # if(tolower(hazard) %in% c("royston-parmar","rp")){
-  #   #do a final check that the resulting values are "feasible" in the royston parmar model
-  #   #if not, shift around with small steps to see if a perturbed set of values is feasible
   #   getout <- FALSE
   #   for(i in c(seq(0,3,0.5),seq(-0.5,-3,-0.5))){
   #     for(j in c(seq(0,3,0.5),seq(-0.5,-3,-0.5))){
-  #       # for(k in c(seq(0,3,0.5),seq(-0.5,-3,-0.5))){
   #       #we will just consider toggling the last two parameter values per hazard
   #       startVals[c(p01-1,p01+p02-1,p01+p02+p03-1)] <- startVals[c(p01-1,p01+p02-1,p01+p02+p03-1)] + i
   #       startVals[c(p01,p01+p02,p01+p02+p03)] <- startVals[c(p01,p01+p02,p01+p02+p03)] + j
@@ -913,7 +869,6 @@ get_start <- function(y1,y2,delta1,delta2,
   #         # print('viable royston parmar starting value found!')
   #         getout <- TRUE
   #       }
-  #       # }
   #       if(getout){break}
   #     }
   #     if(getout){break}
@@ -923,7 +878,6 @@ get_start <- function(y1,y2,delta1,delta2,
 
   return(startVals)
 }
-
 
 
 #' Get Non-Frailty Illness-Death Model Fit
@@ -938,15 +892,13 @@ get_start <- function(y1,y2,delta1,delta2,
 #'
 #' @return A vector of starting parameter values.
 #' @export
-get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,
+get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,yL,anyLT,
                        Xmat1,Xmat2,Xmat3, knots_list,
-                       basis1,basis2,basis3,basis3_y1,
+                       basis1,basis2,basis3,basis3_y1,basis1_yL,basis2_yL,
                        dbasis1,dbasis2,dbasis3,hazard,model,control,
                        hessian,optim_method,extra_starts){
   # browser()
-
   #generate starting values based on the chosen form of the baseline hazard.
-
   p01 <- if(tolower(hazard) %in% c("weibull","wb")) 2 else ncol(basis1)
   p02 <- if(tolower(hazard) %in% c("weibull","wb")) 2 else ncol(basis2)
   p03 <- if(tolower(hazard) %in% c("weibull","wb")) 2 else ncol(basis3)
@@ -966,49 +918,57 @@ get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,
   delta_cr <- ifelse(y1 < y2, 0, delta2)
 
   #prepare inputs for third transition model fit
-  anyLT <- as.numeric(tolower(model)=="markov") #markov model is left-truncated
-  y_sub <- if(anyLT) y2[delta1==1] else (y2-y1)[delta1==1]
-  yL_sub <- if(anyLT) y1[delta1==1] else numeric(0)
+  ismarkov <- as.numeric(tolower(model)=="markov") #markov model is left-truncated
+  y_sub <- if(ismarkov) y2[delta1==1] else (y2-y1)[delta1==1]
+  yL_sub <- if(ismarkov) y1[delta1==1] else numeric(0)
   delta2_sub <- delta2[delta1==1]
   Xmat3_sub <- Xmat3[delta1==1,,drop=FALSE]
   dbasis3_sub <- dbasis3[delta1==1,,drop=FALSE]
   basis3_y1_sub <- NULL
   if(hazard %in% c("piecewise","pw")){
-    #this basis is already defined for either Markov or semi-Markov, so just subset
+    #basis is already defined for either Markov or semi-Markov, so just subset
     basis3_sub <- basis3[delta1==1,,drop=FALSE]
+    #for non-frailty piecewise, need to update basis1,basis2 for left truncation
+    #basis1_yL and basis2_yL are not themselves used in PW nll_uni or ngrad_uni
+    if(anyLT){
+      basis1 <- basis1 - basis1_yL
+      basis2 <- basis2 - basis2_yL
+    }
   } else if(hazard %in% c("royston-parmar","rp")){
     basis3_sub <- stats::predict(basis3,log(y_sub))
-    #royston-parmar model requires separate basis3 matrix for Markov left truncation
-    basis3_y1_sub <- if(anyLT) stats::predict(basis3,log(yL_sub)) else NULL
+    #rp model requires separate basis3 matrix for Markov left truncation
+    basis3_y1_sub <- if(ismarkov) stats::predict(basis3,log(yL_sub)) else NULL
   } else if(hazard %in% c("bspline","bs")){
     n_quad <- NROW(basis1)/NROW(y1) - 1
     quad_method <- attr(x=basis1,which="quad_method")
-    if(anyLT){
+    #under left truncation, for bspline get_fit_uni takes y-yL as y
+    if(anyLT) y1 <- y1 - yL
+    if(ismarkov){
       #note yL is lower bound of integral to account for left truncation
-      y_quad_sub <- c(y_sub, transform_quad_points(n_quad=n_quad,
-                                                   quad_method=quad_method,
-                                                   a=yL_sub,b=y_sub))
-      y_sub <- y_sub - yL_sub #under left truncation, bspline inputs difference as y
+      y_quad_sub <- c(y_sub, transform_quad_points(n_quad=n_quad,a=yL_sub,b=y_sub,
+                                                   quad_method=quad_method))
+      y_sub <- y_sub - yL_sub
     } else{
-      y_quad_sub <- c(y_sub, transform_quad_points(n_quad=n_quad,
-                                                   quad_method=quad_method,
-                                                   a=0,b=y_sub))
+      y_quad_sub <- c(y_sub, transform_quad_points(n_quad=n_quad,a=0,b=y_sub,
+                                                   quad_method=quad_method))
     }
     basis3_sub <- stats::predict(basis3,y_quad_sub)
     attr(x=basis3_sub,which="quad_method") <- tolower(quad_method)
   }
 
-  fit01 <- get_fit_uni(startVals=start1, y=y1, delta=delta1, yL=numeric(0), anyLT=0,
+  fit01 <- get_fit_uni(startVals=start1, y=y1, delta=delta1,
                        Xmat=Xmat1, hazard=hazard, basis=basis1, dbasis=dbasis1,
+                       yL=yL, basis_yL=basis1_yL, anyLT=anyLT,
                        control=control, hessian=hessian,
                        optim_method=optim_method, extra_starts=extra_starts)
-  fit02 <- get_fit_uni(startVals=start2, y=y1, delta=delta_cr, yL=numeric(0), anyLT=0,
+  fit02 <- get_fit_uni(startVals=start2, y=y1, delta=delta_cr,
                        Xmat=Xmat2, hazard=hazard, basis = basis2, dbasis=dbasis2,
+                       yL=yL, basis_yL=basis2_yL, anyLT=anyLT,
                        control=control, hessian=hessian,
                        optim_method=optim_method, extra_starts=extra_starts)
   fit03 <- get_fit_uni(startVals=start3, y=y_sub, delta=delta2_sub,
                        Xmat=Xmat3_sub, hazard=hazard, basis=basis3_sub, dbasis=dbasis3_sub,
-                       yL=yL_sub, basis_yL=basis3_y1_sub, anyLT=anyLT,
+                       yL=yL_sub, basis_yL=basis3_y1_sub, anyLT=ismarkov,
                        control=control, hessian=hessian,
                        optim_method=optim_method, extra_starts=extra_starts)
 
@@ -1034,7 +994,7 @@ get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,
 
   return(list(
     estimate=c(fit01$estimate[1:p01],fit02$estimate[1:p02],fit03$estimate[1:p03],
-       fit01$estimate[-(1:p01)],fit02$estimate[-(1:p02)],fit03$estimate[-(1:p03)]),
+      fit01$estimate[-(1:p01)],fit02$estimate[-(1:p02)],fit03$estimate[-(1:p03)]),
     Finv = if(hessian) Finv else NA,
     grad = c(fit01$grad[1:p01],fit02$grad[1:p02],fit03$grad[1:p03],
              fit01$grad[-(1:p01)],fit02$grad[-(1:p02)],fit03$grad[-(1:p03)]),
@@ -1043,7 +1003,6 @@ get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,
     optim_details = list(fit01$optim_details,fit02$optim_details,fit03$optim_details),
     startVals=startVals_nf
   ))
-
 }
 
 
@@ -1058,41 +1017,39 @@ get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,
 #'
 #' @return A vector of starting parameter values.
 #' @export
-get_fit_frail <- function(startVals,y1,y2,delta1,delta2,
+get_fit_frail <- function(startVals,y1,y2,delta1,delta2,yL,anyLT,
                        Xmat1,Xmat2,Xmat3, knots_list,
-                       basis1,basis2,basis3,basis3_y1,
+                       basis1,basis2,basis3,basis3_y1,basis1_yL,basis2_yL,
                        dbasis1,dbasis2,dbasis3, hazard,model,frailty,
                        control,hessian,optim_method,extra_starts){
   # browser()
-
   best_ll <- -Inf
   output <- list(fail=TRUE)
-
 
   #loop through multiple starts!
   for(extra_start_iter in 1:(extra_starts+1)){
     if(extra_start_iter == 1){ #first time, just use the default starts
       startVals_update <- startVals
     } else{ #Perturb the start values with additive and multiplicative noise
-      startVals_update <- (startVals + stats::rnorm(n = length(startVals),mean = 0,sd=0.7)) *
-        stats::runif(n = length(startVals),min = 0.9, max = 1.1) #adding random multiplicative and additive noise
+      startVals_update <- (startVals +
+        stats::rnorm(n = length(startVals),mean = 0,sd=0.7)) *
+        stats::runif(n = length(startVals),min = 0.9, max = 1.1)
     }
 
-
     #loop through multiple options!
+    #three options for optimization approaches: nlm(), optim(), and nleqslv()
     for(meth in optim_method){
-
-      #two options for optimization approaches: optim(), and nleqslv()
       if(tolower(meth)=="nlm"){
         fit0 <- tryCatch(stats::nlm(p=startVals_update, f=nll_ngrad_func,
-                                    y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                                    Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                                    hazard=hazard,frailty=frailty,model=model,
-                                    basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                                    dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                                    iterlim=if(!is.null(control)) control$maxit else 100,
-                                    hessian=hessian),
-                         error=function(cnd){message(cnd);cat("\n");return(NULL)})
+                  y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                  Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                  hazard=hazard,frailty=frailty,model=model,
+                  basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                  basis1_yL=basis1_yL,basis2_yL=basis2_yL,
+                  dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                  iterlim=if(!is.null(control)) control$maxit else 100,
+                  hessian=hessian),
+                 error=function(cnd){message(cnd);cat("\n");return(NULL)})
         if(is.null(fit0)){ next }
         if (!(fit0$code %in% c(1,2))){warning("check convergence.")}
         final_ll <- -fit0$minimum
@@ -1102,39 +1059,33 @@ get_fit_frail <- function(startVals,y1,y2,delta1,delta2,
         final_grad <- -fit0$gradient
         final_nhess <- if(hessian) fit0$hessian else NA
         final_startVals <- startVals_update
-        optim_details = list(optim_method=meth,
-                             extra_starts=extra_starts,
-                             counts=fit0$iterations,
-                             convergence=fit0$code,
+        optim_details = list(optim_method=meth, extra_starts=extra_starts,
+                             counts=fit0$iterations, convergence=fit0$code,
                              message=NULL)
 
       } else if(tolower(meth)=="nleqslv"){
         fit0 <- tryCatch(nleqslv::nleqslv(x=startVals_update, fn=ngrad_func,
                             method="Broyden",global = "dbldog",
-                            y1=y1, y2=y2, delta1=delta1, delta2=delta2,
+                            y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                             Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                             hazard=hazard,frailty=frailty,model=model,
                             basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                            basis1_yL=basis1_yL,basis2_yL=basis2_yL,
                             dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                            control=control,
-                            # control=if(is.null(control$allowSingular)) c(control,allowSingular=TRUE) else control,
-                            jacobian=hessian),
+                            control=control, jacobian=hessian),
                          error=function(cnd){message(cnd);cat("\n");return(NULL)})
         if(is.null(fit0)){ next }
         if (!(fit0$termcd %in% c(1,2))){warning("check convergence.")}
         #if the final value of nleqslv actually causes an error, catch it and set likelihood to -Inf
         final_ll <- tryCatch(-nll_func(para=fit0$x, y1=y1, y2=y2,
-                              delta1=delta1, delta2=delta2,
-                              Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                              hazard=hazard,frailty=frailty,model=model,
-                              basis1=basis1, basis2=basis2,
-                              basis3=basis3, basis3_y1=basis3_y1,
-                              dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3),
-                             error=function(cnd){
-                               message(cnd)
-                               cat("\n")
-                               return(-Inf)
-                             })
+                        delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                        Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                        hazard=hazard,frailty=frailty,model=model,
+                        basis1=basis1, basis2=basis2,
+                        basis3=basis3, basis3_y1=basis3_y1,
+                        basis1_yL=basis1_yL,basis2_yL=basis2_yL,
+                        dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3),
+                       error=function(cnd){message(cnd);cat("\n");return(-Inf)})
         if(is.na(final_ll)){final_ll <- -Inf}
         if(final_ll <= best_ll){next}
         best_ll <- final_ll
@@ -1142,21 +1093,20 @@ get_fit_frail <- function(startVals,y1,y2,delta1,delta2,
         final_grad <- -fit0$fvec
         final_nhess <- if(hessian) fit0$jac else NA
         final_startVals <- startVals_update
-        optim_details = list(optim_method=meth,
-                             extra_starts=extra_starts,
-                             counts=fit0$iter,
-                             convergence=fit0$termcd,
+        optim_details = list(optim_method=meth, extra_starts=extra_starts,
+                             counts=fit0$iter, convergence=fit0$termcd,
                              message=fit0$message)
 
       } else{ #use method from optim()
         fit0 <- tryCatch(stats::optim(par=startVals_update, fn=nll_func, gr=ngrad_func,
-                            y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                            Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                            hazard=hazard,frailty=frailty,model=model,
-                            basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
-                            dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                            control=control, hessian=hessian,method=meth),
-                         error=function(cnd){message(cnd);cat("\n");return(NULL)})
+                  y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                  Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                  hazard=hazard,frailty=frailty,model=model,
+                  basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                  basis1_yL=basis1_yL,basis2_yL=basis2_yL,
+                  dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                  control=control, hessian=hessian,method=meth),
+                 error=function(cnd){message(cnd);cat("\n");return(NULL)})
         if(is.null(fit0)){ next }
         if (!(fit0$convergence %in% c(0,1))){warning("check convergence.")}
         final_ll <- -fit0$value
@@ -1164,24 +1114,23 @@ get_fit_frail <- function(startVals,y1,y2,delta1,delta2,
         best_ll <- final_ll
         final_est <- fit0$par
         final_grad <- as.vector(-ngrad_func(para=final_est, y1=y1, y2=y2,
-                                    delta1=delta1, delta2=delta2,
-                                    Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
-                                    hazard=hazard,frailty=frailty,model=model,
-                                    basis1=basis1, basis2=basis2,
-                                    basis3=basis3, basis3_y1=basis3_y1,
-                                    dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
+                            delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                            Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                            hazard=hazard,frailty=frailty,model=model,
+                            basis1=basis1, basis2=basis2,
+                            basis3=basis3, basis3_y1=basis3_y1,
+                            basis1_yL=basis1_yL,basis2_yL=basis2_yL,
+                            dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
         final_nhess <- if(hessian) fit0$hessian else NA
         final_startVals <- startVals_update
-        optim_details = list(optim_method=meth,
-                             extra_starts=extra_starts,
-                             counts=fit0$counts,
-                             convergence=fit0$convergence,
+        optim_details = list(optim_method=meth, extra_starts=extra_starts,
+                             counts=fit0$counts, convergence=fit0$convergence,
                              message=fit0$message)
       }
     }
   }
 
-  #if any of the methods worked, then set the output to correspond with the best method
+  #if any of the methods worked, set the output to correspond with the best method
   if(best_ll > -Inf){
     output <- list(estimate=final_est,
                    logLike=best_ll,
@@ -1190,7 +1139,6 @@ get_fit_frail <- function(startVals,y1,y2,delta1,delta2,
                    optim_details=optim_details,
                    startVals=final_startVals)
   }
-
   output
 }
 

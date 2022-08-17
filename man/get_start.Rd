@@ -9,6 +9,8 @@ get_start(
   y2,
   delta1,
   delta2,
+  yL,
+  anyLT,
   Xmat1,
   Xmat2,
   Xmat3,

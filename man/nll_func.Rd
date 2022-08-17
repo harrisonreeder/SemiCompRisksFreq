@@ -10,6 +10,8 @@ nll_func(
   y2,
   delta1,
   delta2,
+  yL,
+  anyLT,
   Xmat1,
   Xmat2,
   Xmat3,
@@ -20,6 +22,8 @@ nll_func(
   basis2,
   basis3,
   basis3_y1,
+  basis1_yL,
+  basis2_yL,
   dbasis1,
   dbasis2,
   dbasis3
