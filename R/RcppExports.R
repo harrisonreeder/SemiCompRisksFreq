@@ -9,12 +9,20 @@ ngradPW_uni <- function(para, y, delta, X, basis, dbasis) {
     .Call(`_SemiCompRisksFreq_ngradPW_uni`, para, y, delta, X, basis, dbasis)
 }
 
+ngradPW_uni_mat <- function(para, y, delta, X, basis, dbasis) {
+    .Call(`_SemiCompRisksFreq_ngradPW_uni_mat`, para, y, delta, X, basis, dbasis)
+}
+
 nlogLikPW_ID <- function(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, frailty_ind) {
     .Call(`_SemiCompRisksFreq_nlogLikPW_ID`, para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, frailty_ind)
 }
 
 ngradPW_ID <- function(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, frailty_ind) {
     .Call(`_SemiCompRisksFreq_ngradPW_ID`, para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, frailty_ind)
+}
+
+ngradPW_ID_mat <- function(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, frailty_ind) {
+    .Call(`_SemiCompRisksFreq_ngradPW_ID_mat`, para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, frailty_ind)
 }
 
 nlogLikRP_uni <- function(para, y, delta, X, basis, dbasis, basis_yL, anyLT) {
@@ -25,12 +33,20 @@ ngradRP_uni <- function(para, y, delta, X, basis, dbasis, basis_yL, anyLT) {
     .Call(`_SemiCompRisksFreq_ngradRP_uni`, para, y, delta, X, basis, dbasis, basis_yL, anyLT)
 }
 
+ngradRP_uni_mat <- function(para, y, delta, X, basis, dbasis, basis_yL, anyLT) {
+    .Call(`_SemiCompRisksFreq_ngradRP_uni_mat`, para, y, delta, X, basis, dbasis, basis_yL, anyLT)
+}
+
 nlogLikRP_ID <- function(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, frailty_ind) {
     .Call(`_SemiCompRisksFreq_nlogLikRP_ID`, para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, frailty_ind)
 }
 
 ngradRP_ID <- function(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, frailty_ind) {
     .Call(`_SemiCompRisksFreq_ngradRP_ID`, para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, frailty_ind)
+}
+
+ngradRP_ID_mat <- function(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, frailty_ind) {
+    .Call(`_SemiCompRisksFreq_ngradRP_ID_mat`, para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, frailty_ind)
 }
 
 nlogLikBS_uni <- function(para, y, delta, X, basis, quad_weights) {
@@ -41,12 +57,20 @@ ngradBS_uni <- function(para, y, delta, X, basis, quad_weights) {
     .Call(`_SemiCompRisksFreq_ngradBS_uni`, para, y, delta, X, basis, quad_weights)
 }
 
+ngradBS_uni_mat <- function(para, y, delta, X, basis, quad_weights) {
+    .Call(`_SemiCompRisksFreq_ngradBS_uni_mat`, para, y, delta, X, basis, quad_weights)
+}
+
 nlogLikBS_ID <- function(para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, quad_weights, frailty_ind) {
     .Call(`_SemiCompRisksFreq_nlogLikBS_ID`, para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, quad_weights, frailty_ind)
 }
 
 ngradBS_ID <- function(para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, quad_weights, frailty_ind) {
     .Call(`_SemiCompRisksFreq_ngradBS_ID`, para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, quad_weights, frailty_ind)
+}
+
+ngradBS_ID_mat <- function(para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, quad_weights, frailty_ind) {
+    .Call(`_SemiCompRisksFreq_ngradBS_ID_mat`, para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, quad_weights, frailty_ind)
 }
 
 nlogLikWB_uni <- function(para, y, delta, X, yL, anyLT) {
@@ -57,6 +81,10 @@ ngradWB_uni <- function(para, y, delta, X, yL, anyLT) {
     .Call(`_SemiCompRisksFreq_ngradWB_uni`, para, y, delta, X, yL, anyLT)
 }
 
+ngradWB_uni_mat <- function(para, y, delta, X, yL, anyLT) {
+    .Call(`_SemiCompRisksFreq_ngradWB_uni_mat`, para, y, delta, X, yL, anyLT)
+}
+
 nlogLikWB_ID <- function(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, frailty_ind) {
     .Call(`_SemiCompRisksFreq_nlogLikWB_ID`, para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, frailty_ind)
 }
@@ -65,12 +93,8 @@ ngradWB_ID <- function(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, mode
     .Call(`_SemiCompRisksFreq_ngradWB_ID`, para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, frailty_ind)
 }
 
-ngradWB_ID_frail_mat_SM <- function(para, y1, y2, delta1, delta2, X1, X2, X3) {
-    .Call(`_SemiCompRisksFreq_ngradWB_ID_frail_mat_SM`, para, y1, y2, delta1, delta2, X1, X2, X3)
-}
-
-ngradWB_ID_frail_mat_M <- function(para, y1, y2, delta1, delta2, X1, X2, X3) {
-    .Call(`_SemiCompRisksFreq_ngradWB_ID_frail_mat_M`, para, y1, y2, delta1, delta2, X1, X2, X3)
+ngradWB_ID_mat <- function(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, frailty_ind) {
+    .Call(`_SemiCompRisksFreq_ngradWB_ID_mat`, para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, frailty_ind)
 }
 
 nhessWB_ID_frail_SM <- function(para, y1, y2, delta1, delta2, X1, X2, X3) {

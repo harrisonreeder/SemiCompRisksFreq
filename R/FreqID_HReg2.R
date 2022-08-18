@@ -38,7 +38,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                         nP0=rep(4,3), startVals=NULL, hessian=TRUE, control=NULL,
                         quad_method="kronrod", n_quad=15,
                         optim_method="BFGS", extra_starts=0){
-  # browser()
+  browser()
   ##INITIALIZE OPTIONS##
   ##******************##
   #technically na.fail I think is the only one currently implemented
@@ -226,9 +226,16 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                            basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                            basis1_yL=basis1_yL, basis2_yL=basis2_yL,
                            dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+  grad3_nf <- colSums(ngrad_mat_func(para = startVals_nf,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                         Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                         hazard=hazard,model=model,frailty=FALSE,
+                         basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                         basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                         dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
   if(max(abs(grad1_nf-grad2_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
+  if(max(abs(grad1_nf-grad3_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
   # if(max(abs(grad1_nf-grad2_nf)) >= 1e-4){warning("check gradient of non-frailty model")}
-  # cbind(grad1_nf,grad2_nf)
+  # cbind(grad1_nf,grad2_nf,grad3_nf)
 
   if(!frailty){
     #non-frailty model fit as three univariate models for the three transitions.
@@ -266,9 +273,16 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                              basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                              basis1_yL=basis1_yL, basis2_yL=basis2_yL,
                              dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+    grad5_nf <- colSums(ngrad_mat_func(para = fit_nf$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                           Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                           hazard=hazard,model=model,frailty=FALSE,
+                           basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                           basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                           dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
     if(max(abs(grad3_nf+fit_nf$grad)) >= 1e-4){stop("check gradient of non-frailty model")}
+    if(max(abs(grad3_nf-grad5_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
     # if(max(abs(grad3_nf+fit_nf$grad)) >= 1e-4){warning("check gradient of non-frailty model")}
-    # cbind(fit_nf$grad,grad3_nf,grad4_nf)
+    # cbind(fit_nf$grad,grad3_nf,grad4_nf,grad5_nf)
 
     #now, update the basis matrices if we're
     #1. using a b-spline specification
@@ -301,9 +315,16 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                  basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                  basis1_yL=basis1_yL, basis2_yL=basis2_yL,
                  dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+    grad3 <- colSums(ngrad_mat_func(para = startVals,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                        Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                        hazard=hazard,model=model,frailty=frailty,
+                        basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
+                        basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                        dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
     if(max(abs(grad1-grad2)) >= 1e-4){stop("check gradient of non-frailty model")}
+    if(max(abs(grad1-grad3)) >= 1e-4){stop("check gradient of non-frailty model")}
     # if(max(abs(grad1-grad2)) >= 1e-4){warning("check gradient of non-frailty model")}
-    # cbind(grad1,grad2)
+    # cbind(grad1,grad2,grad3)
 
     #Now, fit frailty model
     value <- get_fit_frail(startVals=startVals,

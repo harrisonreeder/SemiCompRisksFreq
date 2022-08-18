@@ -36,7 +36,7 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                          hazard=c("weibull"), knots_vec = NULL, p0=4,
                          startVals=NULL, hessian=TRUE, control=NULL, quad_method="kronrod", n_quad=15,
                          optim_method = "BFGS", extra_starts=0){
-  # browser()
+  browser()
   ##Check that chosen hazard is among available options
   if(!(tolower(hazard) %in% c("weibull","royston-parmar","bspline","piecewise","wb","pw","bs","rp"))){
     stop("valid choices of hazard are 'weibull', 'royston-parmar', or 'piecewise'")
@@ -149,6 +149,17 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     startVals <- get_start_uni(y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,knots=knots_vec,
                                hazard=hazard,basis=basis)
   }
+
+  grad1 <- ngrad_uni_func(para=startVals, y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,
+                         hazard=hazard,basis=basis, dbasis=dbasis,basis_yL=basis_yL)
+  grad2 <- pracma::grad(f = nll_uni_func,x0 = startVals,y=y,delta=delta,yL=yL,
+                        anyLT=anyLT,Xmat=Xmat,hazard=hazard,
+                        basis=basis, dbasis=dbasis,basis_yL=basis_yL)
+  grad3 <- colSums(ngrad_uni_mat_func(para=startVals, y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,
+                          hazard=hazard,basis=basis, dbasis=dbasis,basis_yL=basis_yL))
+  if(max(abs(grad1-grad2)) >= 1e-4){stop("check gradient of non-frailty model")}
+  if(max(abs(grad1-grad3)) >= 1e-4){stop("check gradient of non-frailty model")}
+  cbind(grad1,grad2,grad3)
 
   #now, run the fitting function, which calls the correct optimization engine
   value <- get_fit_uni(startVals=startVals, y=y, delta=delta,

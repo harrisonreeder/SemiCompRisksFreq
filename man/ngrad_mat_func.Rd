@@ -10,12 +10,23 @@ ngrad_mat_func(
   y2,
   delta1,
   delta2,
+  yL,
+  anyLT,
   Xmat1,
   Xmat2,
   Xmat3,
   hazard,
   frailty,
-  model
+  model,
+  basis1,
+  basis2,
+  basis3,
+  basis3_y1,
+  basis1_yL,
+  basis2_yL,
+  dbasis1,
+  dbasis2,
+  dbasis3
 )
 }
 \arguments{
@@ -49,6 +60,42 @@ Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} res
 be included. Currently this must be set to \code{TRUE}.}
 
 \item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
+
+\item{basis1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
+Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
+while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
+Not used under Weibull model.}
+
+\item{basis2}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
+Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
+while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
+Not used under Weibull model.}
+
+\item{basis3}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
+Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
+while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
+Not used under Weibull model.}
+
+\item{basis3_y1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
+Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
+while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
+Not used under Weibull model.}
+
+\item{dbasis1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+with piecewise/spline basis function derivative values at the corresponding \code{y1} and \code{y2} values.
+Used only under Royston-Parmar model.}
+
+\item{dbasis2}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+with piecewise/spline basis function derivative values at the corresponding \code{y1} and \code{y2} values.
+Used only under Royston-Parmar model.}
+
+\item{dbasis3}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+with piecewise/spline basis function derivative values at the corresponding \code{y1} and \code{y2} values.
+Used only under Royston-Parmar model.}
 }
 \value{
 Returns numeric matrix with \eqn{n} rows and width same as length of \code{para} with gradient contributions
