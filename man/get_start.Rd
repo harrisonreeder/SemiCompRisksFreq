@@ -21,6 +21,7 @@ get_start(
   hazard,
   frailty,
   model,
+  weights,
   sparse_start = FALSE
 )
 }

@@ -7,8 +7,8 @@
 using namespace Rcpp;
 
 // nlogLikPW_uni
-double nlogLikPW_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis);
-RcppExport SEXP _SemiCompRisksFreq_nlogLikPW_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP) {
+double nlogLikPW_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::vec& weights);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikPW_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -18,13 +18,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis(basisSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis(dbasisSEXP);
-    rcpp_result_gen = Rcpp::wrap(nlogLikPW_uni(para, y, delta, X, basis, dbasis));
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(nlogLikPW_uni(para, y, delta, X, basis, dbasis, weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradPW_uni
-arma::vec ngradPW_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis);
-RcppExport SEXP _SemiCompRisksFreq_ngradPW_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP) {
+arma::vec ngradPW_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::vec& weights);
+RcppExport SEXP _SemiCompRisksFreq_ngradPW_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -34,13 +35,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis(basisSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis(dbasisSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradPW_uni(para, y, delta, X, basis, dbasis));
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ngradPW_uni(para, y, delta, X, basis, dbasis, weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradPW_uni_mat
-arma::mat ngradPW_uni_mat(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis);
-RcppExport SEXP _SemiCompRisksFreq_ngradPW_uni_mat(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP) {
+arma::mat ngradPW_uni_mat(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::vec& weights);
+RcppExport SEXP _SemiCompRisksFreq_ngradPW_uni_mat(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -50,13 +52,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis(basisSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis(dbasisSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradPW_uni_mat(para, y, delta, X, basis, dbasis));
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ngradPW_uni_mat(para, y, delta, X, basis, dbasis, weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // nlogLikPW_ID
-double nlogLikPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_nlogLikPW_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP frailty_indSEXP) {
+double nlogLikPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikPW_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -77,14 +80,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis1(dbasis1SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis2(dbasis2SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis3(dbasis3SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(nlogLikPW_ID(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(nlogLikPW_ID(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradPW_ID
-arma::vec ngradPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_ngradPW_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP frailty_indSEXP) {
+arma::vec ngradPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_ngradPW_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -105,14 +109,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis1(dbasis1SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis2(dbasis2SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis3(dbasis3SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradPW_ID(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(ngradPW_ID(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradPW_ID_mat
-arma::mat ngradPW_ID_mat(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_ngradPW_ID_mat(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP frailty_indSEXP) {
+arma::mat ngradPW_ID_mat(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_ngradPW_ID_mat(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -133,14 +138,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis1(dbasis1SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis2(dbasis2SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis3(dbasis3SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradPW_ID_mat(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(ngradPW_ID_mat(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // nlogLikRP_uni
-double nlogLikRP_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::mat& basis_yL, const int anyLT);
-RcppExport SEXP _SemiCompRisksFreq_nlogLikRP_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP basis_yLSEXP, SEXP anyLTSEXP) {
+double nlogLikRP_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::mat& basis_yL, const int anyLT, const arma::vec& weights);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikRP_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP basis_yLSEXP, SEXP anyLTSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -152,13 +158,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis(dbasisSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis_yL(basis_yLSEXP);
     Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
-    rcpp_result_gen = Rcpp::wrap(nlogLikRP_uni(para, y, delta, X, basis, dbasis, basis_yL, anyLT));
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(nlogLikRP_uni(para, y, delta, X, basis, dbasis, basis_yL, anyLT, weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradRP_uni
-arma::vec ngradRP_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::mat& basis_yL, const int anyLT);
-RcppExport SEXP _SemiCompRisksFreq_ngradRP_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP basis_yLSEXP, SEXP anyLTSEXP) {
+arma::vec ngradRP_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::mat& basis_yL, const int anyLT, const arma::vec& weights);
+RcppExport SEXP _SemiCompRisksFreq_ngradRP_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP basis_yLSEXP, SEXP anyLTSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -170,13 +177,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis(dbasisSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis_yL(basis_yLSEXP);
     Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradRP_uni(para, y, delta, X, basis, dbasis, basis_yL, anyLT));
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ngradRP_uni(para, y, delta, X, basis, dbasis, basis_yL, anyLT, weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradRP_uni_mat
-arma::mat ngradRP_uni_mat(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::mat& basis_yL, const int anyLT);
-RcppExport SEXP _SemiCompRisksFreq_ngradRP_uni_mat(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP basis_yLSEXP, SEXP anyLTSEXP) {
+arma::mat ngradRP_uni_mat(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::mat& basis_yL, const int anyLT, const arma::vec& weights);
+RcppExport SEXP _SemiCompRisksFreq_ngradRP_uni_mat(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP basis_yLSEXP, SEXP anyLTSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -188,13 +196,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis(dbasisSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis_yL(basis_yLSEXP);
     Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradRP_uni_mat(para, y, delta, X, basis, dbasis, basis_yL, anyLT));
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ngradRP_uni_mat(para, y, delta, X, basis, dbasis, basis_yL, anyLT, weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // nlogLikRP_ID
-double nlogLikRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis3_y1, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const std::string model, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_nlogLikRP_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis3_y1SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP modelSEXP, SEXP frailty_indSEXP) {
+double nlogLikRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis3_y1, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const std::string model, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikRP_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis3_y1SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP modelSEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -217,14 +226,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis2(dbasis2SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis3(dbasis3SEXP);
     Rcpp::traits::input_parameter< const std::string >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(nlogLikRP_ID(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(nlogLikRP_ID(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradRP_ID
-arma::vec ngradRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis3_y1, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const std::string model, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_ngradRP_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis3_y1SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP modelSEXP, SEXP frailty_indSEXP) {
+arma::vec ngradRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis3_y1, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const std::string model, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_ngradRP_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis3_y1SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP modelSEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -247,14 +257,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis2(dbasis2SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis3(dbasis3SEXP);
     Rcpp::traits::input_parameter< const std::string >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradRP_ID(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(ngradRP_ID(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradRP_ID_mat
-arma::mat ngradRP_ID_mat(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis3_y1, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const std::string model, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_ngradRP_ID_mat(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis3_y1SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP modelSEXP, SEXP frailty_indSEXP) {
+arma::mat ngradRP_ID_mat(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis3_y1, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3, const std::string model, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_ngradRP_ID_mat(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis3_y1SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP dbasis1SEXP, SEXP dbasis2SEXP, SEXP dbasis3SEXP, SEXP modelSEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -277,14 +288,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis2(dbasis2SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type dbasis3(dbasis3SEXP);
     Rcpp::traits::input_parameter< const std::string >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradRP_ID_mat(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(ngradRP_ID_mat(para, y1, y2, delta1, delta2, anyLT, X1, X2, X3, basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL, dbasis1, dbasis2, dbasis3, model, weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // nlogLikBS_uni
-double nlogLikBS_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::vec& quad_weights);
-RcppExport SEXP _SemiCompRisksFreq_nlogLikBS_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP quad_weightsSEXP) {
+double nlogLikBS_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::vec& weights, const arma::vec& quad_weights);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikBS_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP weightsSEXP, SEXP quad_weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -293,14 +305,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type delta(deltaSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis(basisSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type quad_weights(quad_weightsSEXP);
-    rcpp_result_gen = Rcpp::wrap(nlogLikBS_uni(para, y, delta, X, basis, quad_weights));
+    rcpp_result_gen = Rcpp::wrap(nlogLikBS_uni(para, y, delta, X, basis, weights, quad_weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradBS_uni
-arma::vec ngradBS_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::vec& quad_weights);
-RcppExport SEXP _SemiCompRisksFreq_ngradBS_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP quad_weightsSEXP) {
+arma::vec ngradBS_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::vec& weights, const arma::vec& quad_weights);
+RcppExport SEXP _SemiCompRisksFreq_ngradBS_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP weightsSEXP, SEXP quad_weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -309,14 +322,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type delta(deltaSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis(basisSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type quad_weights(quad_weightsSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradBS_uni(para, y, delta, X, basis, quad_weights));
+    rcpp_result_gen = Rcpp::wrap(ngradBS_uni(para, y, delta, X, basis, weights, quad_weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradBS_uni_mat
-arma::mat ngradBS_uni_mat(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::vec& quad_weights);
-RcppExport SEXP _SemiCompRisksFreq_ngradBS_uni_mat(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP quad_weightsSEXP) {
+arma::mat ngradBS_uni_mat(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::vec& weights, const arma::vec& quad_weights);
+RcppExport SEXP _SemiCompRisksFreq_ngradBS_uni_mat(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP weightsSEXP, SEXP quad_weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -325,14 +339,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type delta(deltaSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis(basisSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type quad_weights(quad_weightsSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradBS_uni_mat(para, y, delta, X, basis, quad_weights));
+    rcpp_result_gen = Rcpp::wrap(ngradBS_uni_mat(para, y, delta, X, basis, weights, quad_weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // nlogLikBS_ID
-double nlogLikBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::vec& yL, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::vec& quad_weights, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_nlogLikBS_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP quad_weightsSEXP, SEXP frailty_indSEXP) {
+double nlogLikBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::vec& yL, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::vec& weights, const arma::vec& quad_weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikBS_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP weightsSEXP, SEXP quad_weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -351,15 +366,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type basis3(basis3SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis1_yL(basis1_yLSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis2_yL(basis2_yLSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type quad_weights(quad_weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(nlogLikBS_ID(para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, quad_weights, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(nlogLikBS_ID(para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, weights, quad_weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradBS_ID
-arma::vec ngradBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::vec& yL, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::vec& quad_weights, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_ngradBS_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP quad_weightsSEXP, SEXP frailty_indSEXP) {
+arma::vec ngradBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::vec& yL, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::vec& weights, const arma::vec& quad_weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_ngradBS_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP weightsSEXP, SEXP quad_weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -378,15 +394,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type basis3(basis3SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis1_yL(basis1_yLSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis2_yL(basis2_yLSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type quad_weights(quad_weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradBS_ID(para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, quad_weights, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(ngradBS_ID(para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, weights, quad_weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradBS_ID_mat
-arma::mat ngradBS_ID_mat(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::vec& yL, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::vec& quad_weights, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_ngradBS_ID_mat(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP quad_weightsSEXP, SEXP frailty_indSEXP) {
+arma::mat ngradBS_ID_mat(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::vec& yL, const int anyLT, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis1_yL, const arma::mat& basis2_yL, const arma::vec& weights, const arma::vec& quad_weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_ngradBS_ID_mat(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP basis1SEXP, SEXP basis2SEXP, SEXP basis3SEXP, SEXP basis1_yLSEXP, SEXP basis2_yLSEXP, SEXP weightsSEXP, SEXP quad_weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -405,15 +422,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type basis3(basis3SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis1_yL(basis1_yLSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type basis2_yL(basis2_yLSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type quad_weights(quad_weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradBS_ID_mat(para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, quad_weights, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(ngradBS_ID_mat(para, y1, y2, delta1, delta2, yL, anyLT, X1, X2, X3, basis1, basis2, basis3, basis1_yL, basis2_yL, weights, quad_weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // nlogLikWB_uni
-double nlogLikWB_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::vec& yL, const int anyLT);
-RcppExport SEXP _SemiCompRisksFreq_nlogLikWB_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP yLSEXP, SEXP anyLTSEXP) {
+double nlogLikWB_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::vec& yL, const int anyLT, const arma::vec& weights);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikWB_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -423,13 +441,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type yL(yLSEXP);
     Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
-    rcpp_result_gen = Rcpp::wrap(nlogLikWB_uni(para, y, delta, X, yL, anyLT));
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(nlogLikWB_uni(para, y, delta, X, yL, anyLT, weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradWB_uni
-arma::vec ngradWB_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::vec& yL, const int anyLT);
-RcppExport SEXP _SemiCompRisksFreq_ngradWB_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP yLSEXP, SEXP anyLTSEXP) {
+arma::vec ngradWB_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::vec& yL, const int anyLT, const arma::vec& weights);
+RcppExport SEXP _SemiCompRisksFreq_ngradWB_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -439,13 +458,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type yL(yLSEXP);
     Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradWB_uni(para, y, delta, X, yL, anyLT));
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ngradWB_uni(para, y, delta, X, yL, anyLT, weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradWB_uni_mat
-arma::mat ngradWB_uni_mat(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::vec& yL, const int anyLT);
-RcppExport SEXP _SemiCompRisksFreq_ngradWB_uni_mat(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP yLSEXP, SEXP anyLTSEXP) {
+arma::mat ngradWB_uni_mat(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::vec& yL, const int anyLT, const arma::vec& weights);
+RcppExport SEXP _SemiCompRisksFreq_ngradWB_uni_mat(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -455,13 +475,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type yL(yLSEXP);
     Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradWB_uni_mat(para, y, delta, X, yL, anyLT));
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ngradWB_uni_mat(para, y, delta, X, yL, anyLT, weights));
     return rcpp_result_gen;
 END_RCPP
 }
 // nlogLikWB_ID
-double nlogLikWB_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::vec& yL, const int anyLT, const std::string model, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_nlogLikWB_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP modelSEXP, SEXP frailty_indSEXP) {
+double nlogLikWB_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::vec& yL, const int anyLT, const std::string model, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikWB_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP modelSEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -476,14 +497,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type yL(yLSEXP);
     Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
     Rcpp::traits::input_parameter< const std::string >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(nlogLikWB_ID(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(nlogLikWB_ID(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradWB_ID
-arma::vec ngradWB_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::vec& yL, const int anyLT, const std::string model, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_ngradWB_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP modelSEXP, SEXP frailty_indSEXP) {
+arma::vec ngradWB_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::vec& yL, const int anyLT, const std::string model, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_ngradWB_ID(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP modelSEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -498,14 +520,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type yL(yLSEXP);
     Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
     Rcpp::traits::input_parameter< const std::string >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradWB_ID(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(ngradWB_ID(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // ngradWB_ID_mat
-arma::mat ngradWB_ID_mat(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::vec& yL, const int anyLT, const std::string model, const int frailty_ind);
-RcppExport SEXP _SemiCompRisksFreq_ngradWB_ID_mat(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP modelSEXP, SEXP frailty_indSEXP) {
+arma::mat ngradWB_ID_mat(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::vec& yL, const int anyLT, const std::string model, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_ngradWB_ID_mat(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP modelSEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -520,8 +543,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type yL(yLSEXP);
     Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
     Rcpp::traits::input_parameter< const std::string >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
-    rcpp_result_gen = Rcpp::wrap(ngradWB_ID_mat(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, frailty_ind));
+    rcpp_result_gen = Rcpp::wrap(ngradWB_ID_mat(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, weights, frailty_ind));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -563,30 +587,30 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_SemiCompRisksFreq_nlogLikPW_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikPW_uni, 6},
-    {"_SemiCompRisksFreq_ngradPW_uni", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_uni, 6},
-    {"_SemiCompRisksFreq_ngradPW_uni_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_uni_mat, 6},
-    {"_SemiCompRisksFreq_nlogLikPW_ID", (DL_FUNC) &_SemiCompRisksFreq_nlogLikPW_ID, 18},
-    {"_SemiCompRisksFreq_ngradPW_ID", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_ID, 18},
-    {"_SemiCompRisksFreq_ngradPW_ID_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_ID_mat, 18},
-    {"_SemiCompRisksFreq_nlogLikRP_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikRP_uni, 8},
-    {"_SemiCompRisksFreq_ngradRP_uni", (DL_FUNC) &_SemiCompRisksFreq_ngradRP_uni, 8},
-    {"_SemiCompRisksFreq_ngradRP_uni_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradRP_uni_mat, 8},
-    {"_SemiCompRisksFreq_nlogLikRP_ID", (DL_FUNC) &_SemiCompRisksFreq_nlogLikRP_ID, 20},
-    {"_SemiCompRisksFreq_ngradRP_ID", (DL_FUNC) &_SemiCompRisksFreq_ngradRP_ID, 20},
-    {"_SemiCompRisksFreq_ngradRP_ID_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradRP_ID_mat, 20},
-    {"_SemiCompRisksFreq_nlogLikBS_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikBS_uni, 6},
-    {"_SemiCompRisksFreq_ngradBS_uni", (DL_FUNC) &_SemiCompRisksFreq_ngradBS_uni, 6},
-    {"_SemiCompRisksFreq_ngradBS_uni_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradBS_uni_mat, 6},
-    {"_SemiCompRisksFreq_nlogLikBS_ID", (DL_FUNC) &_SemiCompRisksFreq_nlogLikBS_ID, 17},
-    {"_SemiCompRisksFreq_ngradBS_ID", (DL_FUNC) &_SemiCompRisksFreq_ngradBS_ID, 17},
-    {"_SemiCompRisksFreq_ngradBS_ID_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradBS_ID_mat, 17},
-    {"_SemiCompRisksFreq_nlogLikWB_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikWB_uni, 6},
-    {"_SemiCompRisksFreq_ngradWB_uni", (DL_FUNC) &_SemiCompRisksFreq_ngradWB_uni, 6},
-    {"_SemiCompRisksFreq_ngradWB_uni_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradWB_uni_mat, 6},
-    {"_SemiCompRisksFreq_nlogLikWB_ID", (DL_FUNC) &_SemiCompRisksFreq_nlogLikWB_ID, 12},
-    {"_SemiCompRisksFreq_ngradWB_ID", (DL_FUNC) &_SemiCompRisksFreq_ngradWB_ID, 12},
-    {"_SemiCompRisksFreq_ngradWB_ID_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradWB_ID_mat, 12},
+    {"_SemiCompRisksFreq_nlogLikPW_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikPW_uni, 7},
+    {"_SemiCompRisksFreq_ngradPW_uni", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_uni, 7},
+    {"_SemiCompRisksFreq_ngradPW_uni_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_uni_mat, 7},
+    {"_SemiCompRisksFreq_nlogLikPW_ID", (DL_FUNC) &_SemiCompRisksFreq_nlogLikPW_ID, 19},
+    {"_SemiCompRisksFreq_ngradPW_ID", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_ID, 19},
+    {"_SemiCompRisksFreq_ngradPW_ID_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_ID_mat, 19},
+    {"_SemiCompRisksFreq_nlogLikRP_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikRP_uni, 9},
+    {"_SemiCompRisksFreq_ngradRP_uni", (DL_FUNC) &_SemiCompRisksFreq_ngradRP_uni, 9},
+    {"_SemiCompRisksFreq_ngradRP_uni_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradRP_uni_mat, 9},
+    {"_SemiCompRisksFreq_nlogLikRP_ID", (DL_FUNC) &_SemiCompRisksFreq_nlogLikRP_ID, 21},
+    {"_SemiCompRisksFreq_ngradRP_ID", (DL_FUNC) &_SemiCompRisksFreq_ngradRP_ID, 21},
+    {"_SemiCompRisksFreq_ngradRP_ID_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradRP_ID_mat, 21},
+    {"_SemiCompRisksFreq_nlogLikBS_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikBS_uni, 7},
+    {"_SemiCompRisksFreq_ngradBS_uni", (DL_FUNC) &_SemiCompRisksFreq_ngradBS_uni, 7},
+    {"_SemiCompRisksFreq_ngradBS_uni_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradBS_uni_mat, 7},
+    {"_SemiCompRisksFreq_nlogLikBS_ID", (DL_FUNC) &_SemiCompRisksFreq_nlogLikBS_ID, 18},
+    {"_SemiCompRisksFreq_ngradBS_ID", (DL_FUNC) &_SemiCompRisksFreq_ngradBS_ID, 18},
+    {"_SemiCompRisksFreq_ngradBS_ID_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradBS_ID_mat, 18},
+    {"_SemiCompRisksFreq_nlogLikWB_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikWB_uni, 7},
+    {"_SemiCompRisksFreq_ngradWB_uni", (DL_FUNC) &_SemiCompRisksFreq_ngradWB_uni, 7},
+    {"_SemiCompRisksFreq_ngradWB_uni_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradWB_uni_mat, 7},
+    {"_SemiCompRisksFreq_nlogLikWB_ID", (DL_FUNC) &_SemiCompRisksFreq_nlogLikWB_ID, 13},
+    {"_SemiCompRisksFreq_ngradWB_ID", (DL_FUNC) &_SemiCompRisksFreq_ngradWB_ID, 13},
+    {"_SemiCompRisksFreq_ngradWB_ID_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradWB_ID_mat, 13},
     {"_SemiCompRisksFreq_nhessWB_ID_frail_SM", (DL_FUNC) &_SemiCompRisksFreq_nhessWB_ID_frail_SM, 8},
     {"_SemiCompRisksFreq_nhessWB_ID_frail_M", (DL_FUNC) &_SemiCompRisksFreq_nhessWB_ID_frail_M, 8},
     {NULL, NULL, 0}

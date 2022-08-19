@@ -9,6 +9,7 @@ FreqID_HReg2(
   data,
   na.action = "na.fail",
   subset = NULL,
+  weights = NULL,
   hazard = c("weibull"),
   frailty = TRUE,
   model,
@@ -20,7 +21,8 @@ FreqID_HReg2(
   quad_method = "kronrod",
   n_quad = 15,
   optim_method = "BFGS",
-  extra_starts = 0
+  extra_starts = 0,
+  output_options = NULL
 )
 }
 \arguments{

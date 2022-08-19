@@ -16,6 +16,7 @@ get_fit_nf(
   Xmat2,
   Xmat3,
   knots_list,
+  weights,
   basis1,
   basis2,
   basis3,

@@ -13,7 +13,8 @@ arma::vec getCommonVec(const arma::vec& delta1,const arma::vec& delta2,const arm
 // [[Rcpp::export]]
 double nlogLikPW_uni(const arma::vec& para,
                      const arma::vec& y, const arma::vec& delta, const arma::mat& X,
-                     const arma::mat& basis, const arma::mat& dbasis){
+                     const arma::mat& basis, const arma::mat& dbasis,
+                     const arma::vec& weights){
   //define constants
   int p0 = basis.n_cols;
   int p1 = X.n_cols;
@@ -31,14 +32,15 @@ double nlogLikPW_uni(const arma::vec& para,
   arma::vec Lambda0 = basis * arma::exp(phi);
 
   //delta * (log lambda) + log(survival)
-  double obj_val = arma::accu( delta % (loglambda0 + eta) - Lambda0 % arma::exp(eta)  );
+  double obj_val = arma::accu(weights % (delta % (loglambda0 + eta) - Lambda0 % arma::exp(eta)));
   return(-obj_val);
 }
 
 // [[Rcpp::export]]
 arma::vec ngradPW_uni(const arma::vec& para,
                       const arma::vec& y, const arma::vec& delta, const arma::mat& X,
-                      const arma::mat& basis, const arma::mat& dbasis){
+                      const arma::mat& basis, const arma::mat& dbasis,
+                      const arma::vec& weights){
   //define constants
   int p0 = basis.n_cols;
   int p1 = X.n_cols;
@@ -55,9 +57,11 @@ arma::vec ngradPW_uni(const arma::vec& para,
   arma::mat BLambda0 = basis.each_row() % arma::exp(phi).t();
 
   arma::vec temp_scorevec(p0+p1, arma::fill::zeros);
-  temp_scorevec(arma::span(0, p0-1)) = dbasis.t() * delta - BLambda0.t() * arma::exp(eta);
+  temp_scorevec(arma::span(0, p0-1)) = dbasis.t() * (weights % delta)
+    - BLambda0.t() * (weights % arma::exp(eta));
   if(p1 > 0){
-    temp_scorevec(arma::span(p0,p0+p1-1)) = X.t() * ( delta - Lambda0 % arma::exp(eta) );
+    temp_scorevec(arma::span(p0, p0+p1-1)) =
+      X.t() * (weights % (delta - Lambda0 % arma::exp(eta)));
   }
   return(-temp_scorevec);
 }
@@ -65,7 +69,8 @@ arma::vec ngradPW_uni(const arma::vec& para,
 // [[Rcpp::export]]
 arma::mat ngradPW_uni_mat(const arma::vec& para,
                           const arma::vec& y, const arma::vec& delta, const arma::mat& X,
-                          const arma::mat& basis, const arma::mat& dbasis){
+                          const arma::mat& basis, const arma::mat& dbasis,
+                          const arma::vec& weights){
   //define constants
   int p0 = basis.n_cols;
   int p1 = X.n_cols;
@@ -82,21 +87,14 @@ arma::mat ngradPW_uni_mat(const arma::vec& para,
   arma::mat BLambda0 = basis.each_row() % arma::exp(phi).t();
 
   arma::mat temp_scoremat(n, p0+p1, arma::fill::zeros);
-  temp_scoremat.cols(0, p0-1) = dbasis.each_col() % delta - BLambda0.each_col() % arma::exp(eta);
+  temp_scoremat.cols(0,p0-1) = dbasis.each_col() % (weights % delta)
+    - BLambda0.each_col() % (weights % arma::exp(eta));
   if(p1 > 0){
-    temp_scoremat.cols(p0,p0+p1-1) = X.each_col() % ( delta - Lambda0 % arma::exp(eta) );
+    temp_scoremat.cols(p0, p0+p1-1) =
+      X.each_col() % (weights % (delta - Lambda0 % arma::exp(eta)));
   }
   return(-temp_scoremat);
 }
-
-
-
-
-
-
-
-
-
 
 // [[Rcpp::export]]
 double nlogLikPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec& y2,
@@ -105,7 +103,7 @@ double nlogLikPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
                      const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3,
                      const arma::mat& basis1_yL, const arma::mat& basis2_yL,
                      const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3,
-                     const int frailty_ind){
+                     const arma::vec& weights, const int frailty_ind){
   //define constants
   int p01 = basis1.n_cols; int p02 = basis2.n_cols;	int p03 = basis3.n_cols;
   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;
@@ -144,14 +142,14 @@ double nlogLikPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
 
   double obj_val;
   if(frailty_ind==1){
-    obj_val = arma::accu(  delta1 % ( loglambda01 + eta1 )
-                             + (1-delta1) % delta2 % ( loglambda02 + eta2 )
-                             + delta1 % delta2 % ( loglambda03 + eta3 + log1p( exp(h) )  )
-                             - (exp(-h) + delta1 + delta2) % arma::log1p( exp(h) * AVec )  ) ;
+    obj_val = arma::accu(weights % (  delta1 % (loglambda01 + eta1)
+                             + (1-delta1) % delta2 % (loglambda02 + eta2)
+                             + delta1 % delta2 % (loglambda03 + eta3 + log1p(exp(h)))
+                             - (exp(-h) + delta1 + delta2) % arma::log1p(exp(h) * AVec)  ));
   } else{
-    obj_val = arma::accu(  delta1 % ( loglambda01 + eta1 )
-                             + (1-delta1) % delta2 % ( loglambda02 + eta2 )
-                             + delta1 % delta2 % ( loglambda03 + eta3 ) - AVec );
+    obj_val = arma::accu(weights % (  delta1 % (loglambda01 + eta1)
+                             + (1-delta1) % delta2 % (loglambda02 + eta2)
+                             + delta1 % delta2 % (loglambda03 + eta3) - AVec ));
   }
 
   //now, incorporate left-truncation
@@ -161,13 +159,13 @@ double nlogLikPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
     Lambda02 = basis2_yL * arma::exp(phi2);
     AVec = Lambda01 % arma::exp(eta1) + Lambda02 % arma::exp(eta2);
     if(frailty_ind ==1){
-      obj_val += exp(-h) * arma::accu( arma::log1p(exp(h) * AVec));
+      obj_val += exp(-h) * arma::accu(weights % arma::log1p(exp(h) * AVec));
     } else {
-      obj_val += arma::accu( AVec );
+      obj_val += arma::accu(weights % AVec);
     }
   }
 
-  return -obj_val;
+  return(-obj_val);
 }
 
 
@@ -179,7 +177,7 @@ arma::vec ngradPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec
                      const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3,
                      const arma::mat& basis1_yL, const arma::mat& basis2_yL,
                      const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3,
-                     const int frailty_ind){
+                     const arma::vec& weights, const int frailty_ind){
   //define constants
   int p01 = basis1.n_cols; int p02 = basis2.n_cols;	int p03 = basis3.n_cols;
   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;
@@ -218,54 +216,58 @@ arma::vec ngradPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec
   if(frailty_ind==1){
     commonVec = getCommonVec(delta1, delta2, AVec, h);
     //phi1
-    temp_scorevec(arma::span(0, p01 - 1)) = dbasis1.t() * delta1 - BLambda01.t() * (commonVec % arma::exp(h + eta1));
+    temp_scorevec(arma::span(0, p01-1)) = dbasis1.t() * (weights % delta1)
+      - BLambda01.t() * (weights % commonVec % arma::exp(h + eta1));
     //phi2
-    temp_scorevec(arma::span(p01, p01 + p02 - 1)) = dbasis2.t() * ((1-delta1) % delta2)
-      - BLambda02.t() * (commonVec % arma::exp(h + eta2));
+    temp_scorevec(arma::span(p01, p01+p02-1)) = dbasis2.t() * (weights % (1-delta1) % delta2)
+      - BLambda02.t() * (weights % commonVec % arma::exp(h + eta2));
     //phi3
-    temp_scorevec(arma::span(p01 + p02, p01 + p02 + p03 - 1)) = dbasis3.t() * (delta1 % delta2)
-      - BLambda03.t() * (commonVec % arma::exp(h + eta3));
+    temp_scorevec(arma::span(p01+p02, p01+p02+p03-1)) = dbasis3.t() * (weights % delta1 % delta2)
+      - BLambda03.t() * (weights % commonVec % arma::exp(h + eta3));
     //h
-    temp_scorevec(p01 + p02 + p03) = arma::accu( exp(h)*( delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec ));
+    temp_scorevec(p01+p02+p03) = exp(h) * arma::accu(weights % (delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1)) = X1.t() * (delta1 - commonVec % Lambda01 % arma::exp(h + eta1));
+      temp_scorevec(arma::span(1+p01+p02+p03, 1+p01+p02+p03+p1-1)) =
+        X1.t() * (weights % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1)) = X2.t() * ( (1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)) ;
+      temp_scorevec(arma::span(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1)) =
+        X2.t() * (weights % ((1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)));
     }
     //beta3 (what ina calls u4)
     if(p3 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1 + p2,1 + p01 + p02 + p03 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 -
-        delta1 % commonVec % Lambda03 % arma::exp(h + eta3)); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
+      //note extra delta1 on last term to isolate only terms contributing nonzero H(y2-y1)
+      temp_scorevec(arma::span(1+p01+p02+p03+p1+p2, 1+p01+p02+p03+p1+p2+p3-1)) =
+        X3.t() * (weights % delta1 % (delta2 - commonVec % Lambda03 % arma::exp(h + eta3)));
     }
 
   } else { //NON-FRAILTY
     //phi1
-    temp_scorevec(arma::span(0, p01 - 1)) = dbasis1.t() * delta1
-      - BLambda01.t() * (arma::exp(eta1));
+    temp_scorevec(arma::span(0, p01-1)) = dbasis1.t() * (weights % delta1)
+      - BLambda01.t() * (weights % arma::exp(eta1));
     //phi2
-    temp_scorevec(arma::span(p01, p01 + p02 - 1)) = dbasis2.t() * ((1-delta1) % delta2)
-      - BLambda02.t() * arma::exp(eta2);
+    temp_scorevec(arma::span(p01, p01+p02-1)) = dbasis2.t() * (weights % (1-delta1) % delta2)
+      - BLambda02.t() * (weights % arma::exp(eta2));
     //phi3
-    temp_scorevec(arma::span(p01 + p02, p01 + p02 + p03 - 1)) = dbasis3.t() * (delta1 % delta2)
-      - BLambda03.t() * arma::exp(eta3);
+    temp_scorevec(arma::span(p01+p02, p01+p02+p03-1)) = dbasis3.t() * (weights % delta1 % delta2)
+      - BLambda03.t() * (weights % arma::exp(eta3));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scorevec(arma::span(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1)) =
-        X1.t() * (delta1 - Lambda01 % arma::exp(eta1));
+      temp_scorevec(arma::span(p01+p02+p03, p01+p02+p03+p1-1)) =
+        X1.t() * (weights % (delta1 - Lambda01 % arma::exp(eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scorevec(arma::span(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1)) =
-        X2.t() * ( (1-delta1) % delta2 - Lambda02 % arma::exp(eta2)) ;
+      temp_scorevec(arma::span(p01+p02+p03+p1, p01+p02+p03+p1+p2-1)) =
+        X2.t() * (weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2)));
     }
     //beta3 (what ina calls u4)
     if(p3 > 0){
       //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
-      temp_scorevec(arma::span(p01 + p02 + p03 + p1 + p2,p01 + p02 + p03 + p1 + p2 + p3 - 1)) =
-        X3.t() * (delta1 % delta2 - delta1 % Lambda03 % arma::exp(eta3));
+      temp_scorevec(arma::span(p01+p02+p03+p1+p2, p01+p02+p03+p1+p2+p3-1)) =
+        X3.t() * (weights % delta1 % (delta2 - Lambda03 % arma::exp(eta3)));
     }
   }
 
@@ -280,36 +282,38 @@ arma::vec ngradPW_ID(const arma::vec& para, const arma::vec& y1, const arma::vec
     if(frailty_ind==1){
       commonVec = exp(-h) / (1 + exp(h) * AVec);
       //phi1
-      temp_scorevec(arma::span(0, p01 - 1)) += BLambda01.t() * (commonVec % arma::exp(h + eta1));
+      temp_scorevec(arma::span(0, p01-1)) +=
+        BLambda01.t() * (weights % commonVec % arma::exp(h + eta1));
       //phi2
-      temp_scorevec(arma::span(p01, p01 + p02 - 1)) += BLambda02.t() * (commonVec % arma::exp(h + eta2));
+      temp_scorevec(arma::span(p01, p01+p02-1)) +=
+        BLambda02.t() * (weights % commonVec % arma::exp(h + eta2));
       //h
-      temp_scorevec(p01 + p02 + p03) += -arma::accu( exp(h)*( arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec ));
+      temp_scorevec(p01+p02+p03) += -exp(h) * arma::accu(weights % (arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scorevec(arma::span(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1)) +=
-          X1.t() * (commonVec % Lambda01 % arma::exp(h + eta1));
+        temp_scorevec(arma::span(1+p01+p02+p03, 1+p01+p02+p03+p1-1)) +=
+          X1.t() * (weights % commonVec % Lambda01 % arma::exp(h + eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1)) +=
-          X2.t() * (commonVec % Lambda02 % arma::exp(h + eta2)) ;
+        temp_scorevec(arma::span(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1)) +=
+          X2.t() * (weights % commonVec % Lambda02 % arma::exp(h + eta2));
       }
 
     } else {
       //phi1
-      temp_scorevec(arma::span(0, p01 - 1)) += BLambda01.t() * (arma::exp(eta1));
+      temp_scorevec(arma::span(0, p01-1)) += BLambda01.t() * (weights % arma::exp(eta1));
       //phi2
-      temp_scorevec(arma::span(p01, p01 + p02 - 1)) += BLambda02.t() * arma::exp(eta2);
+      temp_scorevec(arma::span(p01, p01+p02-1)) += BLambda02.t() * (weights % arma::exp(eta2));
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scorevec(arma::span(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1)) +=
-          X1.t() * (Lambda01 % arma::exp(eta1));
+        temp_scorevec(arma::span(p01+p02+p03, p01+p02+p03+p1-1)) +=
+          X1.t() * (weights % Lambda01 % arma::exp(eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scorevec(arma::span(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1)) +=
-          X2.t() * (Lambda02 % arma::exp(eta2)) ;
+        temp_scorevec(arma::span(p01+p02+p03+p1, p01+p02+p03+p1+p2-1)) +=
+          X2.t() * (weights % Lambda02 % arma::exp(eta2));
       }
     }
   }
@@ -324,7 +328,7 @@ arma::mat ngradPW_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
                      const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3,
                      const arma::mat& basis1_yL, const arma::mat& basis2_yL,
                      const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3,
-                     const int frailty_ind){
+                     const arma::vec& weights, const int frailty_ind){
   //define constants
   int p01 = basis1.n_cols; int p02 = basis2.n_cols;	int p03 = basis3.n_cols;
   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;
@@ -363,54 +367,58 @@ arma::mat ngradPW_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
   if(frailty_ind==1){
     commonVec = getCommonVec(delta1, delta2, AVec, h);
     //phi1
-    temp_scoremat.cols(0, p01 - 1) = dbasis1.each_col() % delta1 - BLambda01.each_col() % (commonVec % arma::exp(h + eta1));
+    temp_scoremat.cols(0, p01-1) = dbasis1.each_col() % (weights % delta1)
+      - BLambda01.each_col() % (weights % commonVec % arma::exp(h + eta1));
     //phi2
-    temp_scoremat.cols(p01, p01 + p02 - 1) = dbasis2.each_col() % ((1-delta1) % delta2)
-      - BLambda02.each_col() % (commonVec % arma::exp(h + eta2));
+    temp_scoremat.cols(p01, p01+p02-1) = dbasis2.each_col() % (weights % (1-delta1) % delta2)
+      - BLambda02.each_col() % (weights % commonVec % arma::exp(h + eta2));
     //phi3
-    temp_scoremat.cols(p01 + p02, p01 + p02 + p03 - 1) = dbasis3.each_col() % (delta1 % delta2)
-      - BLambda03.each_col() % (commonVec % arma::exp(h + eta3));
+    temp_scoremat.cols(p01+p02, p01+p02+p03-1) = dbasis3.each_col() % (weights % delta1 % delta2)
+      - BLambda03.each_col() % (weights % commonVec % arma::exp(h + eta3));
     //h
-    temp_scoremat.col(p01 + p02 + p03) = exp(h)*( delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec );
+    temp_scoremat.col(p01+p02+p03) = exp(h) * weights % (delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1) = X1.each_col() % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1));
+      temp_scoremat.cols(1+p01+p02+p03, 1+p01+p02+p03+p1-1) =
+        X1.each_col() % (weights % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1) = X2.each_col() % ( (1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)) ;
+      temp_scoremat.cols(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1) =
+        X2.each_col() % (weights % ((1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)));
     }
     //beta3 (what ina calls u4)
+    //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
     if(p3 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03 + p1 + p2,1 + p01 + p02 + p03 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 -
-        delta1 % commonVec % Lambda03 % arma::exp(h + eta3)); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
+      temp_scoremat.cols(1+p01+p02+p03+p1+p2, 1+p01+p02+p03+p1+p2+p3-1) =
+        X3.each_col() % (weights % delta1 % (delta2 - commonVec % Lambda03 % arma::exp(h + eta3)));
     }
 
   } else { //NON-FRAILTY
     //phi1
-    temp_scoremat.cols(0, p01 - 1) = dbasis1.each_col() % delta1
-    - BLambda01.each_col() % (arma::exp(eta1));
+    temp_scoremat.cols(0, p01-1) = dbasis1.each_col() % (weights % delta1)
+      - BLambda01.each_col() % (weights % arma::exp(eta1));
     //phi2
-    temp_scoremat.cols(p01, p01 + p02 - 1) = dbasis2.each_col() % ((1-delta1) % delta2)
-      - BLambda02.each_col() % arma::exp(eta2);
+    temp_scoremat.cols(p01, p01+p02-1) = dbasis2.each_col() % (weights % (1-delta1) % delta2)
+      - BLambda02.each_col() % (weights % arma::exp(eta2));
     //phi3
-    temp_scoremat.cols(p01 + p02, p01 + p02 + p03 - 1) = dbasis3.each_col() % (delta1 % delta2)
-      - BLambda03.each_col() % arma::exp(eta3);
+    temp_scoremat.cols(p01+p02, p01+p02+p03-1) = dbasis3.each_col() % (weights % delta1 % delta2)
+      - BLambda03.each_col() % (weights % arma::exp(eta3));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scoremat.cols(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1) =
-        X1.each_col() % (delta1 - Lambda01 % arma::exp(eta1));
+      temp_scoremat.cols(p01+p02+p03, p01+p02+p03+p1-1) =
+        X1.each_col() % (weights % (delta1 - Lambda01 % arma::exp(eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scoremat.cols(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1) =
-        X2.each_col() % ( (1-delta1) % delta2 - Lambda02 % arma::exp(eta2)) ;
+      temp_scoremat.cols(p01+p02+p03+p1, p01+p02+p03+p1+p2-1) =
+        X2.each_col() % (weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2)));
     }
     //beta3 (what ina calls u4)
     if(p3 > 0){
       //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
-      temp_scoremat.cols(p01 + p02 + p03 + p1 + p2,p01 + p02 + p03 + p1 + p2 + p3 - 1) =
-        X3.each_col() % (delta1 % delta2 - delta1 % Lambda03 % arma::exp(eta3));
+      temp_scoremat.cols(p01+p02+p03+p1+p2, p01+p02+p03+p1+p2+p3-1) =
+        X3.each_col() % (weights % delta1 % (delta2 - Lambda03 % arma::exp(eta3)));
     }
   }
 
@@ -425,49 +433,42 @@ arma::mat ngradPW_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
     if(frailty_ind==1){
       commonVec = exp(-h) / (1 + exp(h) * AVec);
       //phi1
-      temp_scoremat.cols(0, p01 - 1) += BLambda01.each_col() % (commonVec % arma::exp(h + eta1));
+      temp_scoremat.cols(0, p01-1) += BLambda01.each_col() % (weights % commonVec % arma::exp(h + eta1));
       //phi2
-      temp_scoremat.cols(p01, p01 + p02 - 1) += BLambda02.each_col() % (commonVec % arma::exp(h + eta2));
+      temp_scoremat.cols(p01, p01+p02-1) += BLambda02.each_col() % (weights % commonVec % arma::exp(h + eta2));
       //h
-      temp_scoremat.col(p01 + p02 + p03) += -exp(h)*( arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec );
+      temp_scoremat.col(p01+p02+p03) += -exp(h) * weights % (arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scoremat.cols(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1) +=
-          X1.each_col() % (commonVec % Lambda01 % arma::exp(h + eta1));
+        temp_scoremat.cols(1+p01+p02+p03, 1+p01+p02+p03+p1-1) +=
+          X1.each_col() % (weights % commonVec % Lambda01 % arma::exp(h + eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scoremat.cols(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1) +=
-          X2.each_col() % (commonVec % Lambda02 % arma::exp(h + eta2)) ;
+        temp_scoremat.cols(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1) +=
+          X2.each_col() % (weights % commonVec % Lambda02 % arma::exp(h + eta2)) ;
       }
 
     } else {
       //phi1
-      temp_scoremat.cols(0, p01 - 1) += BLambda01.each_col() % (arma::exp(eta1));
+      temp_scoremat.cols(0, p01-1) += BLambda01.each_col() % (weights % arma::exp(eta1));
       //phi2
-      temp_scoremat.cols(p01, p01 + p02 - 1) += BLambda02.each_col() % arma::exp(eta2);
+      temp_scoremat.cols(p01, p01+p02-1) += BLambda02.each_col() % (weights % arma::exp(eta2));
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scoremat.cols(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1) +=
-          X1.each_col() % (Lambda01 % arma::exp(eta1));
+        temp_scoremat.cols(p01+p02+p03, p01+p02+p03+p1-1) +=
+          X1.each_col() % (weights % Lambda01 % arma::exp(eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scoremat.cols(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1) +=
-          X2.each_col() % (Lambda02 % arma::exp(eta2));
+        temp_scoremat.cols(p01+p02+p03+p1, p01+p02+p03+p1+p2-1) +=
+          X2.each_col() % (weights % Lambda02 % arma::exp(eta2));
       }
     }
   }
 
   return(-temp_scoremat);
 }
-
-
-
-
-
-
-
 
 
 /*******
@@ -478,7 +479,7 @@ Royston-Parmar
 double nlogLikRP_uni(const arma::vec& para,
           const arma::vec& y, const arma::vec& delta, const arma::mat& X,
 					const arma::mat& basis, const arma::mat& dbasis,
-					const arma::mat& basis_yL, const int anyLT){
+					const arma::mat& basis_yL, const int anyLT, const arma::vec& weights){
 
 	//define constants
 	int p0 = basis.n_cols;
@@ -497,8 +498,8 @@ double nlogLikRP_uni(const arma::vec& para,
 	//ll = delta * (log lambda) + log(survival)
 	//note that in theory the '-delta*log(y)' term can be proportioned out,
 	//but I added it in to keep a properly comparable -2LL scale for AIC
-	double obj_val = arma::accu( delta % (arma::log(sprime) + s + eta - arma::log(y))
-                                - arma::exp(s + eta) );
+	double obj_val = arma::accu(weights % ( delta % (arma::log(sprime) + s + eta - arma::log(y))
+                                - arma::exp(s + eta) ));
 
   //now, incorporate left-truncation
   arma::vec exps_yL;
@@ -506,7 +507,7 @@ double nlogLikRP_uni(const arma::vec& para,
     exps_yL = arma::exp(basis_yL * phi);
     //zeros in basis_yL * phi indicate need for 0 on exponentiated scale of Lambda0 too
     exps_yL.replace(1,0);
-    obj_val += arma::accu( arma::exp(eta) % exps_yL );
+    obj_val += arma::accu(weights % arma::exp(eta) % exps_yL);
   }
 
 	return(-obj_val);
@@ -516,7 +517,7 @@ double nlogLikRP_uni(const arma::vec& para,
 arma::vec ngradRP_uni(const arma::vec& para,
                       const arma::vec& y, const arma::vec& delta, const arma::mat& X,
                       const arma::mat& basis, const arma::mat& dbasis,
-                      const arma::mat& basis_yL, const int anyLT){
+                      const arma::mat& basis_yL, const int anyLT, const arma::vec& weights){
 	//define constants
 	int p0 = basis.n_cols;
 	int p1 = X.n_cols;
@@ -533,11 +534,12 @@ arma::vec ngradRP_uni(const arma::vec& para,
 
 	arma::vec temp_scorevec(p0+p1, arma::fill::zeros);
 	//phi
-	temp_scorevec(arma::span(0, p0-1)) = dbasis.t() * (delta / sprime)
-	  + basis.t() * (delta - arma::exp(s + eta) );
+	temp_scorevec(arma::span(0, p0-1)) = dbasis.t() * (weights % delta / sprime)
+	  + basis.t() * (weights % (delta - arma::exp(s + eta)));
 	//beta
 	if(p1 > 0){
-	  temp_scorevec(arma::span(p0,p0+p1-1)) = X.t() * ( delta - arma::exp(s + eta) );
+	  temp_scorevec(arma::span(p0, p0+p1-1)) =
+	    X.t() * (weights % (delta - arma::exp(s + eta)));
 	}
 
 	//next, incorporate left-truncation
@@ -546,10 +548,12 @@ arma::vec ngradRP_uni(const arma::vec& para,
 	  exps_yL = arma::exp(basis_yL * phi);
 	  exps_yL.replace(1,0);
 	  //phi
-	  temp_scorevec(arma::span(0, p0-1)) += basis_yL.t() * (exps_yL % arma::exp(eta));
+	  temp_scorevec(arma::span(0, p0-1)) +=
+	    basis_yL.t() * (weights % exps_yL % arma::exp(eta));
     //beta
     if(p1 > 0){
-      temp_scorevec(arma::span(p0,p0+p1-1)) += X.t() * (arma::exp(eta) % (exps_yL));
+      temp_scorevec(arma::span(p0, p0+p1-1)) +=
+        X.t() * (weights % arma::exp(eta) % exps_yL);
     }
 	}
 
@@ -560,7 +564,7 @@ arma::vec ngradRP_uni(const arma::vec& para,
 arma::mat ngradRP_uni_mat(const arma::vec& para,
                       const arma::vec& y, const arma::vec& delta, const arma::mat& X,
                       const arma::mat& basis, const arma::mat& dbasis,
-                      const arma::mat& basis_yL, const int anyLT){
+                      const arma::mat& basis_yL, const int anyLT, const arma::vec& weights){
   //define constants
   int p0 = basis.n_cols;
   int p1 = X.n_cols;
@@ -575,13 +579,14 @@ arma::mat ngradRP_uni_mat(const arma::vec& para,
   arma::vec s = basis * phi;
   arma::vec sprime = dbasis * phi;
 
-  arma::mat temp_scoremat(n,p0+p1, arma::fill::zeros);
+  arma::mat temp_scoremat(n, p0+p1, arma::fill::zeros);
   //phi
-  temp_scoremat.cols(0, p0-1) = dbasis.each_col() % (delta / sprime)
-    + basis.each_col() % (delta - arma::exp(s + eta) );
+  temp_scoremat.cols(0, p0-1) = dbasis.each_col() % (weights % delta / sprime)
+    + basis.each_col() % (weights % (delta - arma::exp(s + eta)));
   //beta
   if(p1 > 0){
-    temp_scoremat.cols(p0,p0+p1-1) = X.each_col() % ( delta - arma::exp(s + eta) );
+    temp_scoremat.cols(p0, p0+p1-1) =
+      X.each_col() % (weights % (delta - arma::exp(s + eta)));
   }
 
   //next, incorporate left-truncation
@@ -590,10 +595,12 @@ arma::mat ngradRP_uni_mat(const arma::vec& para,
     exps_yL = arma::exp(basis_yL * phi);
     exps_yL.replace(1,0);
     //phi
-    temp_scoremat.cols(0, p0-1) += basis_yL.each_col() % (exps_yL % arma::exp(eta));
+    temp_scoremat.cols(0, p0-1) +=
+      basis_yL.each_col() % (weights % exps_yL % arma::exp(eta));
     //beta
     if(p1 > 0){
-      temp_scoremat.cols(p0,p0+p1-1) += X.each_col() % (arma::exp(eta) % (exps_yL));
+      temp_scoremat.cols(p0,p0+p1-1) +=
+        X.each_col() % (weights % arma::exp(eta) % exps_yL);
     }
   }
 
@@ -610,7 +617,7 @@ double nlogLikRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
                              const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis3_y1,
                              const arma::mat& basis1_yL, const arma::mat& basis2_yL,
                              const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3,
-                             const std::string model, const int frailty_ind){
+                             const std::string model, const arma::vec& weights, const int frailty_ind){
   //define constants
   int p01 = basis1.n_cols; int p02 = basis2.n_cols;	int p03 = basis3.n_cols;
   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;
@@ -627,7 +634,7 @@ double nlogLikRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
   arma::vec eta2(n,arma::fill::zeros);
   arma::vec eta3(n,arma::fill::zeros);
   if(p1 > 0){
-    eta1 = X1 * para(arma::span(frailty_ind+p01+p02+p03,frailty_ind-1+p01+p02+p03+p1));
+    eta1 = X1 * para(arma::span(frailty_ind+p01+p02+p03, frailty_ind-1+p01+p02+p03+p1));
   }
   if(p2 > 0){
     eta2 = X2 * para(arma::span(frailty_ind+p01+p02+p03+p1, frailty_ind-1+p01+p02+p03+p1+p2));
@@ -665,14 +672,14 @@ double nlogLikRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
 
   double obj_val;
   if(frailty_ind==1){
-    obj_val = arma::accu(  delta1 % ( arma::log(s1prime) + s1 + eta1 - arma::log(y1))
-                             + (1-delta1) % delta2 % ( arma::log(s2prime) + s2 + eta2 - arma::log(y1) )
-                             + delta1 % delta2 % ( arma::log(s3prime) + s3 + eta3 - logdiff + log1p( exp(h) )  )
-                             - (exp(-h) + delta1 + delta2) % arma::log1p( exp(h) * AVec )  ) ;
+    obj_val = arma::accu(weights % ( delta1 % (arma::log(s1prime) + s1 + eta1 - arma::log(y1))
+                             + (1-delta1) % delta2 % (arma::log(s2prime) + s2 + eta2 - arma::log(y1))
+                             + delta1 % delta2 % (arma::log(s3prime) + s3 + eta3 - logdiff + log1p(exp(h)))
+                             - (exp(-h) + delta1 + delta2) % arma::log1p(exp(h) * AVec) ));
   } else {
-    obj_val = arma::accu(  delta1 % ( arma::log(s1prime) + s1 + eta1 - arma::log(y1))
-                             + (1-delta1) % delta2 % ( arma::log(s2prime) + s2 + eta2 - arma::log(y1) )
-                             + delta1 % delta2 % ( arma::log(s3prime) + s3 + eta3 - logdiff  ) - AVec );
+    obj_val = arma::accu(weights % ( delta1 % (arma::log(s1prime) + s1 + eta1 - arma::log(y1))
+                             + (1-delta1) % delta2 % (arma::log(s2prime) + s2 + eta2 - arma::log(y1))
+                             + delta1 % delta2 % (arma::log(s3prime) + s3 + eta3 - logdiff) - AVec ));
   }
 
   //now, incorporate left-truncation
@@ -688,9 +695,9 @@ double nlogLikRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
     s2.replace(1,0);
     AVec = s1 % arma::exp(eta1) + s2 % arma::exp(eta2);
     if(frailty_ind ==1){
-      obj_val += exp(-h) * arma::accu( arma::log1p(exp(h) * AVec));
+      obj_val += exp(-h) * arma::accu(weights % arma::log1p(exp(h) * AVec));
     } else {
-      obj_val += arma::accu( AVec );
+      obj_val += arma::accu(weights % AVec);
     }
   }
 
@@ -704,7 +711,7 @@ arma::vec ngradRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec
                     const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis3_y1,
                     const arma::mat& basis1_yL, const arma::mat& basis2_yL,
                     const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3,
-                    const std::string model, const int frailty_ind){
+                    const std::string model, const arma::vec& weights, const int frailty_ind){
   //define constants
   int p01 = basis1.n_cols; int p02 = basis2.n_cols;	int p03 = basis3.n_cols;
   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;
@@ -757,82 +764,97 @@ arma::vec ngradRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec
   if(frailty_ind==1){
     commonVec = getCommonVec(delta1, delta2, AVec, h);
     //phi1
-    temp_scorevec(arma::span(0, p01 - 1)) = dbasis1.t() * (delta1 / s1prime)
-      + basis1.t() * (delta1 - commonVec % arma::exp(h + s1 + eta1) );
+    temp_scorevec(arma::span(0, p01-1)) = dbasis1.t() * (weights % delta1 / s1prime)
+      + basis1.t() * (weights % (delta1 - commonVec % arma::exp(h + s1 + eta1)));
     //phi2
-    temp_scorevec(arma::span(p01, p01 + p02 - 1)) = dbasis2.t() * ((1-delta1) % delta2 / s2prime)
-      + basis2.t() * ((1-delta1) % delta2 - commonVec % arma::exp(h + s2 + eta2) );
+    temp_scorevec(arma::span(p01, p01+p02-1)) = dbasis2.t() * (weights % (1-delta1) % delta2 / s2prime)
+      + basis2.t() * (weights % ((1-delta1) % delta2 - commonVec % arma::exp(h + s2 + eta2)));
     //h
-    temp_scorevec(p01 + p02 + p03) = arma::accu( exp(h)*( delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec ));
+    temp_scorevec(p01 + p02 + p03) = exp(h) * arma::accu(weights % (delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1)) = X1.t() * (delta1 - commonVec % arma::exp(h + s1 + eta1));
+      temp_scorevec(arma::span(1+p01+p02+p03, 1+p01+p02+p03+p1-1)) =
+        X1.t() * (weights % (delta1 - commonVec % arma::exp(h + s1 + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1)) = X2.t() * ( (1-delta1) % delta2 - commonVec % arma::exp(h + s2 + eta2)) ;
+      temp_scorevec(arma::span(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1)) =
+        X2.t() * (weights % ((1-delta1) % delta2 - commonVec % arma::exp(h + s2 + eta2)));
     }
 
     if (model.compare("markov") == 0){ //markov
       //phi3
-      temp_scorevec(arma::span(p01 + p02, p01 + p02 + p03 - 1)) = dbasis3.t() * (delta1 % delta2 / s3prime)
-      + basis3.t() * (delta1 % delta2)
-      - (basis3.t() * (delta1 % commonVec % arma::exp(h + s3 + eta3))
-      - basis3_y1.t() * (delta1 % commonVec % arma::exp(h + s3_y1 + eta3)));  //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+      temp_scorevec(arma::span(p01+p02, p01+p02+p03-1)) =
+        dbasis3.t() * (weights % delta1 % delta2 / s3prime)
+        + basis3.t() * (weights % delta1 % delta2)
+        - (basis3.t() * (weights % delta1 % commonVec % arma::exp(h + s3 + eta3))
+        - basis3_y1.t() * (weights % delta1 % commonVec % arma::exp(h + s3_y1 + eta3)));
       //beta3
       if(p3 > 0){
-        temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1 + p2,1 + p01 + p02 + p03 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 -
-          delta1 % commonVec % arma::exp(h + eta3) % (arma::exp(s3) - arma::exp(s3_y1))); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+        //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+        temp_scorevec(arma::span(1+p01+p02+p03+p1+p2, 1+p01+p02+p03+p1+p2+p3-1)) =
+          X3.t() * (weights % delta1 % (delta2 - commonVec % arma::exp(h + eta3) % (arma::exp(s3) - arma::exp(s3_y1))));
       }
     } else {
       //phi3
-      temp_scorevec(arma::span(p01 + p02, p01 + p02 + p03 - 1)) = dbasis3.t() * (delta1 % delta2 / s3prime)
-      + basis3.t() * (delta1 % delta2 -
-        delta1 % commonVec % arma::exp(h + s3 + eta3) );  //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1). Helps make it more robust
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1). Helps make it more robust
+      temp_scorevec(arma::span(p01+p02, p01+p02+p03-1)) = dbasis3.t() * (weights % delta1 % delta2 / s3prime)
+        + basis3.t() * (weights % delta1 % (delta2 - commonVec % arma::exp(h + s3 + eta3)));
       //beta3 (what ina calls u4)
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
       if(p3 > 0){
-        temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1 + p2,1 + p01 + p02 + p03 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 -
-          delta1 % commonVec % arma::exp(s3 + h + eta3)); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
+        temp_scorevec(arma::span(1+p01+p02+p03+p1+p2,1+p01+p02+p03+p1+p2+p3-1)) =
+          X3.t() * (weights % delta1 % (delta2 - commonVec % arma::exp(s3 + h + eta3)));
       }
     }
 
   } else { //NON-FRAILTY
     //phi1
-    temp_scorevec(arma::span(0, p01 - 1)) = dbasis1.t() * (delta1 / s1prime)
-      + basis1.t() * (delta1 - arma::exp(s1 + eta1) );
+    temp_scorevec(arma::span(0, p01-1)) =
+      dbasis1.t() * (weights % delta1 / s1prime)
+      + basis1.t() * (weights % (delta1 - arma::exp(s1 + eta1)));
     //phi2
-    temp_scorevec(arma::span(p01, p01 + p02 - 1)) = dbasis2.t() * ((1-delta1) % delta2 / s2prime)
-      + basis2.t() * ((1-delta1) % delta2 - arma::exp(s2 + eta2) );
+    temp_scorevec(arma::span(p01, p01+p02-1)) =
+      dbasis2.t() * (weights % (1-delta1) % delta2 / s2prime)
+      + basis2.t() * (weights % ((1-delta1) % delta2 - arma::exp(s2 + eta2)));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scorevec(arma::span(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1)) = X1.t() * (delta1 - arma::exp(s1 + eta1));
+      temp_scorevec(arma::span(p01+p02+p03, p01+p02+p03+p1-1)) =
+        X1.t() * (weights % (delta1 - arma::exp(s1 + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scorevec(arma::span(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1)) = X2.t() * ( (1-delta1) % delta2 - arma::exp(s2 + eta2)) ;
+      temp_scorevec(arma::span(p01+p02+p03+p1, p01+p02+p03+p1+p2-1)) =
+        X2.t() * (weights % ((1-delta1) % delta2 - arma::exp(s2 + eta2)));
     }
 
     if (model.compare("markov") == 0){ //markov
       //phi3
-      temp_scorevec(arma::span(p01 + p02, p01 + p02 + p03 - 1)) = dbasis3.t() * (delta1 % delta2 / s3prime)
-      + basis3.t() * (delta1 % delta2)
-      - (basis3.t() * (delta1 % arma::exp(s3 + eta3))
-      - basis3_y1.t() * (delta1 % arma::exp(s3_y1 + eta3)));  //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+      temp_scorevec(arma::span(p01+p02, p01+p02+p03-1)) =
+        dbasis3.t() * (weights % delta1 % delta2 / s3prime)
+        + basis3.t() * (weights % delta1 % delta2)
+        - (basis3.t() * (weights % delta1 % arma::exp(s3 + eta3))
+        - basis3_y1.t() * (weights % delta1 % arma::exp(s3_y1 + eta3)));
       //beta3
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
       if(p3 > 0){
-        temp_scorevec(arma::span(p01 + p02 + p03 + p1 + p2, p01 + p02 + p03 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 -
-          delta1 % arma::exp(eta3) % (arma::exp(s3) - arma::exp(s3_y1))); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+        temp_scorevec(arma::span(p01+p02+p03+p1+p2, p01+p02+p03+p1+p2+p3-1)) =
+          X3.t() * (weights % delta1 % (delta2 - arma::exp(eta3) % (arma::exp(s3) - arma::exp(s3_y1))));
       }
 
     } else { //semi-markov
       //phi3
-      temp_scorevec(arma::span(p01 + p02, p01 + p02 + p03 - 1)) = dbasis3.t() * (delta1 % delta2 / s3prime)
-      + basis3.t() * (delta1 % delta2 -
-        delta1 % arma::exp(s3 + eta3) );  //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1). Helps make it more robust
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1). Helps make it more robust
+      temp_scorevec(arma::span(p01+p02, p01+p02+p03-1)) =
+        dbasis3.t() * (weights % delta1 % delta2 / s3prime)
+        + basis3.t() * (weights % delta1 % (delta2 - arma::exp(s3 + eta3)));
       //beta3 (what ina calls u4)
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
       if(p3 > 0){
-        temp_scorevec(arma::span(p01 + p02 + p03 + p1 + p2,p01 + p02 + p03 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 -
-          delta1 % arma::exp(s3 + eta3)); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
+        temp_scorevec(arma::span(p01+p02+p03+p1+p2, p01+p02+p03+p1+p2+p3-1)) =
+          X3.t() * (weights % delta1 % (delta2 - arma::exp(s3 + eta3)));
       }
     }
   }
@@ -853,42 +875,41 @@ arma::vec ngradRP_ID(const arma::vec& para, const arma::vec& y1, const arma::vec
     if(frailty_ind==1){
       commonVec = exp(-h) / (1 + exp(h) * AVec);
       //phi1
-      temp_scorevec(arma::span(0, p01 - 1)) += basis1_yL.t() * (commonVec % s1 % arma::exp(h + eta1) );
+      temp_scorevec(arma::span(0, p01-1)) += basis1_yL.t() * (weights % commonVec % s1 % arma::exp(h + eta1));
       //phi2
-      temp_scorevec(arma::span(p01, p01 + p02 - 1)) += basis2_yL.t() * (commonVec % s2 % arma::exp(h + eta2) );
+      temp_scorevec(arma::span(p01, p01+p02-1)) += basis2_yL.t() * (weights % commonVec % s2 % arma::exp(h + eta2));
       //h
-      temp_scorevec(p01 + p02 + p03) += -arma::accu(exp(h)*(arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
+      temp_scorevec(p01+p02+p03) += -exp(h) * arma::accu(weights % (arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scorevec(arma::span(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1)) +=
-          X1.t() * (commonVec % s1 % arma::exp(h + eta1));
+        temp_scorevec(arma::span(1+p01+p02+p03, 1+p01+p02+p03+p1-1)) +=
+          X1.t() * (weights % commonVec % s1 % arma::exp(h + eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1)) +=
-          X2.t() * (commonVec % s2 % arma::exp(h + eta2)) ;
+        temp_scorevec(arma::span(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1)) +=
+          X2.t() * (weights % commonVec % s2 % arma::exp(h + eta2)) ;
       }
     } else {
       //phi1
-      temp_scorevec(arma::span(0, p01 - 1)) += basis1_yL.t() * (s1 % arma::exp(eta1));
+      temp_scorevec(arma::span(0, p01-1)) += basis1_yL.t() * (weights % s1 % arma::exp(eta1));
       //phi2
-      temp_scorevec(arma::span(p01, p01 + p02 - 1)) += basis2_yL.t() * (s2 % arma::exp(eta2));
+      temp_scorevec(arma::span(p01, p01+p02-1)) += basis2_yL.t() * (weights % s2 % arma::exp(eta2));
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scorevec(arma::span(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1)) +=
-          X1.t() * (s1 % arma::exp(eta1));
+        temp_scorevec(arma::span(p01+p02+p03, p01+p02+p03+p1-1)) +=
+          X1.t() * (weights % s1 % arma::exp(eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scorevec(arma::span(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1)) +=
-          X2.t() * (s2 % arma::exp(eta2)) ;
+        temp_scorevec(arma::span(p01+p02+p03+p1, p01+p02+p03+p1+p2-1)) +=
+          X2.t() * (weights % s2 % arma::exp(eta2));
       }
     }
   }
 
   return(-temp_scorevec);
 }
-
 
 
 // [[Rcpp::export]]
@@ -898,7 +919,7 @@ arma::mat ngradRP_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
                      const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3, const arma::mat& basis3_y1,
                      const arma::mat& basis1_yL, const arma::mat& basis2_yL,
                      const arma::mat& dbasis1, const arma::mat& dbasis2, const arma::mat& dbasis3,
-                     const std::string model, const int frailty_ind){
+                     const std::string model, const arma::vec& weights, const int frailty_ind){
   //define constants
   int p01 = basis1.n_cols; int p02 = basis2.n_cols;	int p03 = basis3.n_cols;
   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;
@@ -916,7 +937,7 @@ arma::mat ngradRP_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
   arma::vec eta2(n,arma::fill::zeros);
   arma::vec eta3(n,arma::fill::zeros);
   if(p1 > 0){
-    eta1 = X1 * para(arma::span(frailty_ind+p01+p02+p03,frailty_ind-1+p01+p02+p03+p1));
+    eta1 = X1 * para(arma::span(frailty_ind+p01+p02+p03, frailty_ind-1+p01+p02+p03+p1));
   }
   if(p2 > 0){
     eta2 = X2 * para(arma::span(frailty_ind+p01+p02+p03+p1, frailty_ind-1+p01+p02+p03+p1+p2));
@@ -951,82 +972,96 @@ arma::mat ngradRP_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
   if(frailty_ind==1){
     commonVec = getCommonVec(delta1, delta2, AVec, h);
     //phi1
-    temp_scoremat.cols(0, p01 - 1) = dbasis1.each_col() % (delta1 / s1prime)
-      + basis1.each_col() % (delta1 - commonVec % arma::exp(h + s1 + eta1) );
+    temp_scoremat.cols(0, p01-1) = dbasis1.each_col() % (weights % delta1 / s1prime)
+      + basis1.each_col() % (weights % (delta1 - commonVec % arma::exp(h + s1 + eta1)));
     //phi2
-    temp_scoremat.cols(p01, p01 + p02 - 1) = dbasis2.each_col() % ((1-delta1) % delta2 / s2prime)
-      + basis2.each_col() % ((1-delta1) % delta2 - commonVec % arma::exp(h + s2 + eta2) );
+    temp_scoremat.cols(p01, p01+p02-1) = dbasis2.each_col() % (weights % (1-delta1) % delta2 / s2prime)
+      + basis2.each_col() % (weights % ((1-delta1) % delta2 - commonVec % arma::exp(h + s2 + eta2)));
     //h
-    temp_scoremat.col(p01 + p02 + p03) = exp(h)*( delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec );
+    temp_scoremat.col(p01+p02+p03) = exp(h) * weights % (delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1) = X1.each_col() % (delta1 - commonVec % arma::exp(h + s1 + eta1));
+      temp_scoremat.cols(1+p01+p02+p03, 1+p01+p02+p03+p1-1) =
+        X1.each_col() % (weights % (delta1 - commonVec % arma::exp(h + s1 + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1) = X2.each_col() % ( (1-delta1) % delta2 - commonVec % arma::exp(h + s2 + eta2)) ;
+      temp_scoremat.cols(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1) =
+        X2.each_col() % (weights % ((1-delta1) % delta2 - commonVec % arma::exp(h + s2 + eta2)));
     }
 
     if (model.compare("markov") == 0){ //markov
       //phi3
-      temp_scoremat.cols(p01 + p02, p01 + p02 + p03 - 1) = dbasis3.each_col() % (delta1 % delta2 / s3prime)
-      + basis3.each_col() % (delta1 % delta2)
-      - (basis3.each_col() % (delta1 % commonVec % arma::exp(h + s3 + eta3))
-      - basis3_y1.each_col() % (delta1 % commonVec % arma::exp(h + s3_y1 + eta3)));  //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+      temp_scoremat.cols(p01+p02, p01+p02+p03-1) =
+        dbasis3.each_col() % (weights % delta1 % delta2 / s3prime)
+        + basis3.each_col() % (weights % delta1 % delta2)
+        - (basis3.each_col() % (weights % delta1 % commonVec % arma::exp(h + s3 + eta3))
+        - basis3_y1.each_col() % (weights % delta1 % commonVec % arma::exp(h + s3_y1 + eta3)));
       //beta3
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
       if(p3 > 0){
-        temp_scoremat.cols(1 + p01 + p02 + p03 + p1 + p2,1 + p01 + p02 + p03 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 -
-          delta1 % commonVec % arma::exp(h + eta3) % (arma::exp(s3) - arma::exp(s3_y1))); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+        temp_scoremat.cols(1+p01+p02+p03+p1+p2, 1+p01+p02+p03+p1+p2+p3-1) =
+          X3.each_col() % (weights % delta1 % (delta2 - commonVec % arma::exp(h + eta3) % (arma::exp(s3) - arma::exp(s3_y1))));
       }
     } else {
       //phi3
-      temp_scoremat.cols(p01 + p02, p01 + p02 + p03 - 1) = dbasis3.each_col() % (delta1 % delta2 / s3prime)
-      + basis3.each_col() % (delta1 % delta2 -
-        delta1 % commonVec % arma::exp(h + s3 + eta3) );  //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1). Helps make it more robust
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1). Helps make it more robust
+      temp_scoremat.cols(p01+p02, p01+p02+p03-1) =
+        dbasis3.each_col() % (weights % delta1 % delta2 / s3prime)
+        + basis3.each_col() % (weights % delta1 % (delta2 - commonVec % arma::exp(h + s3 + eta3)));
       //beta3 (what ina calls u4)
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
       if(p3 > 0){
-        temp_scoremat.cols(1 + p01 + p02 + p03 + p1 + p2,1 + p01 + p02 + p03 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 -
-          delta1 % commonVec % arma::exp(s3 + h + eta3)); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
+        temp_scoremat.cols(1+p01+p02+p03+p1+p2, 1+p01+p02+p03+p1+p2+p3-1) =
+          X3.each_col() % (weights % delta1 % (delta2 - commonVec % arma::exp(s3 + h + eta3)));
       }
     }
 
   } else { //NON-FRAILTY
     //phi1
-    temp_scoremat.cols(0, p01 - 1) = dbasis1.each_col() % (delta1 / s1prime)
-    + basis1.each_col() % (delta1 - arma::exp(s1 + eta1) );
+    temp_scoremat.cols(0, p01-1) = dbasis1.each_col() % (weights % delta1 / s1prime)
+      + basis1.each_col() % (weights % (delta1 - arma::exp(s1 + eta1)));
     //phi2
-    temp_scoremat.cols(p01, p01 + p02 - 1) = dbasis2.each_col() % ((1-delta1) % delta2 / s2prime)
-      + basis2.each_col() % ((1-delta1) % delta2 - arma::exp(s2 + eta2) );
+    temp_scoremat.cols(p01, p01+p02-1) = dbasis2.each_col() % (weights % (1-delta1) % delta2 / s2prime)
+      + basis2.each_col() % (weights % ((1-delta1) % delta2 - arma::exp(s2 + eta2)));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scoremat.cols(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1) = X1.each_col() % (delta1 - arma::exp(s1 + eta1));
+      temp_scoremat.cols(p01+p02+p03, p01+p02+p03+p1-1) =
+        X1.each_col() % (weights % (delta1 - arma::exp(s1 + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scoremat.cols(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1) = X2.each_col() % ( (1-delta1) % delta2 - arma::exp(s2 + eta2)) ;
+      temp_scoremat.cols(p01+p02+p03+p1, p01+p02+p03+p1+p2-1) =
+        X2.each_col() % (weights % ((1-delta1) % delta2 - arma::exp(s2 + eta2)));
     }
 
     if (model.compare("markov") == 0){ //markov
       //phi3
-      temp_scoremat.cols(p01 + p02, p01 + p02 + p03 - 1) = dbasis3.each_col() % (delta1 % delta2 / s3prime)
-      + basis3.each_col() % (delta1 % delta2)
-      - (basis3.each_col() % (delta1 % arma::exp(s3 + eta3))
-      - basis3_y1.each_col() % (delta1 % arma::exp(s3_y1 + eta3)));  //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+      temp_scoremat.cols(p01+p02, p01+p02+p03-1) =
+        dbasis3.each_col() % (weights % delta1 % delta2 / s3prime)
+        + basis3.each_col() % (weights % delta1 % delta2)
+        - (basis3.each_col() % (weights % delta1 % arma::exp(s3 + eta3))
+        - basis3_y1.each_col() % (weights % delta1 % arma::exp(s3_y1 + eta3)));
       //beta3
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
       if(p3 > 0){
-        temp_scoremat.cols(p01 + p02 + p03 + p1 + p2, p01 + p02 + p03 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 -
-          delta1 % arma::exp(eta3) % (arma::exp(s3) - arma::exp(s3_y1))); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2)-H(y1). Helps make it more robust.
+        temp_scoremat.cols(p01+p02+p03+p1+p2, p01+p02+p03+p1+p2+p3-1) =
+          X3.each_col() % (weights % delta1 % (delta2 - arma::exp(eta3) % (arma::exp(s3) - arma::exp(s3_y1))));
       }
 
     } else { //semi-markov
       //phi3
-      temp_scoremat.cols(p01 + p02, p01 + p02 + p03 - 1) = dbasis3.each_col() % (delta1 % delta2 / s3prime)
-      + basis3.each_col() % (delta1 % delta2 -
-        delta1 % arma::exp(s3 + eta3) );  //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1). Helps make it more robust
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1). Helps make it more robust
+      temp_scoremat.cols(p01+p02, p01+p02+p03-1) =
+        dbasis3.each_col() % (weights % delta1 % delta2 / s3prime)
+        + basis3.each_col() % (weights % delta1 % (delta2 - arma::exp(s3 + eta3)));
       //beta3 (what ina calls u4)
+      //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
       if(p3 > 0){
-        temp_scoremat.cols(p01 + p02 + p03 + p1 + p2,p01 + p02 + p03 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 -
-          delta1 % arma::exp(s3 + eta3)); //note, extra delta1 multiplied to last term because only those terms contribute nonzero H(y2-y1)
+        temp_scoremat.cols(p01+p02+p03+p1+p2, p01+p02+p03+p1+p2+p3-1) =
+          X3.each_col() % (weights % delta1 % (delta2 - arma::exp(s3 + eta3)));
       }
     }
   }
@@ -1047,49 +1082,41 @@ arma::mat ngradRP_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
     if(frailty_ind==1){
       commonVec = exp(-h) / (1 + exp(h) * AVec);
       //phi1
-      temp_scoremat.cols(0, p01 - 1) += basis1_yL.each_col() % (commonVec % s1 % arma::exp(h + eta1) );
+      temp_scoremat.cols(0, p01-1) += basis1_yL.each_col() % (weights % commonVec % s1 % arma::exp(h + eta1));
       //phi2
-      temp_scoremat.cols(p01, p01 + p02 - 1) += basis2_yL.t() % (commonVec % s2 % arma::exp(h + eta2) );
+      temp_scoremat.cols(p01, p01+p02-1) += basis2_yL.each_col() % (weights % commonVec % s2 % arma::exp(h + eta2));
       //h
-      temp_scoremat.col(p01 + p02 + p03) += -exp(h)*(arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
+      temp_scoremat.col(p01+p02+p03) += -exp(h) * weights % (arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scoremat.cols(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1) +=
-          X1.each_col() % (commonVec % s1 % arma::exp(h + eta1));
+        temp_scoremat.cols(1+p01+p02+p03, 1+p01+p02+p03+p1-1) +=
+          X1.each_col() % (weights % commonVec % s1 % arma::exp(h + eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scoremat.cols(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1) +=
-          X2.each_col() % (commonVec % s2 % arma::exp(h + eta2)) ;
+        temp_scoremat.cols(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1) +=
+          X2.each_col() % (weights % commonVec % s2 % arma::exp(h + eta2)) ;
       }
     } else {
       //phi1
-      temp_scoremat.cols(0, p01 - 1) += basis1_yL.each_col() % (s1 % arma::exp(eta1));
+      temp_scoremat.cols(0, p01-1) += basis1_yL.each_col() % (weights % s1 % arma::exp(eta1));
       //phi2
-      temp_scoremat.cols(p01, p01 + p02 - 1) += basis2_yL.each_col() % (s2 % arma::exp(eta2));
+      temp_scoremat.cols(p01, p01+p02-1) += basis2_yL.each_col() % (weights % s2 % arma::exp(eta2));
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scoremat.cols(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1) +=
-          X1.each_col() % (s1 % arma::exp(eta1));
+        temp_scoremat.cols(p01+p02+p03, p01+p02+p03+p1-1) +=
+          X1.each_col() % (weights % s1 % arma::exp(eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scoremat.cols(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1) +=
-          X2.each_col() % (s2 % arma::exp(eta2)) ;
+        temp_scoremat.cols(p01+p02+p03+p1, p01+p02+p03+p1+p2-1) +=
+          X2.each_col() % (weights % s2 % arma::exp(eta2));
       }
     }
   }
 
   return(-temp_scoremat);
 }
-
-
-
-
-
-
-
-
 
 
 /*******
@@ -1139,7 +1166,8 @@ arma::vec getAVecBS(const arma::vec& y1,const arma::vec& y2,
 // [[Rcpp::export]]
 double nlogLikBS_uni(const arma::vec& para,
                      const arma::vec& y, const arma::vec& delta, const arma::mat& X,
-                     const arma::mat& basis, const arma::vec& quad_weights){
+                     const arma::mat& basis, const arma::vec& weights,
+                     const arma::vec& quad_weights){
   //define constants
   int p0 = basis.n_cols;
   int p1 = X.n_cols;
@@ -1152,9 +1180,8 @@ double nlogLikBS_uni(const arma::vec& para,
   arma::vec loglambda0 = basis * phi;
 
   //delta * (log lambda) + log(survival)
-  double obj_val = arma::accu( delta % (loglambda0(arma::span(0,n-1)) + eta)
-                      - getLambda0BS(y,arma::exp(loglambda0),quad_weights)
-                        % arma::exp(eta) );
+  double obj_val = arma::accu(weights % ( delta % (loglambda0(arma::span(0,n-1)) + eta)
+                    - getLambda0BS(y,arma::exp(loglambda0),quad_weights) % arma::exp(eta) ));
 
   //any left truncation is folded directly into definition of basis already..
   return(-obj_val);
@@ -1163,7 +1190,8 @@ double nlogLikBS_uni(const arma::vec& para,
 // [[Rcpp::export]]
 arma::vec ngradBS_uni(const arma::vec& para,
                    const arma::vec& y, const arma::vec& delta, const arma::mat& X,
-                   const arma::mat& basis, const arma::vec& quad_weights){
+                   const arma::mat& basis, const arma::vec& weights,
+                   const arma::vec& quad_weights){
   //define constants
   int p0 = basis.n_cols;
   int p1 = X.n_cols;
@@ -1188,9 +1216,9 @@ arma::vec ngradBS_uni(const arma::vec& para,
   }
 
   arma::vec temp_scorevec(p0+p1, arma::fill::zeros);
-  temp_scorevec(arma::span(0, p0-1)) = basis.rows(0,n-1).t() * delta - BLambda0.t() * arma::exp(eta);
+  temp_scorevec(arma::span(0, p0-1)) = basis.rows(0,n-1).t() * (weights % delta) - BLambda0.t() * (weights % arma::exp(eta));
   if(p1 > 0){
-    temp_scorevec(arma::span(p0,p0+p1-1)) = X.t() * (delta - Lambda0 % arma::exp(eta));
+    temp_scorevec(arma::span(p0, p0+p1-1)) = X.t() * (weights % (delta - Lambda0 % arma::exp(eta)));
   }
 
   //any left truncation is folded directly into definition of basis already..
@@ -1200,7 +1228,8 @@ arma::vec ngradBS_uni(const arma::vec& para,
 // [[Rcpp::export]]
 arma::mat ngradBS_uni_mat(const arma::vec& para,
                       const arma::vec& y, const arma::vec& delta, const arma::mat& X,
-                      const arma::mat& basis, const arma::vec& quad_weights){
+                      const arma::mat& basis, const arma::vec& weights,
+                      const arma::vec& quad_weights){
   //define constants
   int p0 = basis.n_cols;
   int p1 = X.n_cols;
@@ -1226,9 +1255,9 @@ arma::mat ngradBS_uni_mat(const arma::vec& para,
 
   arma::mat basisn = basis.rows(0,n-1);
   arma::mat temp_scoremat(n,p0+p1, arma::fill::zeros);
-  temp_scoremat.cols(0, p0-1) = basisn.each_col() % delta - BLambda0.each_col() % arma::exp(eta);
+  temp_scoremat.cols(0, p0-1) = basisn.each_col() % (weights % delta) - BLambda0.each_col() % (weights % arma::exp(eta));
   if(p1 > 0){
-    temp_scoremat.cols(p0,p0+p1-1) = X.each_col() % (delta - Lambda0 % arma::exp(eta));
+    temp_scoremat.cols(p0, p0+p1-1) = X.each_col() % (weights % (delta - Lambda0 % arma::exp(eta)));
   }
 
   //any left truncation is folded directly into definition of basis already..
@@ -1243,6 +1272,7 @@ double nlogLikBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
                     const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
                     const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3,
                     const arma::mat& basis1_yL, const arma::mat& basis2_yL,
+                    const arma::vec& weights,
                     const arma::vec& quad_weights, const int frailty_ind){
   //define constants
   int p01 = basis1.n_cols; int p02 = basis2.n_cols;	int p03 = basis3.n_cols;
@@ -1259,7 +1289,7 @@ double nlogLikBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
   arma::vec eta2(n,arma::fill::zeros);
   arma::vec eta3(n,arma::fill::zeros);
   if(p1 > 0){
-    eta1 = X1 * para(arma::span(frailty_ind+p01+p02+p03,frailty_ind-1+p01+p02+p03+p1));
+    eta1 = X1 * para(arma::span(frailty_ind+p01+p02+p03, frailty_ind-1+p01+p02+p03+p1));
   }
   if(p2 > 0){
     eta2 = X2 * para(arma::span(frailty_ind+p01+p02+p03+p1, frailty_ind-1+p01+p02+p03+p1+p2));
@@ -1295,14 +1325,14 @@ double nlogLikBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
 
   double obj_val;
   if(frailty_ind==1){
-   obj_val = arma::accu(  delta1 % (loglambda01(arma::span(0,n-1)) + eta1)
+   obj_val = arma::accu(weights % ( delta1 % (loglambda01(arma::span(0,n-1)) + eta1)
                             + (1-delta1) % delta2 % (loglambda02(arma::span(0,n-1)) + eta2)
                             + delta1 % delta2 % (loglambda03(arma::span(0,n-1)) + eta3 + log1p(exp(h)))
-                            - (exp(-h) + delta1 + delta2) % arma::log1p( exp(h) * AVec ) );
+                            - (exp(-h) + delta1 + delta2) % arma::log1p(exp(h) * AVec) ));
   } else {
-    obj_val = arma::accu(  delta1 % (loglambda01(arma::span(0,n-1)) + eta1)
+    obj_val = arma::accu(weights % ( delta1 % (loglambda01(arma::span(0,n-1)) + eta1)
                              + (1-delta1) % delta2 % (loglambda02(arma::span(0,n-1)) + eta2)
-                             + delta1 % delta2 % (loglambda03(arma::span(0,n-1)) + eta3) - AVec );
+                             + delta1 % delta2 % (loglambda03(arma::span(0,n-1)) + eta3) - AVec ));
   }
 
   //now, if there is frailty, need to incorporate any left-truncation separately
@@ -1310,7 +1340,7 @@ double nlogLikBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec&
     //generate a length n vector of the sum of cumulative hazards for each subject
     AVec = getLambda0BS(yL,arma::exp(basis1_yL * phi1),quad_weights) % arma::exp(eta1)
            + getLambda0BS(yL,arma::exp(basis2_yL * phi2),quad_weights) % arma::exp(eta2);
-    obj_val += exp(-h) * arma::accu( arma::log1p(exp(h) * AVec));
+    obj_val += exp(-h) * arma::accu(weights % arma::log1p(exp(h) * AVec));
   }
 
   return(-obj_val);
@@ -1323,6 +1353,7 @@ arma::vec ngradBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec
                      const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
                      const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3,
                      const arma::mat& basis1_yL, const arma::mat& basis2_yL,
+                     const arma::vec& weights,
                      const arma::vec& quad_weights, const int frailty_ind){
   //define constants
   int p01 = basis1.n_cols; int p02 = basis2.n_cols;	int p03 = basis3.n_cols;
@@ -1404,43 +1435,55 @@ arma::vec ngradBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec
   if(frailty_ind==1){
     commonVec = getCommonVec(delta1, delta2, AVec, h);
     //phi1
-    temp_scorevec(arma::span(0, p01 - 1)) = basis1.rows(0,n-1).t() * delta1 - BLambda01.t() * (commonVec % arma::exp(h + eta1)) ;
+    temp_scorevec(arma::span(0, p01-1)) = basis1.rows(0,n-1).t() * (weights % delta1)
+      - BLambda01.t() * (weights % commonVec % arma::exp(h + eta1)) ;
     //phi2
-    temp_scorevec(arma::span(p01, p01 + p02 - 1)) = basis2.rows(0,n-1).t() * ((1-delta1) % delta2) - BLambda02.t() * (commonVec % arma::exp(h + eta2));
+    temp_scorevec(arma::span(p01, p01+p02-1)) = basis2.rows(0,n-1).t() * (weights % (1-delta1) % delta2)
+      - BLambda02.t() * (weights % commonVec % arma::exp(h + eta2));
     //phi3
-    temp_scorevec(arma::span(p01 + p02, p01 + p02 + p03 - 1)) = basis3.rows(0,n-1).t() * (delta1 % delta2) - BLambda03.t() * (commonVec % arma::exp(h + eta3));
+    temp_scorevec(arma::span(p01+p02, p01+p02+p03-1)) = basis3.rows(0,n-1).t() * (weights % delta1 % delta2)
+      - BLambda03.t() * (weights % commonVec % arma::exp(h + eta3));
     //h
-    temp_scorevec(p01 + p02 + p03) = arma::accu( exp(h)*( delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec ));
+    temp_scorevec(p01+p02+p03) = exp(h) * arma::accu(weights % (delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1)) = X1.t() * (delta1 - commonVec % Lambda01 % arma::exp(h + eta1));
+      temp_scorevec(arma::span(1+p01+p02+p03, 1+p01+p02+p03+p1-1)) =
+        X1.t() * (weights % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1)) = X2.t() * ( (1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)) ;
+      temp_scorevec(arma::span(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1)) =
+        X2.t() * (weights % ((1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)));
     }
     //beta3 (what ina calls u4)
     if(p3 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1 + p2,1 + p01 + p02 + p03 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 - commonVec % Lambda03 % arma::exp(h + eta3));
+      temp_scorevec(arma::span(1+p01+p02+p03+p1+p2, 1+p01+p02+p03+p1+p2+p3-1)) =
+        X3.t() * (weights % (delta1 % delta2 - commonVec % Lambda03 % arma::exp(h + eta3)));
     }
   } else {
     //phi1
-    temp_scorevec(arma::span(0, p01 - 1)) = basis1.rows(0,n-1).t() * delta1 - BLambda01.t() * arma::exp(eta1) ;
+    temp_scorevec(arma::span(0, p01-1)) = basis1.rows(0,n-1).t() * (weights % delta1)
+      - BLambda01.t() * (weights % arma::exp(eta1));
     //phi2
-    temp_scorevec(arma::span(p01, p01 + p02 - 1)) = basis2.rows(0,n-1).t() * ((1-delta1) % delta2) - BLambda02.t() * arma::exp(eta2);
+    temp_scorevec(arma::span(p01, p01+p02-1)) = basis2.rows(0,n-1).t() * (weights % (1-delta1) % delta2)
+      - BLambda02.t() * (weights % arma::exp(eta2));
     //phi3
-    temp_scorevec(arma::span(p01 + p02, p01 + p02 + p03 - 1)) = basis3.rows(0,n-1).t() * (delta1 % delta2) - BLambda03.t() * arma::exp(eta3);
+    temp_scorevec(arma::span(p01+p02, p01+p02+p03-1)) = basis3.rows(0,n-1).t() * (weights % delta1 % delta2)
+      - BLambda03.t() * (weights % arma::exp(eta3));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scorevec(arma::span(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1)) = X1.t() * (delta1 - Lambda01 % arma::exp(eta1));
+      temp_scorevec(arma::span(p01+p02+p03, p01+p02+p03+p1-1)) =
+        X1.t() * (weights % (delta1 - Lambda01 % arma::exp(eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scorevec(arma::span(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1)) = X2.t() * ( (1-delta1) % delta2 - Lambda02 % arma::exp(eta2)) ;
+      temp_scorevec(arma::span(p01+p02+p03+p1, p01+p02+p03+p1+p2-1)) =
+        X2.t() * (weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2)));
     }
     //beta3 (what ina calls u4)
     if(p3 > 0){
-      temp_scorevec(arma::span(p01 + p02 + p03 + p1 + p2,p01 + p02 + p03 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 - Lambda03 % arma::exp(eta3));
+      temp_scorevec(arma::span(p01+p02+p03+p1+p2, p01+p02+p03+p1+p2+p3-1)) =
+        X3.t() * (weights % (delta1 % delta2 - Lambda03 % arma::exp(eta3)));
     }
   }
 
@@ -1466,20 +1509,20 @@ arma::vec ngradBS_ID(const arma::vec& para, const arma::vec& y1, const arma::vec
     }
 
     //phi1
-    temp_scorevec(arma::span(0, p01 - 1)) += BLambda01.t() * (commonVec % arma::exp(h + eta1)) ;
+    temp_scorevec(arma::span(0, p01-1)) += BLambda01.t() * (weights % commonVec % arma::exp(h + eta1));
     //phi2
-    temp_scorevec(arma::span(p01, p01 + p02 - 1)) += BLambda02.t() * (commonVec % arma::exp(h + eta2));
+    temp_scorevec(arma::span(p01, p01+p02-1)) += BLambda02.t() * (weights % commonVec % arma::exp(h + eta2));
     //h
-    temp_scorevec(p01 + p02 + p03) += -arma::accu( exp(h)*( arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec ));
+    temp_scorevec(p01+p02+p03) += -exp(h) * arma::accu(weights % (arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1)) +=
-        X1.t() * (commonVec % Lambda01 % arma::exp(h + eta1));
+      temp_scorevec(arma::span(1+p01+p02+p03, 1+p01+p02+p03+p1-1)) +=
+        X1.t() * (weights % commonVec % Lambda01 % arma::exp(h + eta1));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scorevec(arma::span(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1)) +=
-        X2.t() * (commonVec % Lambda02 % arma::exp(h + eta2)) ;
+      temp_scorevec(arma::span(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1)) +=
+        X2.t() * (weights % commonVec % Lambda02 % arma::exp(h + eta2));
     }
   }
 
@@ -1494,6 +1537,7 @@ arma::mat ngradBS_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
                      const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
                      const arma::mat& basis1, const arma::mat& basis2, const arma::mat& basis3,
                      const arma::mat& basis1_yL, const arma::mat& basis2_yL,
+                     const arma::vec& weights,
                      const arma::vec& quad_weights, const int frailty_ind){
   //define constants
   int p01 = basis1.n_cols; int p02 = basis2.n_cols;	int p03 = basis3.n_cols;
@@ -1578,43 +1622,55 @@ arma::mat ngradBS_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
   if(frailty_ind==1){
     commonVec = getCommonVec(delta1, delta2, AVec, h);
     //phi1
-    temp_scoremat.cols(0, p01 - 1) = basis1n.each_col() % delta1 - BLambda01.each_col() % (commonVec % arma::exp(h + eta1)) ;
+    temp_scoremat.cols(0, p01-1) = basis1n.each_col() % (weights % delta1)
+      - BLambda01.each_col() % (weights % commonVec % arma::exp(h + eta1));
     //phi2
-    temp_scoremat.cols(p01, p01 + p02 - 1) = basis2n.each_col() % ((1-delta1) % delta2) - BLambda02.each_col() % (commonVec % arma::exp(h + eta2));
+    temp_scoremat.cols(p01, p01+p02-1) = basis2n.each_col() % (weights % (1-delta1) % delta2)
+      - BLambda02.each_col() % (weights % commonVec % arma::exp(h + eta2));
     //phi3
-    temp_scoremat.cols(p01 + p02, p01 + p02 + p03 - 1) = basis3n.each_col() % (delta1 % delta2) - BLambda03.each_col() % (commonVec % arma::exp(h + eta3));
+    temp_scoremat.cols(p01+p02, p01+p02+p03-1) = basis3n.each_col() % (weights % delta1 % delta2)
+      - BLambda03.each_col() % (weights % commonVec % arma::exp(h + eta3));
     //h
-    temp_scoremat.col(p01 + p02 + p03) = exp(h)*( delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec );
+    temp_scoremat.col(p01+p02+p03) = exp(h) * weights % (delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1) = X1.each_col() % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1));
+      temp_scoremat.cols(1+p01+p02+p03, 1+p01+p02+p03+p1-1) =
+        X1.each_col() % (weights % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1) = X2.each_col() % ( (1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)) ;
+      temp_scoremat.cols(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1) =
+        X2.each_col() % (weights % ((1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)));
     }
     //beta3 (what ina calls u4)
     if(p3 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03 + p1 + p2,1 + p01 + p02 + p03 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 - commonVec % Lambda03 % arma::exp(h + eta3));
+      temp_scoremat.cols(1+p01+p02+p03+p1+p2, 1+p01+p02+p03+p1+p2+p3-1) =
+        X3.each_col() % (weights % (delta1 % delta2 - commonVec % Lambda03 % arma::exp(h + eta3)));
     }
   } else {
     //phi1
-    temp_scoremat.cols(0, p01 - 1) = basis1n.each_col() % delta1 - BLambda01.each_col() % arma::exp(eta1) ;
+    temp_scoremat.cols(0, p01-1) = basis1n.each_col() % (weights % delta1)
+      - BLambda01.each_col() % (weights % arma::exp(eta1));
     //phi2
-    temp_scoremat.cols(p01, p01 + p02 - 1) = basis2n.each_col() % ((1-delta1) % delta2) - BLambda02.each_col() % arma::exp(eta2);
+    temp_scoremat.cols(p01, p01+p02-1) = basis2n.each_col() % (weights % (1-delta1) % delta2)
+      - BLambda02.each_col() % (weights % arma::exp(eta2));
     //phi3
-    temp_scoremat.cols(p01 + p02, p01 + p02 + p03 - 1) = basis3n.each_col() % (delta1 % delta2) - BLambda03.each_col() % arma::exp(eta3);
+    temp_scoremat.cols(p01+p02, p01+p02+p03-1) = basis3n.each_col() % (weights % delta1 % delta2)
+      - BLambda03.each_col() % (weights % arma::exp(eta3));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scoremat.cols(p01 + p02 + p03, p01 + p02 + p03 + p1 - 1) = X1.each_col() % (delta1 - Lambda01 % arma::exp(eta1));
+      temp_scoremat.cols(p01+p02+p03, p01+p02+p03+p1-1) =
+        X1.each_col() % (weights % (delta1 - Lambda01 % arma::exp(eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scoremat.cols(p01 + p02 + p03 + p1, p01 + p02 + p03 + p1 + p2 - 1) = X2.each_col() % ( (1-delta1) % delta2 - Lambda02 % arma::exp(eta2)) ;
+      temp_scoremat.cols(p01+p02+p03+p1, p01+p02+p03+p1+p2-1) =
+        X2.each_col() % (weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2)));
     }
     //beta3 (what ina calls u4)
     if(p3 > 0){
-      temp_scoremat.cols(p01 + p02 + p03 + p1 + p2,p01 + p02 + p03 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 - Lambda03 % arma::exp(eta3));
+      temp_scoremat.cols(p01+p02+p03+p1+p2, p01+p02+p03+p1+p2+p3-1) =
+        X3.each_col() % (weights % (delta1 % delta2 - Lambda03 % arma::exp(eta3)));
     }
   }
 
@@ -1640,30 +1696,25 @@ arma::mat ngradBS_ID_mat(const arma::vec& para, const arma::vec& y1, const arma:
     }
 
     //phi1
-    temp_scoremat.cols(0, p01 - 1) += BLambda01.each_col() % (commonVec % arma::exp(h + eta1)) ;
+    temp_scoremat.cols(0, p01-1) += BLambda01.each_col() % (weights % commonVec % arma::exp(h + eta1)) ;
     //phi2
-    temp_scoremat.cols(p01, p01 + p02 - 1) += BLambda02.each_col() % (commonVec % arma::exp(h + eta2));
+    temp_scoremat.cols(p01, p01+p02-1) += BLambda02.each_col() % (weights % commonVec % arma::exp(h + eta2));
     //h
-    temp_scoremat.col(p01 + p02 + p03) += -exp(h)*( arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec );
+    temp_scoremat.col(p01+p02+p03) += -exp(h) * weights % (arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03, 1 + p01 + p02 + p03 + p1 - 1) +=
-        X1.each_col() % (commonVec % Lambda01 % arma::exp(h + eta1));
+      temp_scoremat.cols(1+p01+p02+p03, 1+p01+p02+p03+p1-1) +=
+        X1.each_col() % (weights % commonVec % Lambda01 % arma::exp(h + eta1));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scoremat.cols(1 + p01 + p02 + p03 + p1, 1 + p01 + p02 + p03 + p1 + p2 - 1) +=
-        X2.each_col() % (commonVec % Lambda02 % arma::exp(h + eta2)) ;
+      temp_scoremat.cols(1+p01+p02+p03+p1, 1+p01+p02+p03+p1+p2-1) +=
+        X2.each_col() % (weights % commonVec % Lambda02 % arma::exp(h + eta2));
     }
   }
 
   return(-temp_scoremat);
 }
-
-
-
-
-
 
 
 /*******
@@ -1677,7 +1728,8 @@ arma::vec getLambda0WB(const arma::vec& y, double a, double k){
 // [[Rcpp::export]]
 double nlogLikWB_uni(const arma::vec& para, const arma::vec& y,
                      const arma::vec& delta, const arma::mat& X,
-                     const arma::vec& yL, const int anyLT){
+                     const arma::vec& yL, const int anyLT,
+                     const arma::vec& weights){
   //define constants
   int p1 = X.n_cols; int n = X.n_rows;
   double k = para(0); double a = para(1);
@@ -1686,11 +1738,11 @@ double nlogLikWB_uni(const arma::vec& para, const arma::vec& y,
     eta = X * para(arma::span(2, 2+p1-1));
   }
   //delta * (log lambda) + log(survival)
-  double obj_val = arma::accu( delta % (a + k + (exp(a) - 1) * arma::log(y) + eta)
-                                 - getLambda0WB(y,a,k) % arma::exp(eta) );
+  double obj_val = arma::accu(weights % ( delta % (a + k + (exp(a) - 1) * arma::log(y) + eta)
+                                 - getLambda0WB(y,a,k) % arma::exp(eta) ));
   //now, incorporate left-truncation
   if(anyLT==1){
-    obj_val += arma::accu( getLambda0WB(yL,a,k) % arma::exp(eta) );
+    obj_val += arma::accu(weights % getLambda0WB(yL,a,k) % arma::exp(eta));
   }
   return(-obj_val);
 }
@@ -1698,7 +1750,8 @@ double nlogLikWB_uni(const arma::vec& para, const arma::vec& y,
 // [[Rcpp::export]]
 arma::vec ngradWB_uni(const arma::vec& para, const arma::vec& y,
                      const arma::vec& delta, const arma::mat& X,
-                     const arma::vec& yL, const int anyLT){
+                     const arma::vec& yL, const int anyLT,
+                     const arma::vec& weights){
   //define constants
   int p1 = X.n_cols; int n = X.n_rows;
   double k = para(0); double a = para(1);
@@ -1710,13 +1763,13 @@ arma::vec ngradWB_uni(const arma::vec& para, const arma::vec& y,
 
   arma::vec temp_scorevec(2+p1, arma::fill::zeros);
   //k
-  temp_scorevec(0) = arma::accu( delta - Lambda0 % arma::exp(eta) );
+  temp_scorevec(0) = arma::accu(weights % (delta - Lambda0 % arma::exp(eta)));
   //a
-  temp_scorevec(1) = arma::accu( delta % (1 + exp(a) * arma::log(y)) -
-    Lambda0 % arma::exp(a+eta) % arma::log(y));
+  temp_scorevec(1) = arma::accu(weights % (delta % (1 + exp(a) * arma::log(y)) -
+    Lambda0 % arma::exp(a+eta) % arma::log(y)));
   //beta
   if(p1 > 0){
-    temp_scorevec(arma::span(2,2+p1-1)) = X.t() * (delta - Lambda0 % arma::exp(eta));
+    temp_scorevec(arma::span(2, 2+p1-1)) = X.t() * (weights % (delta - Lambda0 % arma::exp(eta)));
   }
 
   //now, incorporate left-truncation
@@ -1728,12 +1781,12 @@ arma::vec ngradWB_uni(const arma::vec& para, const arma::vec& y,
     logyL = logyL.replace(-arma::datum::inf, 0);
 
     //k
-    temp_scorevec(0) += arma::accu( Lambda0L % arma::exp(eta) );
+    temp_scorevec(0) += arma::accu(weights % Lambda0L % arma::exp(eta));
     //a
-    temp_scorevec(1) += arma::accu( arma::exp(a+eta) % Lambda0L % logyL );
+    temp_scorevec(1) += arma::accu(weights % arma::exp(a+eta) % Lambda0L % logyL);
     //beta
     if(p1 > 0){
-      temp_scorevec(arma::span(2,2+p1-1)) += X.t() * (Lambda0L % arma::exp(eta));
+      temp_scorevec(arma::span(2,2+p1-1)) += X.t() * (weights % Lambda0L % arma::exp(eta));
     }
   }
 
@@ -1743,7 +1796,8 @@ arma::vec ngradWB_uni(const arma::vec& para, const arma::vec& y,
 // [[Rcpp::export]]
 arma::mat ngradWB_uni_mat(const arma::vec& para, const arma::vec& y,
                       const arma::vec& delta, const arma::mat& X,
-                      const arma::vec& yL, const int anyLT){
+                      const arma::vec& yL, const int anyLT,
+                      const arma::vec& weights){
   //define constants
   int p1 = X.n_cols; int n = X.n_rows;
   double k = para(0); double a = para(1);
@@ -1755,13 +1809,13 @@ arma::mat ngradWB_uni_mat(const arma::vec& para, const arma::vec& y,
 
   arma::mat temp_scoremat(n,2+p1, arma::fill::zeros);
   //k
-  temp_scoremat.col(0) = delta - Lambda0 % arma::exp(eta);
+  temp_scoremat.col(0) = weights % (delta - Lambda0 % arma::exp(eta));
   //a
-  temp_scoremat.col(1) =delta % (1 + exp(a) * arma::log(y)) -
-    Lambda0 % arma::exp(a+eta) % arma::log(y);
+  temp_scoremat.col(1) = weights % ( delta % (1 + exp(a) * arma::log(y)) -
+    Lambda0 % arma::exp(a+eta) % arma::log(y) );
   //beta
   if(p1 > 0){
-    temp_scoremat.cols(2,2+p1-1) = X.each_col() % (delta - Lambda0 % arma::exp(eta));
+    temp_scoremat.cols(2, 2+p1-1) = X.each_col() % (weights % (delta - Lambda0 % arma::exp(eta)));
   }
 
   //now, incorporate left-truncation
@@ -1773,20 +1827,17 @@ arma::mat ngradWB_uni_mat(const arma::vec& para, const arma::vec& y,
     logyL = logyL.replace(-arma::datum::inf, 0);
 
     //k
-    temp_scoremat.col(0) += Lambda0L % arma::exp(eta);
+    temp_scoremat.col(0) += weights % Lambda0L % arma::exp(eta);
     //a
-    temp_scoremat.col(1) += arma::exp(a+eta) % Lambda0L % logyL;
+    temp_scoremat.col(1) += weights % arma::exp(a+eta) % Lambda0L % logyL;
     //beta
     if(p1 > 0){
-      temp_scoremat.cols(2,2+p1-1) += X.each_col() % (Lambda0L % arma::exp(eta));
+      temp_scoremat.cols(2, 2+p1-1) += X.each_col() % (weights % Lambda0L % arma::exp(eta));
     }
   }
 
   return(-temp_scoremat);
 }
-
-
-
 
 
 // [[Rcpp::export]]
@@ -1795,7 +1846,7 @@ double nlogLikWB_ID(const arma::vec& para,
                     const arma::vec& delta1, const arma::vec& delta2,
                     const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
                     const arma::vec& yL, const int anyLT,
-                    const std::string model, const int frailty_ind){
+                    const std::string model, const arma::vec& weights, const int frailty_ind){
   //define constants
   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;	int n = X1.n_rows;
   double k1 = para(0);
@@ -1832,19 +1883,20 @@ double nlogLikWB_ID(const arma::vec& para,
   } else { //semi-markov
     AVec += getLambda0WB(y2-y1,a3,k3) % arma::exp(eta3);
     logdiff = arma::log(y2-y1);
-    logdiff = logdiff.replace(-arma::datum::inf, 0); //log(y2-y1) with the negative infinity values replaced with 0's.
+    //log(y2-y1) with the negative infinity values replaced with 0's.
+    logdiff = logdiff.replace(-arma::datum::inf, 0);
   }
 
   double obj_val;
-  if(frailty_ind ==1){
-    obj_val = arma::accu( delta1 % ( a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1 )
+  if(frailty_ind == 1){
+    obj_val = arma::accu(weights % ( delta1 % (a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1)
                             + (1-delta1) % delta2 %  (a2 + k2 + (exp(a2) - 1) * arma::log(y1) + eta2)
                             + delta1 % delta2 % (a3 + k3 + (exp(a3) - 1) * logdiff + eta3 + log1p(exp(h)))
-                            - (exp(-h) + delta1 + delta2) % arma::log1p(exp(h) * AVec) );
+                            - (exp(-h) + delta1 + delta2) % arma::log1p(exp(h) * AVec) ));
   } else {
-    obj_val = arma::accu( delta1 % ( a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1 )
+    obj_val = arma::accu(weights % ( delta1 % (a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1)
                             + (1-delta1) % delta2 %  (a2 + k2 + (exp(a2) - 1) * arma::log(y1) + eta2)
-                            + delta1 % delta2 % (a3 + k3 + (exp(a3) - 1) * logdiff + eta3) - AVec );
+                            + delta1 % delta2 % (a3 + k3 + (exp(a3) - 1) * logdiff + eta3) - AVec ));
   }
 
   //now, incorporate left-truncation
@@ -1853,9 +1905,9 @@ double nlogLikWB_ID(const arma::vec& para,
     AVec = getLambda0WB(yL,a1,k1) % arma::exp(eta1)
     + getLambda0WB(yL,a2,k2) % arma::exp(eta2);
     if(frailty_ind ==1){
-      obj_val += exp(-h) * arma::accu( arma::log1p(exp(h) * AVec));
+      obj_val += exp(-h) * arma::accu(weights % arma::log1p(exp(h) * AVec));
     } else {
-      obj_val += arma::accu( AVec );
+      obj_val += arma::accu(weights % AVec);
     }
   }
 
@@ -1869,7 +1921,7 @@ arma::vec ngradWB_ID(const arma::vec& para,
                      const arma::vec& delta1, const arma::vec& delta2,
                      const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
                      const arma::vec& yL, const int anyLT,
-                     const std::string model, const int frailty_ind){
+                     const std::string model, const arma::vec& weights, const int frailty_ind){
   //define constants
   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;	int n = X1.n_rows;
   double k1 = para(0);
@@ -1916,92 +1968,100 @@ arma::vec ngradWB_ID(const arma::vec& para,
   if(frailty_ind==1){
     commonVec = getCommonVec(delta1, delta2, AVec, h);
     //k1 (what ina calls u5)
-    temp_scorevec(0) = arma::accu(delta1 - commonVec % Lambda01 % arma::exp(h + eta1));
+    temp_scorevec(0) = arma::accu(weights % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1)));
     //a1 (what ina calls u6)
-    temp_scorevec(1) = arma::accu( delta1 % (1 + exp(a1) * arma::log(y1)) -
-      commonVec % Lambda01 % arma::exp(h+a1+eta1) % arma::log(y1));
+    temp_scorevec(1) = arma::accu(weights % ( delta1 % (1 + exp(a1) * arma::log(y1)) -
+      commonVec % Lambda01 % arma::exp(h+a1+eta1) % arma::log(y1) ));
     //k2 (what ina calls u7)
-    temp_scorevec(2) = arma::accu( (1-delta1) % delta2 -
-      commonVec % Lambda02 % arma::exp(h+eta2));
+    temp_scorevec(2) = arma::accu(weights % ( (1-delta1) % delta2 -
+      commonVec % Lambda02 % arma::exp(h+eta2) ));
     //a2 (what ina calls u8)
-    temp_scorevec(3) = arma::accu( (1-delta1) % delta2 % (1 + exp(a2) * arma::log(y1)) -
-      commonVec % Lambda02 % arma::exp(h+a2+eta2) % arma::log(y1) );
+    temp_scorevec(3) = arma::accu(weights % ( (1-delta1) % delta2 % (1 + exp(a2) * arma::log(y1)) -
+      commonVec % Lambda02 % arma::exp(h+a2+eta2) % arma::log(y1) ));
     //h (what ina calls u1)
-    temp_scorevec(6) = arma::accu(exp(h)*(delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
+    temp_scorevec(6) = exp(h) * arma::accu(weights % (delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scorevec(arma::span(7, 7 + p1 - 1)) = X1.t() * (delta1 - commonVec % Lambda01 % arma::exp(h + eta1));
+      temp_scorevec(arma::span(7, 7+p1-1)) =
+        X1.t() * (weights % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scorevec(arma::span(7 + p1, 7 + p1 + p2 - 1)) = X2.t() * ( (1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)) ;
+      temp_scorevec(arma::span(7+p1, 7+p1+p2-1)) =
+        X2.t() * (weights % ((1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)));
     }
 
     if (model.compare("markov") == 0){ //markov
       //k3 (what ina calls u9)
-      temp_scorevec(4) = arma::accu( delta1 % delta2 -
-        commonVec % (Lambda03y2 - Lambda03y1) % arma::exp(h+eta3));
+      temp_scorevec(4) = arma::accu(weights % ( delta1 % delta2 -
+        commonVec % (Lambda03y2 - Lambda03y1) % arma::exp(h+eta3) ));
       //a3 (what ina calls u10)
-      temp_scorevec(5) = arma::accu( delta1 % delta2 % (1 + exp(a3) * arma::log(y2)) -
-        commonVec % arma::exp(h+a3+eta3) % (Lambda03y2 % arma::log(y2) - Lambda03y1 % arma::log(y1)) );
+      temp_scorevec(5) = arma::accu(weights % ( delta1 % delta2 % (1 + exp(a3) * arma::log(y2)) -
+        commonVec % arma::exp(h+a3+eta3) % (Lambda03y2 % arma::log(y2) - Lambda03y1 % arma::log(y1)) ));
       //beta3 (what ina calls u4)
       if(p3 > 0){
-        temp_scorevec(arma::span(7 + p1 + p2 , 7 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 - commonVec % (Lambda03y2 - Lambda03y1)  % arma::exp(h + eta3));
+        temp_scorevec(arma::span(7+p1+p2 , 7+p1+p2+p3-1)) =
+          X3.t() * (weights % (delta1 % delta2 - commonVec % (Lambda03y2 - Lambda03y1)  % arma::exp(h + eta3)));
       }
     } else {
       //k3 (what ina calls u9)
-      temp_scorevec(4) = arma::accu( delta1 % delta2 -
-        commonVec % Lambda03 % arma::exp(h+eta3));
+      temp_scorevec(4) = arma::accu(weights % ( delta1 % delta2 -
+        commonVec % Lambda03 % arma::exp(h+eta3) ));
       //a3 (what ina calls u10)
-      temp_scorevec(5) = arma::accu( delta1 % delta2 % (1 + exp(a3) * logdiff) -
-        commonVec % Lambda03 % arma::exp(h+a3+eta3) % logdiff );
+      temp_scorevec(5) = arma::accu(weights % ( delta1 % delta2 % (1 + exp(a3) * logdiff) -
+        commonVec % Lambda03 % arma::exp(h+a3+eta3) % logdiff ));
       //beta3 (what ina calls u4)
       if(p3 > 0){
-        temp_scorevec(arma::span(7 + p1 + p2 , 7 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 - commonVec % Lambda03 % arma::exp(h + eta3));
+        temp_scorevec(arma::span(7+p1+p2, 7+p1+p2+p3-1)) =
+          X3.t() * (weights % (delta1 % delta2 - commonVec % Lambda03 % arma::exp(h + eta3)));
       }
     }
 
   } else { //NON-FRAILTY
     //k1 (what ina calls u5)
-    temp_scorevec(0) = arma::accu(delta1 - Lambda01 % arma::exp(eta1));
+    temp_scorevec(0) = arma::accu(weights % (delta1 - Lambda01 % arma::exp(eta1)));
     //a1 (what ina calls u6)
-    temp_scorevec(1) = arma::accu( delta1 % (1 + exp(a1) * arma::log(y1)) -
-      Lambda01 % arma::exp(a1+eta1) % arma::log(y1));
+    temp_scorevec(1) = arma::accu(weights % ( delta1 % (1 + exp(a1) * arma::log(y1)) -
+      Lambda01 % arma::exp(a1+eta1) % arma::log(y1) ));
     //k2 (what ina calls u7)
-    temp_scorevec(2) = arma::accu( (1-delta1) % delta2 - Lambda02 % arma::exp(eta2));
+    temp_scorevec(2) = arma::accu(weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2)));
     //a2 (what ina calls u8)
-    temp_scorevec(3) = arma::accu( (1-delta1) % delta2 % (1 + exp(a2) * arma::log(y1)) -
-      Lambda02 % arma::exp(a2+eta2) % arma::log(y1) );
+    temp_scorevec(3) = arma::accu(weights % ( (1-delta1) % delta2 % (1 + exp(a2) * arma::log(y1)) -
+      Lambda02 % arma::exp(a2+eta2) % arma::log(y1) ));
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scorevec(arma::span(6, 6 + p1 - 1)) = X1.t() * (delta1 - Lambda01 % arma::exp(eta1));
+      temp_scorevec(arma::span(6, 6+p1-1)) =
+        X1.t() * (weights % (delta1 - Lambda01 % arma::exp(eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scorevec(arma::span(6 + p1, 6 + p1 + p2 - 1)) = X2.t() * ( (1-delta1) % delta2 - Lambda02 % arma::exp(eta2)) ;
+      temp_scorevec(arma::span(6+p1, 6+p1+p2-1)) =
+        X2.t() * (weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2)));
     }
 
     if (model.compare("markov") == 0){ //markov
       //k3 (what ina calls u9)
-      temp_scorevec(4) = arma::accu( delta1 % delta2 -
-        (Lambda03y2 - Lambda03y1) % arma::exp(eta3));
+      temp_scorevec(4) = arma::accu(weights % ( delta1 % delta2 -
+        (Lambda03y2 - Lambda03y1) % arma::exp(eta3) ));
       //a3 (what ina calls u10)
-      temp_scorevec(5) = arma::accu( delta1 % delta2 % (1 + exp(a3) * arma::log(y2)) -
-        arma::exp(a3+eta3) % (Lambda03y2 % arma::log(y2) - Lambda03y1 % arma::log(y1)) );
+      temp_scorevec(5) = arma::accu(weights % ( delta1 % delta2 % (1 + exp(a3) * arma::log(y2)) -
+        arma::exp(a3+eta3) % (Lambda03y2 % arma::log(y2) - Lambda03y1 % arma::log(y1)) ));
       //beta3 (what ina calls u4)
       if(p3 > 0){
-        temp_scorevec(arma::span(6 + p1 + p2 , 6 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 - (Lambda03y2 - Lambda03y1)  % arma::exp(eta3));
+        temp_scorevec(arma::span(6+p1+p2, 6+p1+p2+p3-1)) =
+          X3.t() * (weights % (delta1 % delta2 - (Lambda03y2 - Lambda03y1)  % arma::exp(eta3)));
       }
     } else {
       //k3 (what ina calls u9)
-      temp_scorevec(4) = arma::accu( delta1 % delta2 -
-        Lambda03 % arma::exp(eta3));
+      temp_scorevec(4) = arma::accu(weights % ( delta1 % delta2 -
+        Lambda03 % arma::exp(eta3) ));
       //a3 (what ina calls u10)
-      temp_scorevec(5) = arma::accu( delta1 % delta2 % (1 + exp(a3) * logdiff) -
-        Lambda03 % arma::exp(a3+eta3) % logdiff );
+      temp_scorevec(5) = arma::accu(weights % ( delta1 % delta2 % (1 + exp(a3) * logdiff) -
+        Lambda03 % arma::exp(a3+eta3) % logdiff ));
       //beta3 (what ina calls u4)
       if(p3 > 0){
-        temp_scorevec(arma::span(6 + p1 + p2 , 6 + p1 + p2 + p3 - 1)) = X3.t() * (delta1 % delta2 - Lambda03 % arma::exp(eta3));
+        temp_scorevec(arma::span(6+p1+p2 , 6+p1+p2+p3-1)) =
+          X3.t() * (weights % (delta1 % delta2 - Lambda03 % arma::exp(eta3)));
       }
     }
   }
@@ -2019,39 +2079,43 @@ arma::vec ngradWB_ID(const arma::vec& para,
     if(frailty_ind==1){
       commonVec = exp(-h) / (1 + exp(h) * AVec);
       //k1 (what ina calls u5)
-      temp_scorevec(0) += arma::accu(commonVec % Lambda01 % arma::exp(h+eta1));
+      temp_scorevec(0) += arma::accu(weights % commonVec % Lambda01 % arma::exp(h+eta1));
       //a1 (what ina calls u6)
-      temp_scorevec(1) += arma::accu(commonVec % Lambda01 % arma::exp(h+a1+eta1) % logdiff);
+      temp_scorevec(1) += arma::accu(weights % commonVec % Lambda01 % arma::exp(h+a1+eta1) % logdiff);
       //k2 (what ina calls u7)
-      temp_scorevec(2) += arma::accu(commonVec % Lambda02 % arma::exp(h+eta2));
+      temp_scorevec(2) += arma::accu(weights % commonVec % Lambda02 % arma::exp(h+eta2));
       //a2 (what ina calls u8)
-      temp_scorevec(3) += arma::accu(commonVec % Lambda02 % arma::exp(h+a2+eta2) % logdiff);
+      temp_scorevec(3) += arma::accu(weights % commonVec % Lambda02 % arma::exp(h+a2+eta2) % logdiff);
       //h (what ina calls u1)
-      temp_scorevec(6) += -arma::accu(exp(h)*(arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
+      temp_scorevec(6) += -exp(h) * arma::accu(weights % (arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec));
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scorevec(arma::span(7, 7 + p1 - 1)) += X1.t() * (commonVec % Lambda01 % arma::exp(h + eta1));
+        temp_scorevec(arma::span(7, 7+p1-1)) +=
+          X1.t() * (weights % commonVec % Lambda01 % arma::exp(h + eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scorevec(arma::span(7 + p1, 7 + p1 + p2 - 1)) += X2.t() * (commonVec % Lambda02 % arma::exp(h + eta2)) ;
+        temp_scorevec(arma::span(7+p1, 7+p1+p2-1)) +=
+          X2.t() * (weights % commonVec % Lambda02 % arma::exp(h + eta2)) ;
       }
     } else {
       //k1 (what ina calls u5)
-      temp_scorevec(0) += arma::accu(Lambda01 % arma::exp(eta1));
+      temp_scorevec(0) += arma::accu(weights % Lambda01 % arma::exp(eta1));
       //a1 (what ina calls u6)
-      temp_scorevec(1) += arma::accu(Lambda01 % arma::exp(a1+eta1) % logdiff);
+      temp_scorevec(1) += arma::accu(weights % Lambda01 % arma::exp(a1+eta1) % logdiff);
       //k2 (what ina calls u7)
-      temp_scorevec(2) += arma::accu(Lambda02 % arma::exp(eta2));
+      temp_scorevec(2) += arma::accu(weights % Lambda02 % arma::exp(eta2));
       //a2 (what ina calls u8)
-      temp_scorevec(3) += arma::accu(Lambda02 % arma::exp(a2+eta2) % logdiff );
+      temp_scorevec(3) += arma::accu(weights % Lambda02 % arma::exp(a2+eta2) % logdiff);
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scorevec(arma::span(6, 6 + p1 - 1)) += X1.t() * (Lambda01 % arma::exp(eta1));
+        temp_scorevec(arma::span(6, 6+p1-1)) +=
+          X1.t() * (weights % Lambda01 % arma::exp(eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scorevec(arma::span(6 + p1, 6 + p1 + p2 - 1)) += X2.t() * (Lambda02 % arma::exp(eta2)) ;
+        temp_scorevec(arma::span(6+p1, 6+p1+p2-1)) +=
+          X2.t() * (weights % Lambda02 % arma::exp(eta2));
       }
     }
   }
@@ -2068,7 +2132,7 @@ arma::mat ngradWB_ID_mat(const arma::vec& para,
                      const arma::vec& delta1, const arma::vec& delta2,
                      const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
                      const arma::vec& yL, const int anyLT,
-                     const std::string model, const int frailty_ind){
+                     const std::string model, const arma::vec& weights, const int frailty_ind){
   //define constants
   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;	int n = X1.n_rows;
   double k1 = para(0);
@@ -2115,92 +2179,100 @@ arma::mat ngradWB_ID_mat(const arma::vec& para,
   if(frailty_ind==1){
     commonVec = getCommonVec(delta1, delta2, AVec, h);
     //k1 (what ina calls u5)
-    temp_scoremat.col(0) = delta1 - commonVec % Lambda01 % arma::exp(h + eta1);
+    temp_scoremat.col(0) = weights % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1));
     //a1 (what ina calls u6)
-    temp_scoremat.col(1) = delta1 % (1 + exp(a1) * arma::log(y1)) -
-      commonVec % Lambda01 % arma::exp(h+a1+eta1) % arma::log(y1);
+    temp_scoremat.col(1) = weights % ( delta1 % (1 + exp(a1) * arma::log(y1)) -
+      commonVec % Lambda01 % arma::exp(h+a1+eta1) % arma::log(y1) );
     //k2 (what ina calls u7)
-    temp_scoremat.col(2) = (1-delta1) % delta2 -
-      commonVec % Lambda02 % arma::exp(h+eta2);
+    temp_scoremat.col(2) = weights % ( (1-delta1) % delta2 -
+      commonVec % Lambda02 % arma::exp(h+eta2) );
     //a2 (what ina calls u8)
-    temp_scoremat.col(3) = (1-delta1) % delta2 % (1 + exp(a2) * arma::log(y1)) -
-      commonVec % Lambda02 % arma::exp(h+a2+eta2) % arma::log(y1);
+    temp_scoremat.col(3) = weights % ( (1-delta1) % delta2 % (1 + exp(a2) * arma::log(y1)) -
+      commonVec % Lambda02 % arma::exp(h+a2+eta2) % arma::log(y1) );
     //h (what ina calls u1)
-    temp_scoremat.col(6) = exp(h)*(delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
+    temp_scoremat.col(6) = exp(h) * weights % (delta1 % delta2/(1+exp(h)) + arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scoremat.cols(7, 7 + p1 - 1) = X1.each_col() % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1));
+      temp_scoremat.cols(7, 7+p1-1) =
+        X1.each_col() % (weights % (delta1 - commonVec % Lambda01 % arma::exp(h + eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scoremat.cols(7 + p1, 7 + p1 + p2 - 1) = X2.each_col() % ( (1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)) ;
+      temp_scoremat.cols(7+p1, 7+p1+p2-1) =
+        X2.each_col() % (weights % ((1-delta1) % delta2 - commonVec % Lambda02 % arma::exp(h + eta2)));
     }
 
     if (model.compare("markov") == 0){ //markov
       //k3 (what ina calls u9)
-      temp_scoremat.col(4) = delta1 % delta2 -
-        commonVec % (Lambda03y2 - Lambda03y1) % arma::exp(h+eta3);
+      temp_scoremat.col(4) = weights % ( delta1 % delta2 -
+        commonVec % (Lambda03y2 - Lambda03y1) % arma::exp(h+eta3) );
       //a3 (what ina calls u10)
-      temp_scoremat.col(5) = delta1 % delta2 % (1 + exp(a3) * arma::log(y2)) -
-        commonVec % arma::exp(h+a3+eta3) % (Lambda03y2 % arma::log(y2) - Lambda03y1 % arma::log(y1));
+      temp_scoremat.col(5) = weights % ( delta1 % delta2 % (1 + exp(a3) * arma::log(y2)) -
+        commonVec % arma::exp(h+a3+eta3) % (Lambda03y2 % arma::log(y2) - Lambda03y1 % arma::log(y1)) );
       //beta3 (what ina calls u4)
       if(p3 > 0){
-        temp_scoremat.cols(7 + p1 + p2 , 7 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 - commonVec % (Lambda03y2 - Lambda03y1)  % arma::exp(h + eta3));
+        temp_scoremat.cols(7+p1+p2 , 7+p1+p2+p3-1) =
+          X3.each_col() % (weights % (delta1 % delta2 - commonVec % (Lambda03y2 - Lambda03y1)  % arma::exp(h + eta3)));
       }
     } else {
       //k3 (what ina calls u9)
-      temp_scoremat.col(4) = delta1 % delta2 -
-        commonVec % Lambda03 % arma::exp(h+eta3);
+      temp_scoremat.col(4) = weights % ( delta1 % delta2 -
+        commonVec % Lambda03 % arma::exp(h+eta3) );
       //a3 (what ina calls u10)
-      temp_scoremat.col(5) = delta1 % delta2 % (1 + exp(a3) * logdiff) -
-        commonVec % Lambda03 % arma::exp(h+a3+eta3) % logdiff;
+      temp_scoremat.col(5) = weights % ( delta1 % delta2 % (1 + exp(a3) * logdiff) -
+        commonVec % Lambda03 % arma::exp(h+a3+eta3) % logdiff );
       //beta3 (what ina calls u4)
       if(p3 > 0){
-        temp_scoremat.cols(7 + p1 + p2 , 7 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 - commonVec % Lambda03 % arma::exp(h + eta3));
+        temp_scoremat.cols(7+p1+p2 , 7+p1+p2+p3-1) =
+          X3.each_col() % (weights % (delta1 % delta2 - commonVec % Lambda03 % arma::exp(h + eta3)));
       }
     }
 
   } else { //NON-FRAILTY
     //k1 (what ina calls u5)
-    temp_scoremat.col(0) = delta1 - Lambda01 % arma::exp(eta1);
+    temp_scoremat.col(0) = weights % (delta1 - Lambda01 % arma::exp(eta1));
     //a1 (what ina calls u6)
-    temp_scoremat.col(1) = delta1 % (1 + exp(a1) * arma::log(y1)) -
-      Lambda01 % arma::exp(a1+eta1) % arma::log(y1);
+    temp_scoremat.col(1) = weights % ( delta1 % (1 + exp(a1) * arma::log(y1)) -
+      Lambda01 % arma::exp(a1+eta1) % arma::log(y1) );
     //k2 (what ina calls u7)
-    temp_scoremat.col(2) = (1-delta1) % delta2 - Lambda02 % arma::exp(eta2);
+    temp_scoremat.col(2) = weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2));
     //a2 (what ina calls u8)
-    temp_scoremat.col(3) = (1-delta1) % delta2 % (1 + exp(a2) * arma::log(y1)) -
-      Lambda02 % arma::exp(a2+eta2) % arma::log(y1);
+    temp_scoremat.col(3) = weights % ( (1-delta1) % delta2 % (1 + exp(a2) * arma::log(y1)) -
+      Lambda02 % arma::exp(a2+eta2) % arma::log(y1) );
     //beta1 (what ina calls u2)
     if(p1 > 0){
-      temp_scoremat.cols(6, 6 + p1 - 1) = X1.each_col() % (delta1 - Lambda01 % arma::exp(eta1));
+      temp_scoremat.cols(6, 6+p1-1) =
+        X1.each_col() % (weights % (delta1 - Lambda01 % arma::exp(eta1)));
     }
     //beta2 (what ina calls u3)
     if(p2 > 0){
-      temp_scoremat.cols(6 + p1, 6 + p1 + p2 - 1) = X2.each_col() % ( (1-delta1) % delta2 - Lambda02 % arma::exp(eta2)) ;
+      temp_scoremat.cols(6+p1, 6+p1+p2-1) =
+        X2.each_col() % (weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2)));
     }
 
     if (model.compare("markov") == 0){ //markov
       //k3 (what ina calls u9)
-      temp_scoremat.col(4) = delta1 % delta2 -
-        (Lambda03y2 - Lambda03y1) % arma::exp(eta3);
+      temp_scoremat.col(4) = weights % ( delta1 % delta2 -
+        (Lambda03y2 - Lambda03y1) % arma::exp(eta3) );
       //a3 (what ina calls u10)
-      temp_scoremat.col(5) = delta1 % delta2 % (1 + exp(a3) * arma::log(y2)) -
-        arma::exp(a3+eta3) % (Lambda03y2 % arma::log(y2) - Lambda03y1 % arma::log(y1));
+      temp_scoremat.col(5) = weights % ( delta1 % delta2 % (1 + exp(a3) * arma::log(y2)) -
+        arma::exp(a3+eta3) % (Lambda03y2 % arma::log(y2) - Lambda03y1 % arma::log(y1)) );
       //beta3 (what ina calls u4)
       if(p3 > 0){
-        temp_scoremat.cols(6 + p1 + p2 , 6 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 - (Lambda03y2 - Lambda03y1)  % arma::exp(eta3));
+        temp_scoremat.cols(6+p1+p2 , 6+p1+p2+p3-1) =
+          X3.each_col() % (weights % (delta1 % delta2 - (Lambda03y2 - Lambda03y1)  % arma::exp(eta3)));
       }
     } else {
       //k3 (what ina calls u9)
-      temp_scoremat.col(4) = delta1 % delta2 -
-        Lambda03 % arma::exp(eta3);
+      temp_scoremat.col(4) = weights % ( delta1 % delta2 -
+        Lambda03 % arma::exp(eta3) );
       //a3 (what ina calls u10)
-      temp_scoremat.col(5) = delta1 % delta2 % (1 + exp(a3) * logdiff) -
-        Lambda03 % arma::exp(a3+eta3) % logdiff;
+      temp_scoremat.col(5) = weights % ( delta1 % delta2 % (1 + exp(a3) * logdiff) -
+        Lambda03 % arma::exp(a3+eta3) % logdiff );
       //beta3 (what ina calls u4)
       if(p3 > 0){
-        temp_scoremat.cols(6 + p1 + p2 , 6 + p1 + p2 + p3 - 1) = X3.each_col() % (delta1 % delta2 - Lambda03 % arma::exp(eta3));
+        temp_scoremat.cols(6+p1+p2, 6+p1+p2+p3-1) =
+          X3.each_col() % (weights % (delta1 % delta2 - Lambda03 % arma::exp(eta3)));
       }
     }
   }
@@ -2218,49 +2290,49 @@ arma::mat ngradWB_ID_mat(const arma::vec& para,
     if(frailty_ind==1){
       commonVec = exp(-h) / (1 + exp(h) * AVec);
       //k1 (what ina calls u5)
-      temp_scoremat.col(0) += commonVec % Lambda01 % arma::exp(h+eta1);
+      temp_scoremat.col(0) += weights % commonVec % Lambda01 % arma::exp(h+eta1);
       //a1 (what ina calls u6)
-      temp_scoremat.col(1) += commonVec % Lambda01 % arma::exp(h+a1+eta1) % logdiff;
+      temp_scoremat.col(1) += weights % commonVec % Lambda01 % arma::exp(h+a1+eta1) % logdiff;
       //k2 (what ina calls u7)
-      temp_scoremat.col(2) += commonVec % Lambda02 % arma::exp(h+eta2);
+      temp_scoremat.col(2) += weights % commonVec % Lambda02 % arma::exp(h+eta2);
       //a2 (what ina calls u8)
-      temp_scoremat.col(3) += commonVec % Lambda02 % arma::exp(h+a2+eta2) % logdiff;
+      temp_scoremat.col(3) += weights % commonVec % Lambda02 % arma::exp(h+a2+eta2) % logdiff;
       //h (what ina calls u1)
-      temp_scoremat.col(6) += -exp(h)*(arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
+      temp_scoremat.col(6) += -exp(h) * weights % (arma::log1p(exp(h) * AVec)/exp(2*h) - commonVec % AVec);
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scoremat.cols(7, 7 + p1 - 1) += X1.each_col() % (commonVec % Lambda01 % arma::exp(h + eta1));
+        temp_scoremat.cols(7, 7+p1-1) +=
+          X1.each_col() % (weights % commonVec % Lambda01 % arma::exp(h + eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scoremat.cols(7 + p1, 7 + p1 + p2 - 1) += X2.each_col() % (commonVec % Lambda02 % arma::exp(h + eta2)) ;
+        temp_scoremat.cols(7+p1, 7+p1+p2-1) +=
+          X2.each_col() % (weights % commonVec % Lambda02 % arma::exp(h + eta2));
       }
     } else {
       //k1 (what ina calls u5)
-      temp_scoremat.col(0) += Lambda01 % arma::exp(eta1);
+      temp_scoremat.col(0) += weights % Lambda01 % arma::exp(eta1);
       //a1 (what ina calls u6)
-      temp_scoremat.col(1) += Lambda01 % arma::exp(a1+eta1) % logdiff;
+      temp_scoremat.col(1) += weights % Lambda01 % arma::exp(a1 + eta1) % logdiff;
       //k2 (what ina calls u7)
-      temp_scoremat.col(2) += Lambda02 % arma::exp(eta2);
+      temp_scoremat.col(2) += weights % Lambda02 % arma::exp(eta2);
       //a2 (what ina calls u8)
-      temp_scoremat.col(3) += Lambda02 % arma::exp(a2+eta2) % logdiff;
+      temp_scoremat.col(3) += weights % Lambda02 % arma::exp(a2 + eta2) % logdiff;
       //beta1 (what ina calls u2)
       if(p1 > 0){
-        temp_scoremat.cols(6, 6 + p1 - 1) += X1.each_col() % (Lambda01 % arma::exp(eta1));
+        temp_scoremat.cols(6, 6+p1-1) +=
+          X1.each_col() % (weights % Lambda01 % arma::exp(eta1));
       }
       //beta2 (what ina calls u3)
       if(p2 > 0){
-        temp_scoremat.cols(6 + p1, 6 + p1 + p2 - 1) += X2.each_col() % (Lambda02 % arma::exp(eta2)) ;
+        temp_scoremat.cols(6+p1, 6+p1+p2-1) +=
+          X2.each_col() % (weights % Lambda02 % arma::exp(eta2)) ;
       }
     }
   }
 
   return(-temp_scoremat);
 }
-
-
-
-
 
 
 /*****************

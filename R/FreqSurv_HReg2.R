@@ -33,9 +33,9 @@
 #' @import Formula
 #' @export
 FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
-                         hazard=c("weibull"), knots_vec = NULL, p0=4,
-                         startVals=NULL, hessian=TRUE, control=NULL, quad_method="kronrod", n_quad=15,
-                         optim_method = "BFGS", extra_starts=0){
+                           weights=NULL, hazard=c("weibull"), knots_vec = NULL, p0=4,
+                           startVals=NULL, control=NULL, quad_method="kronrod", n_quad=15,
+                           optim_method = "BFGS", extra_starts=0, output_options=NULL){
   browser()
   ##Check that chosen hazard is among available options
   if(!(tolower(hazard) %in% c("weibull","royston-parmar","bspline","piecewise","wb","pw","bs","rp"))){
@@ -50,21 +50,30 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   if (na.action != "na.fail" & na.action != "na.omit") {
     stop("na.action should be either na.fail or na.omit")
   }
-
+  #if any control options have been given, override the defaults
   con=list(maxit=1000)
   nmsC <- names(con)
   namc <- names(control)
   con[namc] <- control
 
+  #DECIDE THE RIGHT WAY TO RETURN MODEL DATA!!!!
+
+  #if any output options have been given, override the defaults
+  out_options=list(Finv=TRUE,estfun=TRUE,meat=TRUE,data_return=FALSE)
+  nmsO <- names(out_options)
+  namO <- names(output_options)
+  out_options[namO] <- output_options
+
   ##DATA PREPROCESSING##
   ##******************##
-  ##MAKE THIS MORE EFFICIENT BY GOING DIRECTLY INTO NUMERICS
 
   #This line ensures that the formula is of type Formula, and not just formula
   #the below manipulations require special methods of Formula.
   form2 <- Formula::as.Formula(paste0(Formula[2], Formula[1], Formula[3]))
   data <- stats::model.frame(form2, data = data, na.action = na.action,
                       subset = subset)
+
+  ##ACCOUNT FOR LEFT TRUNCATION WITH SUBSET OPTION (AND OTHER INPUTS TOO!)
 
   #to account for possible left truncation, look on the left side of the formula
   #if there are two pieces on the left side, the first is the left truncation variable
@@ -81,6 +90,12 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   delta <- time1[[2]]
   Xmat <- as.matrix(stats::model.frame(stats::formula(form2, lhs = 0, rhs = 1),
                                        data = data))
+
+  if(is.null(weights)){
+    weights <- rep(1,length(y))
+  } else{
+    stopifnot(length(weights) == length(y))
+  }
 
   ##PREPARE KNOTS AND BASIS FUNCTIONS FOR FLEXIBLE MODELS##
   ##*****************************************************##
@@ -146,29 +161,30 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
 
   #if the user has not provided start values, we generate them here
   if(is.null(startVals)){
-    startVals <- get_start_uni(y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,knots=knots_vec,
-                               hazard=hazard,basis=basis)
+    startVals <- get_start_uni(y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,
+                               knots=knots_vec,hazard=hazard,basis=basis,weights=weights)
   }
 
   grad1 <- ngrad_uni_func(para=startVals, y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,
-                         hazard=hazard,basis=basis, dbasis=dbasis,basis_yL=basis_yL)
+                          weights=weights, hazard=hazard,basis=basis, dbasis=dbasis,basis_yL=basis_yL)
   grad2 <- pracma::grad(f = nll_uni_func,x0 = startVals,y=y,delta=delta,yL=yL,
-                        anyLT=anyLT,Xmat=Xmat,hazard=hazard,
+                        anyLT=anyLT,Xmat=Xmat,hazard=hazard, weights=weights,
                         basis=basis, dbasis=dbasis,basis_yL=basis_yL)
   grad3 <- colSums(ngrad_uni_mat_func(para=startVals, y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,
-                          hazard=hazard,basis=basis, dbasis=dbasis,basis_yL=basis_yL))
+                   weights=weights,hazard=hazard,basis=basis, dbasis=dbasis,basis_yL=basis_yL))
   if(max(abs(grad1-grad2)) >= 1e-4){stop("check gradient of non-frailty model")}
   if(max(abs(grad1-grad3)) >= 1e-4){stop("check gradient of non-frailty model")}
   cbind(grad1,grad2,grad3)
 
   #now, run the fitting function, which calls the correct optimization engine
   value <- get_fit_uni(startVals=startVals, y=y, delta=delta,
-                      Xmat=Xmat,hazard=hazard,
+                      Xmat=Xmat,hazard=hazard, weights=weights,
                       basis=basis,dbasis=dbasis,
                       basis_yL=basis_yL,yL=yL,anyLT=anyLT, control=con,
-                      hessian=hessian, optim_method=optim_method,
+                      hessian=out_options$Finv, optim_method=optim_method,
                       extra_starts=extra_starts)
-  #if the fit fails, then return
+
+  #if the fit fails, then return generic data
   if(!is.null(value$fail)){
     return(list(fail=TRUE,formula=form2,hazard=hazard,
                 startVals=startVals,knots_vec=knots_vec,
@@ -177,13 +193,48 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                 extra_starts=extra_starts))
   }
 
+
+
+  #if requested, compute the inverse hessian (aka sandwich "bread")
+  if(out_options$Finv){
+    Finv <- tryCatch(MASS::ginv(value$nhess),
+                    error=function(cnd){message(cnd);cat("\n");return(NA)})
+  } else{ Finv <- NA }
+
+
+  #if requested, compute gradient contributions for every subject
+  if(out_options$estfun){
+    #note division by n following `sandwich::meat' function
+    estfun <- ngrad_uni_mat_func(para = value$estimate,
+                                         y=y, delta=delta, yL=yL, anyLT=anyLT,
+                                         Xmat=Xmat, hazard=hazard,
+                                         basis=basis, basis_yL=basis_yL,
+                                         dbasis=dbasis, weights=weights)
+  } else{ estfun <- rep(NA,n) }
+
+  #if requested, compute the sandwich variance "meat" outer product of scores
+  #note division by n following `sandwich::meat' function
+  if(out_options$meat){
+    if(out_options$estfun){
+      meat <- crossprod(estfun)/n
+    } else{
+      meat <- crossprod(ngrad_uni_mat_func(para = value$estimate,
+                                           y=y, delta=delta, yL=yL, anyLT=anyLT,
+                                           Xmat=Xmat, hazard=hazard,
+                                           basis=basis, basis_yL=basis_yL,
+                                           dbasis=dbasis, weights=weights))/n
+      }
+  } else{ meat <- NA }
+
   #add the other quantities to the output
   value <- list(
     estimate=as.vector(value$estimate),
     logLike=value$logLike,
     grad=as.vector(value$grad),
     optim_details=value$optim_details,
-    Finv= if(hessian) MASS::ginv(value$nhess) else NA,
+    Finv = Finv,
+    meat = meat,
+    estfun = estfun,
     startVals=value$startVals,
     knots_vec=knots_vec,
     myLabels=myLabels,

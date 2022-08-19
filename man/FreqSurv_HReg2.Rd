@@ -9,16 +9,17 @@ FreqSurv_HReg2(
   data,
   na.action = "na.fail",
   subset = NULL,
+  weights = NULL,
   hazard = c("weibull"),
   knots_vec = NULL,
   p0 = 4,
   startVals = NULL,
-  hessian = TRUE,
   control = NULL,
   quad_method = "kronrod",
   n_quad = 15,
   optim_method = "BFGS",
-  extra_starts = 0
+  extra_starts = 0,
+  output_options = NULL
 )
 }
 \arguments{
@@ -55,9 +56,6 @@ the first \eqn{k_1+k_2+k_3} elements correspond to the baseline hazard parameter
 then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameters.
 If set to \code{NULL}, will be generated automatically using \code{\link{get_start}}.}
 
-\item{hessian}{Boolean indicating whether the hessian (aka, the inverse of the covariance matrix)
-should be computed and returned.}
-
 \item{control}{a list of control attributes passed directly into the \code{optim} function.}
 
 \item{quad_method}{String indicating which quadrature method to use to evaluate numerical integral of B-spline.
@@ -68,6 +66,9 @@ Options are \code{"kronrod"} for Gauss-Kronrod quadrature or \code{"legendre"} f
 \item{optim_method}{a string naming which \code{optim} method should be used for optimization.}
 
 \item{extra_starts}{Integer giving the number of extra starts to try when optimizing.}
+
+\item{hessian}{Boolean indicating whether the hessian (aka, the inverse of the covariance matrix)
+should be computed and returned.}
 }
 \value{
 \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.

@@ -13,6 +13,7 @@ get_start_uni(
   knots,
   basis,
   hazard,
+  weights,
   sparse_start = FALSE
 )
 }

@@ -4,7 +4,19 @@
 \alias{nll_uni_func}
 \title{Negative Log-Likelihood Function for Illness-Death Model}
 \usage{
-nll_uni_func(para, y, delta, yL, anyLT, Xmat, hazard, basis, dbasis, basis_yL)
+nll_uni_func(
+  para,
+  y,
+  delta,
+  yL,
+  anyLT,
+  Xmat,
+  hazard,
+  weights,
+  basis,
+  dbasis,
+  basis_yL
+)
 }
 \arguments{
 \item{para}{A numeric vector of parameters, arranged as follows:

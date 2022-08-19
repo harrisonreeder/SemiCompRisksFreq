@@ -18,6 +18,7 @@ nll_func(
   hazard,
   frailty,
   model,
+  weights,
   basis1,
   basis2,
   basis3,

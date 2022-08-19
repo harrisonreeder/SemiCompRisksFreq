@@ -15,6 +15,7 @@ get_fit_uni(
   dbasis,
   basis_yL,
   hazard,
+  weights,
   control,
   hessian,
   optim_method,

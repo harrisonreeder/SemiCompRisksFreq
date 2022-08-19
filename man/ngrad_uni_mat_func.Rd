@@ -12,6 +12,7 @@ ngrad_uni_mat_func(
   anyLT,
   Xmat,
   hazard,
+  weights,
   basis,
   dbasis,
   basis_yL

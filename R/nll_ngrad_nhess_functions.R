@@ -32,29 +32,29 @@
 #' @return Returns numeric sum of negative log likelihood contributions.
 #' @export
 nll_uni_func <- function(para, y, delta, yL, anyLT, Xmat,
-                         hazard, basis, dbasis, basis_yL){
+                         hazard, weights, basis, dbasis, basis_yL){
   # browser()
   nP <- if(!is.null(Xmat)) ncol(Xmat) else 0
   n <- length(y)
 
   if(tolower(hazard) %in% c("weibull","wb")){
     nll <- nlogLikWB_uni(para, y=y,delta=delta, yL=if(anyLT) yL else numeric(0),
-                       anyLT = as.numeric(anyLT),
+                       anyLT = as.numeric(anyLT), weights=weights,
                        X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0))
   } else if(tolower(hazard) %in%  c("bspline","bs")){
     # assume that basis has entries 1:n of original data, then
     # n blocks of n_quad rows corresponding the quadrature points for each subject
     n_quad <- NROW(basis)/NROW(y) - 1
     quad_method <- attr(basis,which="quad_method")
-    nll <- nlogLikBS_uni(para, y=y,delta=delta,
+    nll <- nlogLikBS_uni(para, y=y,delta=delta, weights=weights,
              X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
              basis=basis,quad_weights = get_quad_pointsweights(n_quad = n_quad,quad_method = quad_method)$weights)
   } else if(tolower(hazard) %in% c("piecewise","pw")){
-    nll <- nlogLikPW_uni(para, y=y,delta=delta,
+    nll <- nlogLikPW_uni(para, y=y,delta=delta, weights=weights,
                      X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
                      basis=basis,dbasis=dbasis)
   } else if(tolower(hazard) %in% c("royston-parmar","rp")){
-    nll <- nlogLikRP_uni(para, y=y,delta=delta,
+    nll <- nlogLikRP_uni(para, y=y,delta=delta, weights=weights,
                      X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
                      basis=basis,dbasis=dbasis,
                      basis_yL=if(anyLT) basis_yL else matrix(nrow = n, ncol=0),
@@ -75,7 +75,7 @@ nll_uni_func <- function(para, y, delta, yL, anyLT, Xmat,
 #' @return Returns numeric sum of negative log likelihood contributions.
 #' @export
 ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat,
-                           hazard, basis, dbasis, basis_yL){
+                           hazard, weights, basis, dbasis, basis_yL){
   # browser()
   #number of parameters in each arm dictated by number of covariate columns in each matrix
   nP <- if(!is.null(Xmat)) ncol(Xmat) else 0
@@ -84,22 +84,23 @@ ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat,
   if(tolower(hazard) %in% c("weibull","wb")){
     ngrad <- ngradWB_uni(para, y=y,delta=delta,
                      yL=if(anyLT) yL else numeric(0),
-                     anyLT = as.numeric(anyLT),
+                     anyLT = as.numeric(anyLT), weights=weights,
                      X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0))
   } else if(tolower(hazard) %in%  c("bspline","bs")){
     # assume that basis has entries 1:n of original data, then
     # n blocks of n_quad rows corresponding the quadrature points for each subject
     n_quad <- NROW(basis)/NROW(y) - 1
     quad_method <- attr(basis,which="quad_method")
-    ngrad <- ngradBS_uni(para, y=y,delta=delta, X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
+    ngrad <- ngradBS_uni(para, y=y,delta=delta, weights=weights,
+               X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
                basis=basis,quad_weights = get_quad_pointsweights(n_quad = n_quad,quad_method = quad_method)$weights)
   } else if(tolower(hazard) %in% c("piecewise","pw")){
-    ngrad <- ngradPW_uni(para, y=y,delta=delta,
+    ngrad <- ngradPW_uni(para, y=y,delta=delta, weights=weights,
                    X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
                    basis=basis,dbasis=dbasis)
   } else if(tolower(hazard) %in% c("royston-parmar","rp")){
     ngrad <- ngradRP_uni(para, y=y,delta=delta, X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
-                   basis=basis,dbasis=dbasis,
+                   basis=basis,dbasis=dbasis, weights=weights,
                    basis_yL=if(anyLT) basis_yL else matrix(nrow = n, ncol=0),
                    anyLT = as.numeric(anyLT))
   } else{ stop("please choose hazard of 'weibull', 'bspline', 'royston-parmar', or 'piecewise'")}
@@ -118,14 +119,14 @@ ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat,
 #' @return Returns numeric sum of negative log likelihood contributions.
 #' @export
 ngrad_uni_mat_func <- function(para, y, delta, yL, anyLT, Xmat,
-                           hazard, basis, dbasis, basis_yL){
+                           hazard, weights, basis, dbasis, basis_yL){
   # browser()
   #number of parameters in each arm dictated by number of covariate columns in each matrix
   nP <- if(!is.null(Xmat)) ncol(Xmat) else 0
   n <- length(y)
 
   if(tolower(hazard) %in% c("weibull","wb")){
-    ngrad <- ngradWB_uni_mat(para, y=y,delta=delta,
+    ngrad <- ngradWB_uni_mat(para, y=y,delta=delta, weights=weights,
                          yL=if(anyLT) yL else numeric(0),
                          anyLT = as.numeric(anyLT),
                          X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0))
@@ -134,15 +135,16 @@ ngrad_uni_mat_func <- function(para, y, delta, yL, anyLT, Xmat,
     # n blocks of n_quad rows corresponding the quadrature points for each subject
     n_quad <- NROW(basis)/NROW(y) - 1
     quad_method <- attr(basis,which="quad_method")
-    ngrad <- ngradBS_uni_mat(para, y=y,delta=delta, X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
+    ngrad <- ngradBS_uni_mat(para, y=y,delta=delta, weights=weights,
+                         X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
                          basis=basis,quad_weights = get_quad_pointsweights(n_quad = n_quad,quad_method = quad_method)$weights)
   } else if(tolower(hazard) %in% c("piecewise","pw")){
-    ngrad <- ngradPW_uni_mat(para, y=y,delta=delta,
+    ngrad <- ngradPW_uni_mat(para, y=y,delta=delta, weights=weights,
                          X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
                          basis=basis,dbasis=dbasis)
   } else if(tolower(hazard) %in% c("royston-parmar","rp")){
     ngrad <- ngradRP_uni_mat(para, y=y,delta=delta, X=if(nP>0) as.matrix(Xmat) else matrix(nrow = n, ncol=0),
-                         basis=basis,dbasis=dbasis,
+                         basis=basis,dbasis=dbasis, weights=weights,
                          basis_yL=if(anyLT) basis_yL else matrix(nrow = n, ncol=0),
                          anyLT = as.numeric(anyLT))
   } else{ stop("please choose hazard of 'weibull', 'bspline', 'royston-parmar', or 'piecewise'")}
@@ -161,13 +163,13 @@ ngrad_uni_mat_func <- function(para, y, delta, yL, anyLT, Xmat,
 #'
 #' @return Returns numeric sum of negative log likelihood contributions.
 #' @export
-nll_ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat, hazard,
+nll_ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat, hazard, weights,
                                basis, dbasis, basis_yL){
   value <- nll_uni_func(para=para, y=y, delta=delta, yL=yL,
-              anyLT=anyLT, Xmat=Xmat, hazard=hazard,
+              anyLT=anyLT, Xmat=Xmat, hazard=hazard, weights=weights,
               basis=basis, dbasis=dbasis, basis_yL=basis_yL)
   attr(value,"gradient") <- ngrad_uni_func(para=para, y=y, delta=delta, yL=yL,
-                               anyLT=anyLT, Xmat=Xmat, hazard=hazard,
+                               anyLT=anyLT, Xmat=Xmat, hazard=hazard, weights=weights,
                                basis=basis, dbasis=dbasis, basis_yL=basis_yL)
   value
 }
@@ -210,7 +212,7 @@ nll_ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat, hazard,
 #' @export
 nll_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                      Xmat1, Xmat2, Xmat3,
-                     hazard, frailty, model,
+                     hazard, frailty, model, weights,
                      basis1, basis2, basis3, basis3_y1, basis1_yL,basis2_yL,
                      dbasis1, dbasis2, dbasis3){
   # browser()
@@ -227,7 +229,7 @@ nll_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
     nP0 <- 6 + as.numeric(frailty)
     stopifnot(length(para) == nP0 + nP1 + nP2 + nP3)
     nll <- nlogLikWB_ID(para=para, y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                    yL=yL, anyLT=anyLT,
+                    yL=yL, anyLT=anyLT, weights=weights,
                     X1=if(nP1>0) Xmat1 else matrix(nrow = n, ncol=0),
                     X2=if(nP2>0) Xmat2 else matrix(nrow = n, ncol=0),
                     X3=if(nP3>0) Xmat3 else matrix(nrow = n, ncol=0),
@@ -241,7 +243,7 @@ nll_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
     nP0 <- nP01 + nP02 + nP03 + as.numeric(frailty)
     stopifnot(length(para) == nP0 + nP1 + nP2 + nP3)
     nll <- nlogLikBS_ID(para, y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-              yL=yL, anyLT=anyLT,
+              yL=yL, anyLT=anyLT, weights=weights,
               X1=if(nP1>0) Xmat1 else matrix(nrow = n, ncol=0),
               X2=if(nP2>0) Xmat2 else matrix(nrow = n, ncol=0),
               X3=if(nP3>0) Xmat3 else matrix(nrow = n, ncol=0),
@@ -258,7 +260,7 @@ nll_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                   X1=if(nP1>0) Xmat1 else matrix(nrow = n, ncol=0),
                   X2=if(nP2>0) Xmat2 else matrix(nrow = n, ncol=0),
                   X3=if(nP3>0) Xmat3 else matrix(nrow = n, ncol=0),
-                  basis1=basis1, basis2=basis2, basis3=basis3,
+                  basis1=basis1, basis2=basis2, basis3=basis3, weights=weights,
                   basis1_yL=if(anyLT) basis1_yL else matrix(nrow = n, ncol=0),
                   basis2_yL=if(anyLT) basis2_yL else matrix(nrow = n, ncol=0),
                   dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
@@ -270,7 +272,7 @@ nll_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
              X1=if(nP1>0) as.matrix(Xmat1) else matrix(nrow = n, ncol=0),
              X2=if(nP2>0) as.matrix(Xmat2) else matrix(nrow = n, ncol=0),
              X3=if(nP3>0) as.matrix(Xmat3) else matrix(nrow = n, ncol=0),
-             basis1=basis1, basis2=basis2, basis3=basis3,
+             basis1=basis1, basis2=basis2, basis3=basis3, weights=weights,
              basis3_y1=if(!is.null(basis3_y1)) basis3_y1 else matrix(nrow = n, ncol=0),
              basis1_yL=if(anyLT) basis1_yL else matrix(nrow = n, ncol=0),
              basis2_yL=if(anyLT) basis2_yL else matrix(nrow = n, ncol=0),
@@ -295,7 +297,7 @@ nll_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
 #' @export
 ngrad_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                        Xmat1, Xmat2, Xmat3,
-                       hazard, frailty, model,
+                       hazard, frailty, model, weights,
                        basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL,
                        dbasis1, dbasis2, dbasis3){
   nP1 <- if(!is.null(Xmat1)) ncol(Xmat1) else 0
@@ -310,7 +312,7 @@ ngrad_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
     nP0 <- 6 + as.numeric(frailty)
     stopifnot(length(para) == nP0 + nP1 + nP2 + nP3)
     ngrad <- ngradWB_ID(para=para, y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                 yL=yL, anyLT=anyLT,
+                 yL=yL, anyLT=anyLT, weights=weights,
                  X1=if(nP1>0) as.matrix(Xmat1) else matrix(nrow = n, ncol=0),
                  X2=if(nP2>0) as.matrix(Xmat2) else matrix(nrow = n, ncol=0),
                  X3=if(nP3>0) as.matrix(Xmat3) else matrix(nrow = n, ncol=0),
@@ -325,7 +327,7 @@ ngrad_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
               X1=if(nP1>0) Xmat1 else matrix(nrow = n, ncol=0),
               X2=if(nP2>0) Xmat2 else matrix(nrow = n, ncol=0),
               X3=if(nP3>0) Xmat3 else matrix(nrow = n, ncol=0),
-              basis1 = basis1, basis2 = basis2, basis3=basis3,
+              basis1 = basis1, basis2 = basis2, basis3=basis3, weights=weights,
               basis1_yL=if(anyLT && frailty) basis1_yL else matrix(nrow = n, ncol=0),
               basis2_yL=if(anyLT && frailty) basis2_yL else matrix(nrow = n, ncol=0),
               quad_weights = get_quad_pointsweights(n_quad = n_quad,quad_method = quad_method)$weights,
@@ -340,7 +342,7 @@ ngrad_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                     X3=if(nP3>0) Xmat3 else matrix(nrow = n, ncol=0),
                     basis1_yL=if(anyLT) basis1_yL else matrix(nrow = n, ncol=0),
                     basis2_yL=if(anyLT) basis2_yL else matrix(nrow = n, ncol=0),
-                    basis1=basis1, basis2=basis2, basis3=basis3,
+                    basis1=basis1, basis2=basis2, basis3=basis3, weights=weights,
                     dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
                     frailty_ind=as.numeric(frailty))
   } else if(tolower(hazard) %in% c("royston-parmar","rp")){
@@ -350,7 +352,7 @@ ngrad_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                 X1=if(nP1>0) as.matrix(Xmat1) else matrix(nrow = n, ncol=0),
                 X2=if(nP2>0) as.matrix(Xmat2) else matrix(nrow = n, ncol=0),
                 X3=if(nP3>0) as.matrix(Xmat3) else matrix(nrow = n, ncol=0),
-                basis1=basis1, basis2=basis2, basis3=basis3,
+                basis1=basis1, basis2=basis2, basis3=basis3, weights=weights,
                 basis3_y1=if(!is.null(basis3_y1)) basis3_y1 else matrix(nrow = n, ncol=0),
                 basis1_yL=if(anyLT) basis1_yL else matrix(nrow = n, ncol=0),
                 basis2_yL=if(anyLT) basis2_yL else matrix(nrow = n, ncol=0),
@@ -377,7 +379,7 @@ ngrad_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
 #' @export
 ngrad_mat_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                        Xmat1, Xmat2, Xmat3,
-                       hazard, frailty, model,
+                       hazard, frailty, model, weights,
                        basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL,
                        dbasis1, dbasis2, dbasis3){
   nP1 <- if(!is.null(Xmat1)) ncol(Xmat1) else 0
@@ -392,7 +394,7 @@ ngrad_mat_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
     nP0 <- 6 + as.numeric(frailty)
     stopifnot(length(para) == nP0 + nP1 + nP2 + nP3)
     ngrad <- ngradWB_ID_mat(para=para, y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-                        yL=yL, anyLT=anyLT,
+                        yL=yL, anyLT=anyLT, weights=weights,
                         X1=if(nP1>0) as.matrix(Xmat1) else matrix(nrow = n, ncol=0),
                         X2=if(nP2>0) as.matrix(Xmat2) else matrix(nrow = n, ncol=0),
                         X3=if(nP3>0) as.matrix(Xmat3) else matrix(nrow = n, ncol=0),
@@ -407,7 +409,7 @@ ngrad_mat_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                         X1=if(nP1>0) Xmat1 else matrix(nrow = n, ncol=0),
                         X2=if(nP2>0) Xmat2 else matrix(nrow = n, ncol=0),
                         X3=if(nP3>0) Xmat3 else matrix(nrow = n, ncol=0),
-                        basis1 = basis1, basis2 = basis2, basis3=basis3,
+                        basis1 = basis1, basis2 = basis2, basis3=basis3, weights=weights,
                         basis1_yL=if(anyLT && frailty) basis1_yL else matrix(nrow = n, ncol=0),
                         basis2_yL=if(anyLT && frailty) basis2_yL else matrix(nrow = n, ncol=0),
                         quad_weights = get_quad_pointsweights(n_quad = n_quad,quad_method = quad_method)$weights,
@@ -422,7 +424,7 @@ ngrad_mat_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                         X3=if(nP3>0) Xmat3 else matrix(nrow = n, ncol=0),
                         basis1_yL=if(anyLT) basis1_yL else matrix(nrow = n, ncol=0),
                         basis2_yL=if(anyLT) basis2_yL else matrix(nrow = n, ncol=0),
-                        basis1=basis1, basis2=basis2, basis3=basis3,
+                        basis1=basis1, basis2=basis2, basis3=basis3, weights=weights,
                         dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
                         frailty_ind=as.numeric(frailty))
   } else if(tolower(hazard) %in% c("royston-parmar","rp")){
@@ -432,7 +434,7 @@ ngrad_mat_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                         X1=if(nP1>0) as.matrix(Xmat1) else matrix(nrow = n, ncol=0),
                         X2=if(nP2>0) as.matrix(Xmat2) else matrix(nrow = n, ncol=0),
                         X3=if(nP3>0) as.matrix(Xmat3) else matrix(nrow = n, ncol=0),
-                        basis1=basis1, basis2=basis2, basis3=basis3,
+                        basis1=basis1, basis2=basis2, basis3=basis3, weights=weights,
                         basis3_y1=if(!is.null(basis3_y1)) basis3_y1 else matrix(nrow = n, ncol=0),
                         basis1_yL=if(anyLT) basis1_yL else matrix(nrow = n, ncol=0),
                         basis2_yL=if(anyLT) basis2_yL else matrix(nrow = n, ncol=0),
@@ -458,18 +460,18 @@ ngrad_mat_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
 #' @export
 nll_ngrad_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
                            Xmat1, Xmat2, Xmat3,
-                           hazard, frailty, model,
+                           hazard, frailty, model, weights,
                            basis1, basis2, basis3, basis3_y1,
                            basis1_yL, basis2_yL,
                            dbasis1, dbasis2, dbasis3){
   value <- nll_func(para=para, y1=y1, y2=y2, delta1=delta1, delta2=delta2,
-              yL=yL, anyLT=anyLT,
+              yL=yL, anyLT=anyLT, weights=weights,
               Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
               hazard=hazard, frailty=frailty, model=model,
               basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
               basis1_yL=basis1_yL, basis2_yL=basis2_yL,
               dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
-  attr(value,"gradient") <- ngrad_func(para=para, y1=y1, y2=y2,
+  attr(value,"gradient") <- ngrad_func(para=para, y1=y1, y2=y2, weights=weights,
                              delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                              Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                              hazard=hazard, frailty=frailty, model=model,
@@ -479,7 +481,7 @@ nll_ngrad_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
   value
 }
 
-#THE BELOW FUNCTIONS DO NOT INCORPORATE LEFT TRUNCATION
+#THE BELOW FUNCTIONS DO NOT INCORPORATE LEFT TRUNCATION OR WEIGHTS
 
 
 #' Hessian of Negative Log-Likelihood Function for Illness-Death Model
