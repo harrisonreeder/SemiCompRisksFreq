@@ -38,7 +38,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                         nP0=rep(4,3), startVals=NULL, hessian=TRUE, control=NULL,
                         quad_method="kronrod", n_quad=15,
                         optim_method="BFGS", extra_starts=0, output_options=NULL){
-  browser()
+  # browser()
   ##INITIALIZE OPTIONS##
   ##******************##
   #technically na.fail I think is the only one currently implemented
@@ -59,7 +59,8 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
   con[namc] <- control
 
   #if any output options have been given, override the defaults
-  out_options=list(nf_fit=TRUE,Finv=TRUE,estfun=TRUE,meat=TRUE,frail_pred=TRUE,data_return=FALSE)
+  out_options=list(nf_fit=TRUE,Finv=TRUE,grad_mat_return=FALSE,
+                   cheese=TRUE,frail_pred=TRUE,data_return=FALSE)
   nmsO <- names(out_options)
   namO <- names(output_options)
   out_options[namO] <- output_options
@@ -244,8 +245,8 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                          basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                          basis1_yL=basis1_yL, basis2_yL=basis2_yL,
                          dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
-  if(max(abs(grad1_nf-grad2_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
-  if(max(abs(grad1_nf-grad3_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
+  # if(max(abs(grad1_nf-grad2_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
+  # if(max(abs(grad1_nf-grad3_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
   # if(max(abs(grad1_nf-grad2_nf)) >= 1e-4){warning("check gradient of non-frailty model")}
   # cbind(grad1_nf,grad2_nf,grad3_nf)
 
@@ -261,7 +262,6 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                 control=con, hessian=hessian,optim_method=optim_method,
                 extra_starts=extra_starts)
   } else{
-
     #Even for frailty model fit, optionally fit non-frailty model for comparison
     if(out_options$nf_fit){
       fit_nf <- get_fit_nf(startVals_nf=startVals_nf,
@@ -292,15 +292,14 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                                          basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                                          basis1_yL=basis1_yL, basis2_yL=basis2_yL,weights=weights,
                                          dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
-      if(max(abs(grad3_nf+fit_nf$grad)) >= 1e-4){stop("check gradient of non-frailty model")}
-      if(max(abs(grad3_nf-grad5_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
+      # if(max(abs(grad3_nf+fit_nf$grad)) >= 1e-4){stop("check gradient of non-frailty model")}
+      # if(max(abs(grad3_nf-grad5_nf)) >= 1e-4){stop("check gradient of non-frailty model")}
       # if(max(abs(grad3_nf+fit_nf$grad)) >= 1e-4){warning("check gradient of non-frailty model")}
       # cbind(fit_nf$grad,grad3_nf,grad4_nf,grad5_nf)
     } else {
       nf_fit <- NULL
       frailty_lrtest <- c(stat=NA,pval=NA)
     }
-
 
     #now, update the basis matrices if we're
     #1. using a b-spline specification
@@ -339,8 +338,8 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                         basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                         basis1_yL=basis1_yL, basis2_yL=basis2_yL, weights=weights,
                         dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
-    if(max(abs(grad1-grad2)) >= 1e-4){stop("check gradient of non-frailty model")}
-    if(max(abs(grad1-grad3)) >= 1e-4){stop("check gradient of non-frailty model")}
+    # if(max(abs(grad1-grad2)) >= 1e-4){stop("check gradient of frailty model")}
+    # if(max(abs(grad1-grad3)) >= 1e-4){stop("check gradient of frailty model")}
     # if(max(abs(grad1-grad2)) >= 1e-4){warning("check gradient of non-frailty model")}
     # cbind(grad1,grad2,grad3)
 
@@ -391,32 +390,32 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
   } else{ Finv <- NA }
 
   #if requested, compute gradient contributions for every subject
-  if(out_options$estfun){
+  if(out_options$grad_mat_return){
     #note division by n following `sandwich::meat' function
-    estfun <- ngrad_mat_func(para = value$estimate,
+    grad_mat <- -ngrad_mat_func(para = value$estimate,
                  y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                  Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                  hazard=hazard,model=model,frailty=frailty,
                  basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                  basis1_yL=basis1_yL, basis2_yL=basis2_yL, weights=weights,
                  dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
-  } else{ estfun <- rep(NA,n) }
+  } else{ grad_mat <- NULL }
 
-  #if requested, compute the sandwich variance "meat"
-  #note division by n following `sandwich::meat' function
-  if(out_options$meat){
-    if(out_options$estfun){
-      meat <- crossprod(estfun)/n
+  #if requested, compute the sandwich variance "cheese"
+  #note division by n following `sandwich::cheese' function
+  if(out_options$cheese){
+    if(out_options$grad_mat_return){
+      cheese <- crossprod(grad_mat)
     } else{
-      meat <- crossprod(ngrad_mat_func(para = value$estimate,
+      cheese <- crossprod(ngrad_mat_func(para = value$estimate,
                y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                hazard=hazard,model=model,frailty=frailty,
                basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                basis1_yL=basis1_yL, basis2_yL=basis2_yL, weights=weights,
-               dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))/n
+               dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
     }
-  } else{ meat <- NA }
+  } else{ cheese <- NA }
 
   value <- list(
              estimate=as.vector(value$estimate),
@@ -424,14 +423,15 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
              grad=as.vector(value$grad),
              optim_details=value$optim_details,
              Finv=Finv,
-             meat=meat,
-             estfun=estfun,
+             cheese=cheese,
              startVals=value$startVals,
              knots_list=knots_list,
              myLabels=myLabels,
              formula=form2,nP=nP,nP0=nP0,nobs=length(y1),ymax=max(y2),n_quad=n_quad,
              quad_method=quad_method,optim_method=optim_method,
              extra_starts=extra_starts,control=con,
+             grad_mat=grad_mat,
+             data=if(out_options$data_return) data else NULL,
              frailty=frailty,
              frailty_lrtest = if(frailty) frailty_lrtest else NULL,
              fit_nf = if(frailty) fit_nf else NULL)

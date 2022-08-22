@@ -36,7 +36,7 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                            weights=NULL, hazard=c("weibull"), knots_vec = NULL, p0=4,
                            startVals=NULL, control=NULL, quad_method="kronrod", n_quad=15,
                            optim_method = "BFGS", extra_starts=0, output_options=NULL){
-  browser()
+  # browser()
   ##Check that chosen hazard is among available options
   if(!(tolower(hazard) %in% c("weibull","royston-parmar","bspline","piecewise","wb","pw","bs","rp"))){
     stop("valid choices of hazard are 'weibull', 'royston-parmar', or 'piecewise'")
@@ -56,10 +56,9 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   namc <- names(control)
   con[namc] <- control
 
-  #DECIDE THE RIGHT WAY TO RETURN MODEL DATA!!!!
-
   #if any output options have been given, override the defaults
-  out_options=list(Finv=TRUE,estfun=TRUE,meat=TRUE,data_return=FALSE)
+  out_options=list(Finv=TRUE,grad_mat_return=FALSE,
+                   cheese=TRUE,data_return=FALSE)
   nmsO <- names(out_options)
   namO <- names(output_options)
   out_options[namO] <- output_options
@@ -118,13 +117,11 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     } else if(hazard %in% c("bspline","bs")){
       if(anyLT){ #presence of left-truncation
         #note yL is lower bound of integral to account for left truncation
-        y_quad <- c(y, transform_quad_points(n_quad=n_quad,
-                                             quad_method=quad_method,
-                                             a=yL,b=y))
+        y_quad <- c(y, transform_quad_points(n_quad=n_quad, a=yL,b=y,
+                                             quad_method=quad_method))
       } else{
-        y_quad <- c(y, transform_quad_points(n_quad=n_quad,
-                                             quad_method=quad_method,
-                                             a=0,b=y))
+        y_quad <- c(y, transform_quad_points(n_quad=n_quad, a=0,b=y,
+                                             quad_method=quad_method))
       }
       basis <- get_basis(x=y_quad,knots=knots_vec,hazard=hazard)
       basis_yL <- dbasis <- NULL
@@ -193,38 +190,34 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                 extra_starts=extra_starts))
   }
 
-
-
   #if requested, compute the inverse hessian (aka sandwich "bread")
   if(out_options$Finv){
     Finv <- tryCatch(MASS::ginv(value$nhess),
                     error=function(cnd){message(cnd);cat("\n");return(NA)})
   } else{ Finv <- NA }
 
-
   #if requested, compute gradient contributions for every subject
-  if(out_options$estfun){
+  if(out_options$grad_mat_return){
     #note division by n following `sandwich::meat' function
-    estfun <- ngrad_uni_mat_func(para = value$estimate,
+    grad_mat <- -ngrad_uni_mat_func(para = value$estimate,
                                          y=y, delta=delta, yL=yL, anyLT=anyLT,
                                          Xmat=Xmat, hazard=hazard,
                                          basis=basis, basis_yL=basis_yL,
                                          dbasis=dbasis, weights=weights)
-  } else{ estfun <- rep(NA,n) }
+  } else{ grad_mat <- NULL }
 
-  #if requested, compute the sandwich variance "meat" outer product of scores
-  #note division by n following `sandwich::meat' function
-  if(out_options$meat){
-    if(out_options$estfun){
-      meat <- crossprod(estfun)/n
+  #if requested, compute the sandwich variance "cheese" outer product of scores
+  if(out_options$cheese){
+    if(out_options$grad_mat_return){
+      cheese <- crossprod(grad_mat)
     } else{
-      meat <- crossprod(ngrad_uni_mat_func(para = value$estimate,
+      cheese <- crossprod(ngrad_uni_mat_func(para = value$estimate,
                                            y=y, delta=delta, yL=yL, anyLT=anyLT,
                                            Xmat=Xmat, hazard=hazard,
                                            basis=basis, basis_yL=basis_yL,
-                                           dbasis=dbasis, weights=weights))/n
+                                           dbasis=dbasis, weights=weights))
       }
-  } else{ meat <- NA }
+  } else{ cheese <- NA }
 
   #add the other quantities to the output
   value <- list(
@@ -233,24 +226,25 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     grad=as.vector(value$grad),
     optim_details=value$optim_details,
     Finv = Finv,
-    meat = meat,
-    estfun = estfun,
+    cheese = cheese,
     startVals=value$startVals,
     knots_vec=knots_vec,
     myLabels=myLabels,
     formula=form2,nP=nP,nP0=nP0,nobs=length(y),ymax=max(y),n_quad=n_quad,
     quad_method=quad_method,optim_method=optim_method,extra_starts=extra_starts,
-    control=con)
+    control=con,
+    grad_mat=grad_mat,
+    data=if(out_options$data_return) data else NULL)
 
   names(value$estimate) <- names(startVals)
   names(value$grad) <- names(startVals)
 
   value$class <- c("Freq_HReg2","Surv","Ind",
                    switch(tolower(hazard),
-                          weibull="Weibull",wb="Weibull",
-                          bspline="B-Spline",bs="B-Spline",
-                          "royston-parmar"="Royston-Parmar",rp="Royston-Parmar",
-                          piecewise="Piecewise Constant",pw="Piecewise Constant"))
+                      weibull="Weibull",wb="Weibull",
+                      bspline="B-Spline",bs="B-Spline",
+                      "royston-parmar"="Royston-Parmar",rp="Royston-Parmar",
+                      piecewise="Piecewise Constant",pw="Piecewise Constant"))
   class(value) <- "Freq_HReg2"
   return(value)
 

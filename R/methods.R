@@ -24,18 +24,12 @@ vcov.Freq_HReg2 <- function (object, ...){
   val
 }
 
-#figure out how to get these to be registered as "methods" ?
-
 #' @export
-estfun.Freq_HReg2 <- function (x, ...){
-  x$estfun
-}
-
-#' @export
-meat.Freq_HReg2 <- function (x, adjust = FALSE, ...){
-  val <- x$meat
-  if(adjust) val <- val * x$nobs/(x$nobs - NROW(val))
-  rownames(val) <- colnames(val) <- names(x$estimate)
+vcov_sandwich <- function (object, adjust = FALSE, ...){
+  if(is.null(object$cheese) || is.null(object$Finv)){stop("fitted model does not have 'cheese' for sandwich variance.")}
+  val <- object$Finv %*% object$cheese %*% object$Finv
+  if(adjust) val <- val * object$nobs / (object$nobs - NROW(object$Finv))
+  rownames(val) <- colnames(val) <- names(object$estimate)
   val
 }
 
