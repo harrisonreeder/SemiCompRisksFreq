@@ -39,7 +39,7 @@ simID2 <- function(id = NULL, x1, x2, x3,
                   beta2frail.true=1, beta3frail.true=1,
                   beta3tv.true=NULL, h3tv_degree=3,
                   LT_interval = c(0,0), cens = c(0,0)) {
-  browser()
+  # browser()
 
   if (!is.null(id) & is.null(SigmaV.true)) {
     stop("SigmaV.true must be given to simulate correlated data")
