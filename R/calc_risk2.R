@@ -33,7 +33,7 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
                       type="marginal", gamma=1, model="semi-markov",
                       h3_tv="none",tv_knots=NULL,
                       quad_method="legendre",n_quad=15){
-  # browser()
+  browser()
 
   n <- max(1,nrow(Xmat1),nrow(Xmat2),nrow(Xmat3))
   t_length <- length(t_cutoff)
