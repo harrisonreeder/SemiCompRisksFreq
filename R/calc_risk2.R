@@ -2,11 +2,8 @@
 #'
 #' This function calculates absolute risk profiles under weibull baseline hazard specifications.
 #'
-#' @param para A numeric vector of parameters, arranged as follows:
-#'   the first \eqn{k_1+k_2+k_3} elements correspond to the baseline hazard parameters,
-#'   then the \eqn{k_1+k_2+k_3+1} element corresponds to the gamma frailty log-variance parameter,
-#'   then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameters.
-#' @param Xmat1,Xmat2,Xmat3 Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.
+#' @inheritParams nll_func
+#' @inheritParams FreqID_HReg2
 #' @param t_cutoff Numeric vector indicating the time(s) to compute the risk profile.
 #' @param t_start Numeric scalar indicating the dynamic start time to compute the risk profile. Set to 0 by default.
 #' @param tol Numeric value for the tolerance of the numerical integration procedure.
@@ -16,13 +13,6 @@
 #'   if 'type' is set to 'conditional'
 #' @param h3_tv String indicating whether there is an effect of t1 on hazard 3.
 #' @param tv_knots for piecewise effect of t1 in h3, these are the knots at which the effect jumps
-#' @param hazard String specifying the form of the baseline hazard.
-#' @param frailty Boolean indicating whether a gamma distributed subject-specific frailty should
-#'   be included. Currently this must be set to TRUE.
-#' @param model String specifying the transition assumption
-#' @param knots_list Used for hazard specifications besides Weibull, a
-#'   list of three increasing sequences of integers, each corresponding to
-#'   the knots for the flexible model on the corresponding transition baseline hazard.
 #'
 #' @return if Xmat has only one row, and t_cutoff is a scalar, then returns a 4 element row matrix
 #'   of probabilities. If Xmat has \code{n} rows, then returns an \code{n} by 4 matrix of probabilities.
@@ -33,7 +23,7 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
                       type="marginal", gamma=1, model="semi-markov",
                       h3_tv="none",tv_knots=NULL,
                       quad_method="legendre",n_quad=15){
-  browser()
+  # browser()
 
   n <- max(1,nrow(Xmat1),nrow(Xmat2),nrow(Xmat3))
   t_length <- length(t_cutoff)
@@ -166,8 +156,8 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
       }
     },
     piecewise=function(t){
-      basis1 <- get_basis(x = t,knots = knots1,hazard = "piecewise",deriv = FALSE)
-      basis2 <- get_basis(x = t,knots = knots2,hazard = "piecewise",deriv = FALSE)
+      basis1 <- get_basis(y = t,knots_vec = knots1,hazard = "piecewise",deriv = FALSE)
+      basis2 <- get_basis(y = t,knots_vec = knots2,hazard = "piecewise",deriv = FALSE)
       Lambda01 <- as.vector(basis1 %*% exp(phi1))
       Lambda02 <- as.vector(basis2 %*% exp(phi2))
       if(type == "marginal"){
@@ -177,8 +167,8 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
       }
     },
     rp=function(t){
-      basis1 <- get_basis(x = t,knots = knots1,hazard = "royston-parmar",deriv = FALSE)
-      basis2 <- get_basis(x = t,knots = knots2,hazard = "royston-parmar",deriv = FALSE)
+      basis1 <- get_basis(y = t,knots_vec = knots1,hazard = "royston-parmar",deriv = FALSE)
+      basis2 <- get_basis(y = t,knots_vec = knots2,hazard = "royston-parmar",deriv = FALSE)
       s1 <- as.vector(basis1 %*% phi1)
       s2 <- as.vector(basis2 %*% phi2)
       if(type == "marginal"){
@@ -190,8 +180,8 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
     bspline=function(t){
       quad_points <- transform_quad_points(n_quad = n_quad,
                                            quad_method=quad_method, a = 0,b = t)
-      basis1_quad <- get_basis(x=quad_points, knots=knots1,hazard="bspline")
-      basis2_quad <- get_basis(x=quad_points, knots=knots2,hazard="bspline")
+      basis1_quad <- get_basis(y=quad_points, knots_vec=knots1,hazard="bspline")
+      basis2_quad <- get_basis(y=quad_points, knots_vec=knots2,hazard="bspline")
       lambda01 <- as.vector(exp(basis1_quad %*% phi1))
       lambda02 <- as.vector(exp(basis2_quad %*% phi2))
       #reshape lambda0 from a n*n_quad length vector
@@ -219,11 +209,11 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
        }
      },
      piecewise=function(t,index){
-       basis1 <- get_basis(x = t,knots = knots1,hazard = "piecewise",deriv = FALSE)
-       basis2 <- get_basis(x = t,knots = knots2,hazard = "piecewise",deriv = FALSE)
+       basis1 <- get_basis(y = t,knots_vec = knots1,hazard = "piecewise",deriv = FALSE)
+       basis2 <- get_basis(y = t,knots_vec = knots2,hazard = "piecewise",deriv = FALSE)
        Lambda01 <- as.vector(basis1 %*% exp(phi1))
        Lambda02 <- as.vector(basis2 %*% exp(phi2))
-       dbasis2 <- get_basis(x = t,knots = knots2,hazard = "piecewise",deriv = TRUE)
+       dbasis2 <- get_basis(y = t,knots_vec = knots2,hazard = "piecewise",deriv = TRUE)
        lambda02 <- as.vector(dbasis2 %*% exp(phi2))
        if(type == "marginal"){
          lambda02 * exp(eta2[index]) * #h2
@@ -234,9 +224,9 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
        }
      },
      rp=function(t,index){
-       basis1 <- get_basis(x = t,knots = knots1,hazard = "royston-parmar",deriv = FALSE)
-       basis2 <- get_basis(x = t,knots = knots2,hazard = "royston-parmar",deriv = FALSE)
-       dbasis2 <- get_basis(x = t,knots = knots2,hazard = "royston-parmar",deriv = TRUE)
+       basis1 <- get_basis(y = t,knots_vec = knots1,hazard = "royston-parmar",deriv = FALSE)
+       basis2 <- get_basis(y = t,knots_vec = knots2,hazard = "royston-parmar",deriv = FALSE)
+       dbasis2 <- get_basis(y = t,knots_vec = knots2,hazard = "royston-parmar",deriv = TRUE)
        s1 <- as.vector(basis1 %*% phi1)
        s2 <- as.vector(basis2 %*% phi2)
        s2prime <- as.vector(dbasis2 %*% phi2)
@@ -251,9 +241,9 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
      bspline=function(t,index){
        quad_points <- transform_quad_points(n_quad = n_quad,
                                             quad_method=quad_method, a = 0,b = t)
-       basis2 <- get_basis(x=t, knots=knots2,hazard="bspline")
-       basis1_quad <- get_basis(x=quad_points, knots=knots1,hazard="bspline")
-       basis2_quad <- get_basis(x=quad_points, knots=knots2,hazard="bspline")
+       basis2 <- get_basis(y=t, knots_vec=knots2,hazard="bspline")
+       basis1_quad <- get_basis(y=quad_points, knots_vec=knots1,hazard="bspline")
+       basis2_quad <- get_basis(y=quad_points, knots_vec=knots2,hazard="bspline")
        lambda01 <- as.vector(exp(basis1_quad %*% phi1))
        lambda02 <- as.vector(exp(basis2_quad %*% phi2))
        #reshape lambda0 from a n_t*n_quad length vector
@@ -291,20 +281,20 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
       }
     },
     piecewise=function(t,t_bound,index){
-      basis1 <- get_basis(x = t,knots = knots1,hazard = "piecewise",deriv = FALSE)
-      basis2 <- get_basis(x = t,knots = knots2,hazard = "piecewise",deriv = FALSE)
+      basis1 <- get_basis(y = t,knots_vec = knots1,hazard = "piecewise",deriv = FALSE)
+      basis2 <- get_basis(y = t,knots_vec = knots2,hazard = "piecewise",deriv = FALSE)
       Lambda01 <- as.vector(basis1 %*% exp(phi1))
       Lambda02 <- as.vector(basis2 %*% exp(phi2))
-      dbasis1 <- get_basis(x = t,knots = knots1,hazard = "piecewise",deriv = TRUE)
+      dbasis1 <- get_basis(y = t,knots_vec = knots1,hazard = "piecewise",deriv = TRUE)
       lambda01 <- as.vector(dbasis1 %*% exp(phi1))
 
       if(model=="markov"){
-        basis3 <- get_basis(x = t_bound,knots = knots3,hazard = "piecewise",deriv = FALSE)
+        basis3 <- get_basis(y = t_bound,knots_vec = knots3,hazard = "piecewise",deriv = FALSE)
         Lambda03 <- as.vector(basis3 %*% exp(phi3))
-        basis3 <- get_basis(x = t,knots = knots3,hazard = "piecewise",deriv = FALSE)
+        basis3 <- get_basis(y = t,knots_vec = knots3,hazard = "piecewise",deriv = FALSE)
         Lambda03 <- Lambda03 - as.vector(basis3 %*% exp(phi3))
       } else{
-        basis3 <- get_basis(x = t_bound-t,knots = knots3,hazard = "piecewise",deriv = FALSE)
+        basis3 <- get_basis(y = t_bound-t,knots_vec = knots3,hazard = "piecewise",deriv = FALSE)
         Lambda03 <- as.vector(basis3 %*% exp(phi3))
       }
 
@@ -321,20 +311,20 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
       }
     },
     rp=function(t,t_bound,index){
-      basis1 <- get_basis(x = t,knots = knots1,hazard = "royston-parmar",deriv = FALSE)
-      basis2 <- get_basis(x = t,knots = knots2,hazard = "royston-parmar",deriv = FALSE)
-      dbasis1 <- get_basis(x = t,knots = knots1,hazard = "royston-parmar",deriv = TRUE)
+      basis1 <- get_basis(y = t,knots_vec = knots1,hazard = "royston-parmar",deriv = FALSE)
+      basis2 <- get_basis(y = t,knots_vec = knots2,hazard = "royston-parmar",deriv = FALSE)
+      dbasis1 <- get_basis(y = t,knots_vec = knots1,hazard = "royston-parmar",deriv = TRUE)
       s1 <- as.vector(basis1 %*% phi1)
       s2 <- as.vector(basis2 %*% phi2)
       s1prime <- as.vector(dbasis1 %*% phi1)
 
       if(model=="markov"){
-        basis3 <- get_basis(x = t_bound,knots = knots3,hazard = "royston-parmar",deriv = FALSE)
+        basis3 <- get_basis(y = t_bound,knots_vec = knots3,hazard = "royston-parmar",deriv = FALSE)
         Lambda03 <- exp(as.vector(basis3 %*% phi3))
-        basis3 <- get_basis(x = t,knots = knots3,hazard = "piecewise",deriv = FALSE)
+        basis3 <- get_basis(y = t,knots_vec = knots3,hazard = "royston-parmar",deriv = FALSE)
         Lambda03 <- Lambda03 - exp(as.vector(basis3 %*% phi3))
       } else{
-        basis3 <- get_basis(x = t_bound-t,knots = knots3,hazard = "royston-parmar",deriv = FALSE)
+        basis3 <- get_basis(y = t_bound-t,knots_vec = knots3,hazard = "royston-parmar",deriv = FALSE)
         Lambda03 <- exp(as.vector(basis3 %*% phi3))
       }
       if(type == "marginal"){
@@ -352,9 +342,9 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
     bspline=function(t,t_bound,index){
       quad_points <- transform_quad_points(n_quad = n_quad,
                                            quad_method=quad_method, a = 0,b = t)
-      basis1 <- get_basis(x=t, knots=knots1,hazard="bspline")
-      basis1_quad <- get_basis(x=quad_points, knots=knots1,hazard="bspline")
-      basis2_quad <- get_basis(x=quad_points, knots=knots2,hazard="bspline")
+      basis1 <- get_basis(y=t, knots_vec=knots1,hazard="bspline")
+      basis1_quad <- get_basis(y=quad_points, knots_vec=knots1,hazard="bspline")
+      basis2_quad <- get_basis(y=quad_points, knots_vec=knots2,hazard="bspline")
       lambda01 <- as.vector(exp(basis1_quad %*% phi1))
       lambda02 <- as.vector(exp(basis2_quad %*% phi2))
       #reshape lambda0 from a n_t*n_quad length vector
@@ -366,11 +356,11 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
       if(model=="markov"){
         quad_points <- transform_quad_points(n_quad = n_quad,
                                              quad_method=quad_method, a = t,b = t_bound)
-        basis3_quad <- get_basis(x=quad_points, knots=knots3,hazard="bspline")
+        basis3_quad <- get_basis(y=quad_points, knots_vec=knots3,hazard="bspline")
       } else{
         quad_points <- transform_quad_points(n_quad = n_quad,
                                              quad_method=quad_method, a = 0,b = t_bound-t)
-        basis3_quad <- get_basis(x=quad_points, knots=knots3,hazard="bspline")
+        basis3_quad <- get_basis(y=quad_points, knots_vec=knots3,hazard="bspline")
       }
       lambda03 <- as.vector(exp(basis3_quad %*% phi3))
       Lambda03 <- (t_bound-t)/2 * as.vector(matrix(lambda03,ncol=n_quad,byrow = TRUE) %*% quad_weights)
@@ -413,7 +403,7 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
                              n),dimnames = list(paste0("t",t_cutoff),
                                                 c("p_ntonly","p_both","p_tonly","p_neither"),paste0("i",1:n)))
     } else{
-      out_mat <- matrix(nrow=n,ncol=2,ncol=4,
+      out_mat <- matrix(nrow=n,ncol=4,
                         dimnames = list(paste0("i",1:n),
                                         c("p_ntonly","p_both","p_tonly","p_neither")))
     }
@@ -467,3 +457,4 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
 
   return(out_mat)
 }
+

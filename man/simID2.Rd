@@ -48,6 +48,8 @@ The length of each vector should equal the number of columns in the correspondin
 \item{SigmaV.true}{True value for covariance matrix of MVN cluster-level random effects.
 Required only when generating clustered data. Should be a numeric \eqn{J\times J} matrix.}
 
+\item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
+
 \item{frailty_type}{string denoting "gamma" for gamma-distributed frailty with variance \code{theta}, or "lognormal" for lognormal distributed frailty with log-frailty variance \code{theta}}
 
 \item{beta2frail.true, beta3frail.true}{scalar for the coefficient of the shared frailty in the logit submodel.}
@@ -59,8 +61,6 @@ Required only when generating clustered data. Should be a numeric \eqn{J\times J
 \item{LT_interval}{A numeric vector of two elements. The left truncation censoring times are generated from Uniform(\eqn{LT_interval[1]}, \eqn{LT_interval[2]}).}
 
 \item{cens}{A numeric vector of two elements. The right censoring times are generated from Uniform(\eqn{cens[1]}, \eqn{cens[2]}).}
-
-\item{anyD}{Boolean for whether to allow any "immediate" terminal events}
 }
 \value{
 returns a data.frame containing semi-competing risks outcomes from \code{n} subjects.

@@ -19,6 +19,8 @@
 #'   \code{"bspline"} for cubic B-spline on the log-hazard scale,
 #'   and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
 #'   Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.
+#' @param weights Vector of numeric weights of length \eqn{n} corresponding
+#'   to each observed individual.
 #' @param basis Numeric matrix with \eqn{n} rows and \eqn{k} columns
 #'   with piecewise/spline basis function values at the corresponding \code{y} values.
 #'   Not used under Weibull model.
@@ -181,8 +183,9 @@ nll_ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat, hazard, weights,
 #' Function returning the negative log-likelihood for the illness-death model,
 #'   under specified baseline hazard, and specified frailty,
 #'   and specified Markov/semi-Markov transition assumption.
-#'   Typically, this function will not be used directly by the user, but as part of a
-#'   larger estimation procedure.
+#'   Typically, this function will not be used directly by the user,
+#'   but as part of a larger estimation procedure.
+#' @inheritParams nll_uni_func
 #' @param para A numeric vector of parameters, arranged as follows:
 #'   the first \eqn{k_1+k_2+k_3} elements correspond to the baseline hazard parameters,
 #'   then the \eqn{k_1+k_2+k_3+1} element corresponds to the gamma frailty log-variance parameter,
@@ -190,16 +193,10 @@ nll_ngrad_uni_func <- function(para, y, delta, yL, anyLT, Xmat, hazard, weights,
 #' @param y1,y2 Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times
 #' @param delta1,delta2 Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise
 #' @param Xmat1,Xmat2,Xmat3 Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.
-#' @param hazard String (not case sensitive) specifying the form of the baseline hazard.
-#'   Options are \code{"weibull"} for Weibull,
-#'   \code{"piecewise"} for piecewise constant on the hazard scale,
-#'   \code{"bspline"} for cubic B-spline on the log-hazard scale,
-#'   and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
-#'   Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.
 #' @param frailty Boolean indicating whether a gamma distributed subject-specific frailty should
 #'   be included. Currently this must be set to \code{TRUE}.
 #' @param model String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}
-#' @param basis1,basis2,basis3,basis3_y1 Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+#' @param basis1,basis2,basis3,basis3_y1,basis1_yL,basis2_yL Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
 #'   with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
 #'   Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
 #'   while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}

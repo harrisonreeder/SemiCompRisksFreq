@@ -24,16 +24,23 @@ FreqSurv_HReg2(
 }
 \arguments{
 \item{Formula}{a Formula object, with the outcome on the left of a
-\code{~}, and covariates on the right. It is of the form, \code{time to non-terminal
-  event + corresponding censoring indicator | time to terminal event
-  + corresponding censoring indicator ~ covariates for h_1 |
-  covariates for h_2 | covariates for h_3}. For example, \code{y_1 + delta_1 | y_2 + delta_2 ~ x_1 | x_2 | x_3}.}
+\code{~}, and covariates on the right. It is of the form,
+\code{left truncation time | time to event +
+  corresponding censoring indicator ~ covariates}.
+For example, \code{y_L | y + delta ~ x_1 + x_2 + x_3}.
+If there is no left truncation, then the lefthand side should only contain
+the two sets of outcome variables.}
 
-\item{data}{a \code{data.frame} in which to interpret the variables named in Formula.}
+\item{data}{a \code{data.frame} in which to interpret
+the variables named in Formula.}
 
 \item{na.action}{how NAs are treated. See \code{\link[stats]{model.frame}}.}
 
-\item{subset}{a specification of the rows to be used: defaults to all rows. See \code{\link[stats]{model.frame}}.}
+\item{subset}{a specification of the rows to be used: defaults to all rows.
+See \code{\link[stats]{model.frame}}.}
+
+\item{weights}{Vector of numeric weights of length \eqn{n} corresponding
+to each observed individual.}
 
 \item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
 Options are \code{"weibull"} for Weibull,
@@ -44,34 +51,56 @@ Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} res
 
 \item{knots_vec}{Used for hazard specifications besides Weibull, a
 vector increasing sequence of integers, each corresponding to
-the knots for the flexible model on the baseline hazard. If
-\code{NULL}, will be created by \code{\link{get_default_knots}}.}
+the knots for the flexible model on the baseline hazard.
+If \code{NULL}, will be created by \code{\link{get_default_knots}}
+according to the number of parameters specified by \code{nP0}.}
 
 \item{p0}{Integer indicating how many baseline hazard parameters
-should be specified for each of the three transition hazards. This input is only relevant when
-hazard is something other than \code{"weibull"} and is superceded by knots_vec.}
+should be specified for each of the three transition hazards.
+This input is only relevant when hazard is something other than
+\code{"weibull"} and is superceded by knots_vec.}
 
-\item{startVals}{A numeric vector of parameter starting values, arranged as follows:
-the first \eqn{k_1+k_2+k_3} elements correspond to the baseline hazard parameters,
-then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameters.
-If set to \code{NULL}, will be generated automatically using \code{\link{get_start}}.}
+\item{startVals}{A numeric vector of parameter starting values,
+arranged as follows:
+the first \eqn{k} elements are the baseline hazard parameters,
+then the last\eqn{q} elements are the regression parameters.
+If set to \code{NULL}, generated internally using \code{\link{get_start}}.}
 
-\item{control}{a list of control attributes passed directly into the \code{optim} function.}
+\item{control}{a list of control attributes passed directly
+into the \code{optim} function.}
 
-\item{quad_method}{String indicating which quadrature method to use to evaluate numerical integral of B-spline.
-Options are \code{"kronrod"} for Gauss-Kronrod quadrature or \code{"legendre"} for Gauss-Legendre quadrature.}
+\item{quad_method}{String indicating which quadrature method to use to
+evaluate numerical integral of B-spline. Options are
+\code{"kronrod"} for Gauss-Kronrod quadrature or
+\code{"legendre"} for Gauss-Legendre quadrature.}
 
-\item{n_quad}{Scalar for number of Gaussian quadrature points used to evaluate numerical integral of B-spline.}
+\item{n_quad}{Scalar for number of Gaussian quadrature points used to
+evaluate numerical integral of B-spline.}
 
-\item{optim_method}{a string naming which \code{optim} method should be used for optimization.}
+\item{optim_method}{a string naming which \code{optim}
+method should be used for optimization.}
 
-\item{extra_starts}{Integer giving the number of extra starts to try when optimizing.}
+\item{extra_starts}{Integer giving the number of extra
+starts to try when optimizing.}
 
-\item{hessian}{Boolean indicating whether the hessian (aka, the inverse of the covariance matrix)
-should be computed and returned.}
+\item{output_options}{List of named boolean elements specifying whether
+certain additional components should be included in
+the model object output. Options include
+\itemize{
+\item{Finv}{Variance-covariance matrix. Defaults to \code{TRUE}.}
+\item{grad_mat_return}{Matrix with rowwise
+score vectors for each individual evaluated at the MLE.
+Used to compute "cheese" or "meat" in robust standard error computation.
+Defaults to \code{FALSE}.}
+\item{cheese}{Sum of outer products of individual score vectors,
+used as the "cheese" or "meat" in robust standard error computation.
+Defaults to \code{TRUE}.}
+\item{data_return}{Original data frame used to fit model.
+Defaults to \code{FALSE}.}
+}}
 }
 \value{
-\code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.
+An object of class \code{Freq_HReg}.
 }
 \description{
 Fit Parametric Univariate Survival Model

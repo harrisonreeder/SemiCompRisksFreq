@@ -8,7 +8,7 @@
 #' Gauss-Kronrod or Gauss-Legendre rules. The values are pre-computed and stored for
 #' number of nodes equal to 7, 11, 15, 21, 31, 41, 51, or 61.
 #'
-#' @inheritParams FreqID_HReg2
+#' @inheritParams FreqSurv_HReg2
 #' @return A list with two named elements (\code{points} and \code{weights}), each
 #'   of which is a numeric vector with length equal to the number of
 #'   quadrature nodes
@@ -398,7 +398,7 @@ get_quad_pointsweights <- function(n_quad, quad_method) {
 
 #' Return transformed Gaussian quadrature points based on the specified integral limits
 #'
-#' @inheritParams FreqID_HReg2
+#' @inheritParams FreqSurv_HReg2
 #' @param a vector lower limit of the integral
 #' @param b vector upper limit of the integral
 transform_quad_points <- function(n_quad, quad_method, a, b) {
@@ -430,10 +430,8 @@ transform_quad_points <- function(n_quad, quad_method, a, b) {
 #'   of knots requested, and distribution of observed event times.
 #'
 #'
-#' @inheritParams nll_func
-#' @param y Numeric vector of length \eqn{n} with (possibly censored) event times
-#' @param delta Numeric vector of length \eqn{n}  with indicator of 1 if the event was observed and 0 otherwise
-#' @param p0 Integer indicating how many parameters the model for the baseline hazard should specify.
+#' @inheritParams nll_uni_func
+#' @inheritParams FreqSurv_HReg2
 #'
 #' @return A vector of increasing sequences of integers, each corresponding to
 #'   the knots for the flexible model on the corresponding transition baseline hazard.
@@ -470,12 +468,8 @@ get_default_knots <- function(y,delta,p0,hazard){
 #'
 #' Generate a matrix of basis functions evaluated at each value of a vector \code{x}.
 #'
-#' @inheritParams nll_func
-#' @param x Numeric vector of event times (e.g., \code{y1} or \code{y2}) at which
-#'   to generate basis function values.
-#' @param knots Increasing vector of integers corresponding to the knots used
-#'   in the desired spline or piecewise specification. Often an element of
-#'   list generated from \code{\link{get_default_knots_list}}.
+#' @inheritParams nll_uni_func
+#' @inheritParams FreqSurv_HReg2
 #' @param deriv Boolean for whether returned values should be from derivatives of
 #'   basis functions if \code{TRUE}, or original basis functions if \code{FALSE}.
 #'
@@ -484,34 +478,34 @@ get_default_knots <- function(y,delta,p0,hazard){
 #'
 #' @import splines2
 #' @export
-get_basis <- function(x,knots,hazard,deriv=FALSE){
+get_basis <- function(y,knots_vec,hazard,deriv=FALSE){
   # browser()
   #the exact form of the knots passed into this function come from the above function
   if(tolower(hazard) %in% c("bspline","bs")){
     if(deriv){return(NULL)}
-    basis_out <- splines::bs(x = x, knots = knots[-c(1,length(knots))],
-                    Boundary.knots = knots[c(1,length(knots))],intercept = TRUE)
+    basis_out <- splines::bs(x = y, knots = knots_vec[-c(1,length(knots_vec))],
+                    Boundary.knots = knots_vec[c(1,length(knots_vec))],intercept = TRUE)
   } else if(tolower(hazard) %in% c("piecewise","pw")){
     if(deriv){
       # this is what the actual matrix of piecewise constant basis functions looks like
-      basis_out <- splines2::bSpline(x,knots=knots[-1], degree = 0,
-                     Boundary.knots = c(knots[1],1e305),intercept = TRUE)
+      basis_out <- splines2::bSpline(y,knots=knots_vec[-1], degree = 0,
+                     Boundary.knots = c(knots_vec[1],1e305),intercept = TRUE)
       #To make things more efficient, we could use the "dbasis"
       #slot to hold a vector indicating which interval each individual is in.
       #subtract one to account for 0-indexing of C++
-      # basis_out <- findInterval(x = x, vec = knots) - 1
+      # basis_out <- findInterval(x = y, vec = knots) - 1
     } else{
-      basis_out <- splines2::ibs(x,knots=knots[-1], degree = 0,
-                     Boundary.knots = c(knots[1],1e305), intercept = TRUE)
+      basis_out <- splines2::ibs(y,knots=knots_vec[-1], degree = 0,
+                     Boundary.knots = c(knots_vec[1],1e305), intercept = TRUE)
     }
 
   } else if(tolower(hazard) %in% c("royston-parmar","rp")){
     #for rp we generate basis on log scale, by transforming knots and data
-    knots_log <- log(knots)
+    knots_log <- log(knots_vec)
     if(any(is.infinite(knots_log) | is.na(knots_log))){
       stop("For royston-parmar model, all knots must be positive.")
     }
-    temp_log <- log(x)
+    temp_log <- log(y)
     temp_log[is.infinite(temp_log)] <- NA
     if(deriv){
       # basis_out <- splines2::naturalSpline(x = temp_log,
@@ -546,15 +540,14 @@ get_basis <- function(x,knots,hazard,deriv=FALSE){
 #'   model specifications.
 #'
 #' @inheritParams nll_uni_func
-#' @inheritParams get_default_knots
-#' @inheritParams get_basis
+#' @inheritParams FreqSurv_HReg2
 #' @param sparse_start Boolean indicating whether to set all regression parameters
 #'   to 0 if \code{TRUE}, or to pre-estimate them using univariate models if \code{FALSE}.
 #'
 #' @return A vector of starting parameter values.
 #' @importFrom pracma numderiv numdiff
 #' @export
-get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots, basis,
+get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots_vec, basis,
                           hazard, weights, sparse_start=FALSE){
   # browser()
   p <- if(!is.null(Xmat)) ncol(Xmat) else 0
@@ -606,7 +599,7 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots, basis,
       yvals_basis <- stats::predict(basis, yvals)
       #generate smoothed baseline hazard from Cox model fit
       H0_fit_interpolate <- stats::smooth.spline(H0_fit$time, H0_fit$hazard,
-                             df = length(knots)+3+1) #same df as specified model
+                             df = length(knots_vec)+3+1) #same df as specified model
       h0_fit_interpolate <- stats::predict(H0_fit_interpolate,x = yvals,deriv = 1)
       if(any(h0_fit_interpolate$y <= 0)){ #lm.fit can't handle log(0)=-Inf
         #replace negative values with smallest positive observed value.
@@ -651,9 +644,9 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots, basis,
 #' A function to fit.
 #'
 #' @inheritParams nll_uni_func
-#' @inheritParams get_default_knots
-#' @inheritParams get_basis
 #' @inheritParams FreqSurv_HReg2
+#' @param hessian Boolean indicating whether the hessian
+#'   (inverse of the covariance matrix) should be computed and returned.
 #'
 #' @return A fit object.
 #' @import nleqslv
@@ -794,8 +787,7 @@ get_default_knots_list <- function(y1,y2,delta1,delta2,p01,p02,p03,hazard,model)
 #'
 #' @inheritParams nll_func
 #' @inheritParams FreqID_HReg2
-#' @param sparse_start Boolean indicating whether to set all regression parameters
-#'   to 0 if \code{TRUE}, or to pre-estimate them using univariate models if \code{FALSE}.
+#' @inheritParams get_start_uni
 #'
 #' @return A vector of starting parameter values.
 #' @export
@@ -809,13 +801,13 @@ get_start <- function(y1,y2,delta1,delta2,yL,anyLT,
   p03 <- if(tolower(hazard) %in% c("weibull","wb")) 2 else ncol(basis3)
   #start values for first transition hazard
   start1 <- get_start_uni(y = y1, delta = delta1, yL = yL, anyLT = anyLT,
-                          Xmat = Xmat1, knots = knots_list[[1]], basis = basis1,
+                          Xmat = Xmat1, knots_vec = knots_list[[1]], basis = basis1,
                           hazard = hazard, weights=weights, sparse_start=sparse_start)
   #start values for second transition hazard
   #define new indicator for terminal event, treating non-terminal as competing risk
   delta_cr <- ifelse(y1 < y2, 0, delta2)
   start2 <- get_start_uni(y = y1, delta = delta_cr, yL = yL, anyLT = anyLT,
-                          Xmat = Xmat2, knots = knots_list[[2]], basis = basis2,
+                          Xmat = Xmat2, knots_vec = knots_list[[2]], basis = basis2,
                           hazard = hazard, weights=weights, sparse_start=sparse_start)
   #prepare inputs for third transition model fit
   ismarkov <- as.numeric(tolower(model)=="markov") #markov model is left-truncated
@@ -828,7 +820,7 @@ get_start <- function(y1,y2,delta1,delta2,yL,anyLT,
   #so no need to subset it.
 
   start3 <- get_start_uni(y = y_sub, delta = delta2_sub, yL = yL_sub,
-                anyLT = ismarkov, Xmat = Xmat3_sub, knots = knots_list[[3]],
+                anyLT = ismarkov, Xmat = Xmat3_sub, knots_vec = knots_list[[3]],
                 basis = basis3, hazard = hazard, weights=weights_sub, sparse_start=sparse_start)
 
   phi1 <- start1[1:p01]
@@ -887,7 +879,7 @@ get_start <- function(y1,y2,delta1,delta2,yL,anyLT,
 #'
 #' @inheritParams nll_func
 #' @inheritParams FreqID_HReg2
-#'
+#' @inheritParams get_fit_uni
 #' @param startVals_nf A vector of starting parameter values without a frailty variance,
 #'   such as computed by \code{\link{get_start}}.
 #'
@@ -1016,6 +1008,7 @@ get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,yL,anyLT,
 #'
 #' @inheritParams nll_func
 #' @inheritParams FreqID_HReg2
+#' @inheritParams get_fit_uni
 #'
 #' @return A vector of starting parameter values.
 #' @export

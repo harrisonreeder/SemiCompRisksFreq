@@ -10,7 +10,7 @@ get_start_uni(
   yL,
   anyLT,
   Xmat,
-  knots,
+  knots_vec,
   basis,
   hazard,
   weights,
@@ -28,9 +28,11 @@ get_start_uni(
 
 \item{Xmat}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
-\item{knots}{Increasing vector of integers corresponding to the knots used
-in the desired spline or piecewise specification. Often an element of
-list generated from \code{\link{get_default_knots_list}}.}
+\item{knots_vec}{Used for hazard specifications besides Weibull, a
+vector increasing sequence of integers, each corresponding to
+the knots for the flexible model on the baseline hazard.
+If \code{NULL}, will be created by \code{\link{get_default_knots}}
+according to the number of parameters specified by \code{nP0}.}
 
 \item{basis}{Numeric matrix with \eqn{n} rows and \eqn{k} columns
 with piecewise/spline basis function values at the corresponding \code{y} values.
@@ -42,6 +44,9 @@ Options are \code{"weibull"} for Weibull,
 \code{"bspline"} for cubic B-spline on the log-hazard scale,
 and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
 Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
+
+\item{weights}{Vector of numeric weights of length \eqn{n} corresponding
+to each observed individual.}
 
 \item{sparse_start}{Boolean indicating whether to set all regression parameters
 to 0 if \code{TRUE}, or to pre-estimate them using univariate models if \code{FALSE}.}

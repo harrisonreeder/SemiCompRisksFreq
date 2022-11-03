@@ -1,6 +1,7 @@
 #' The function that simulates independent/cluster-correlated semi-competing
 #'   risks data under Markov/semi-Markov Weibull models.
 #'
+#' @inheritParams FreqID_HReg2
 #' @param id A vector of cluster information for \code{n} subjects.
 #'   The cluster membership must be set to consecutive positive integers, \eqn{1:J}.
 #'   Required only when generating clustered data.
@@ -13,7 +14,6 @@
 #' @param theta.true True value for \eqn{\theta}.
 #' @param SigmaV.true True value for covariance matrix of MVN cluster-level random effects.
 #'   Required only when generating clustered data. Should be a numeric \eqn{J\times J} matrix.
-#' @param anyD Boolean for whether to allow any "immediate" terminal events
 #' @param h3tv_degree either the string "cs" indicating restricted cubic spline, or an integer for degree of time-varying hazard/odds ratio B-spline basis. (0 is piecewise constant)
 #' @param frailty_type string denoting "gamma" for gamma-distributed frailty with variance \code{theta}, or "lognormal" for lognormal distributed frailty with log-frailty variance \code{theta}
 #' @param LT_interval A numeric vector of two elements. The left truncation censoring times are generated from Uniform(\eqn{LT_interval[1]}, \eqn{LT_interval[2]}).
@@ -80,13 +80,13 @@ simID2 <- function(id = NULL, x1, x2, x3,
 
   #check the lower.bound stuff to make sure that I have the right probs and not 1-probs
   if(anyLT){
-    yL <- runif(n,min=LT_interval[1],max=LT_interval[2])
+    yL <- stats::runif(n,min=LT_interval[1],max=LT_interval[2])
     R_bound <- stats::pweibull(yL, lower.tail = TRUE, shape = alpha1.true,
                                scale = exp(-(log(kappa1.true) + LP1 + log(gamma.true))/alpha1.true))
     D_bound <- stats::pweibull(yL, lower.tail = TRUE, shape = alpha2.true,
                                scale = exp(-(log(kappa2.true) + LP2 + beta2frail.true * log(gamma.true))/alpha2.true))
-    R_prob <- runif(n,min=R_bound,max=1)
-    D_prob <- runif(n,min=D_bound,max=1)
+    R_prob <- stats::runif(n,min=R_bound,max=1)
+    D_prob <- stats::runif(n,min=D_bound,max=1)
     R <- stats::qweibull(R_prob, lower.tail = TRUE, shape = alpha1.true,
                          scale = exp(-(log(kappa1.true) + LP1 + log(gamma.true))/alpha1.true))
     D <- stats::qweibull(D_prob, lower.tail = TRUE, shape = alpha2.true,

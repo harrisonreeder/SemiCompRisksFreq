@@ -46,6 +46,10 @@ such as computed by \code{\link{get_start}}.}
 
 \item{delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
 
+\item{yL}{Numeric vector of length \eqn{n} with left-truncation times.}
+
+\item{anyLT}{Boolean (or 1/0) value that is \code{TRUE} (or 1) if there are any non-zero left truncation times, and \code{FALSE} (or 0) otherwise}
+
 \item{Xmat1}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
 \item{Xmat2}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
@@ -54,8 +58,12 @@ such as computed by \code{\link{get_start}}.}
 
 \item{knots_list}{Used for hazard specifications besides Weibull, a
 list of three increasing sequences of integers, each corresponding to
-the knots for the flexible model on the corresponding transition baseline hazard. If
-\code{NULL}, will be created by \code{\link{get_default_knots_list}}.}
+the knots for the flexible model on the corresponding transition baseline hazard.
+If \code{NULL}, will be created by \code{\link{get_default_knots_list}}
+according to the number of parameters specified by \code{nP0}.}
+
+\item{weights}{Vector of numeric weights of length \eqn{n} corresponding
+to each observed individual.}
 
 \item{basis1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
 with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
@@ -76,6 +84,18 @@ while under Markov model, basis3 represents basis derived from \eqn{y_2} and \co
 Not used under Weibull model.}
 
 \item{basis3_y1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
+Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
+while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
+Not used under Weibull model.}
+
+\item{basis1_yL}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
+Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
+while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
+Not used under Weibull model.}
+
+\item{basis2_yL}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
 with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
 Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
 while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
@@ -102,14 +122,17 @@ Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} res
 
 \item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
 
-\item{control}{a list of control attributes passed directly into the \code{optim} function.}
+\item{control}{a list of control attributes passed directly
+into the \code{optim} function.}
 
-\item{hessian}{Boolean indicating whether the hessian (aka, the inverse of the covariance matrix)
-should be computed and returned.}
+\item{hessian}{Boolean indicating whether the hessian
+(inverse of the covariance matrix) should be computed and returned.}
 
-\item{optim_method}{a string naming which \code{optim} method should be used.}
+\item{optim_method}{a string naming which \code{optim}
+method should be used for optimization.}
 
-\item{extra_starts}{Integer giving the number of extra starts to try when optimizing.}
+\item{extra_starts}{Integer giving the number of extra
+starts to try when optimizing.}
 }
 \value{
 A vector of starting parameter values.

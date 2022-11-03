@@ -4,15 +4,16 @@
 \alias{get_basis}
 \title{Get Basis Function Values for Flexible Hazard Specifications}
 \usage{
-get_basis(x, knots, hazard, deriv = FALSE)
+get_basis(y, knots_vec, hazard, deriv = FALSE)
 }
 \arguments{
-\item{x}{Numeric vector of event times (e.g., \code{y1} or \code{y2}) at which
-to generate basis function values.}
+\item{y}{Numeric vector of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
 
-\item{knots}{Increasing vector of integers corresponding to the knots used
-in the desired spline or piecewise specification. Often an element of
-list generated from \code{\link{get_default_knots_list}}.}
+\item{knots_vec}{Used for hazard specifications besides Weibull, a
+vector increasing sequence of integers, each corresponding to
+the knots for the flexible model on the baseline hazard.
+If \code{NULL}, will be created by \code{\link{get_default_knots}}
+according to the number of parameters specified by \code{nP0}.}
 
 \item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
 Options are \code{"weibull"} for Weibull,

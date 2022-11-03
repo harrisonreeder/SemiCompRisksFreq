@@ -1,3 +1,31 @@
+#' Extract robust "sandwich" estimate of variance-covariance matrix
+#'
+#' This function computes the robust "sandwich" variance estimate from frequentist
+#' model object, provided that the model object includes the "cheese" or "meat" matrix comprising
+#' the summed outer products of each individual subject's scores evaluated at the MLE.
+#'
+#' @param object Model object
+#' @param adjust Boolean for whether to include "finite sample"
+#'  degrees-of-freedom adjustment by multiplication with \eqn{n/(n-k)}
+#'  where \eqn{n} is the number of observations and
+#'  \eqn{k} is the number of estimated parameters.
+#' @param ... Other arguments (currently unused).
+#'
+#' @export
+vcov_sandwich <- function (object, adjust = FALSE, ...){
+  if(is.null(object$cheese) || is.null(object$Finv)){stop("fitted model does not have 'cheese' for sandwich variance.")}
+  val <- object$Finv %*% object$cheese %*% object$Finv
+  if(adjust) val <- val * object$nobs / (object$nobs - NROW(object$Finv))
+  rownames(val) <- colnames(val) <- names(object$estimate)
+  val
+}
+
+#' @export
+vcov.Freq_HReg2 <- function (object, ...){
+  val <- object$Finv
+  rownames(val) <- colnames(val) <- names(object$estimate)
+  val
+}
 
 #' @export
 logLik.Freq_HReg2 <- function (object, ...){
@@ -15,22 +43,6 @@ extractAIC.Freq_HReg2 <- function (fit, scale, k=2, ...){
 #' @export
 coef.Freq_HReg2 <- function (object, ...){
   object$estimate
-}
-
-#' @export
-vcov.Freq_HReg2 <- function (object, ...){
-  val <- object$Finv
-  rownames(val) <- colnames(val) <- names(object$estimate)
-  val
-}
-
-#' @export
-vcov_sandwich <- function (object, adjust = FALSE, ...){
-  if(is.null(object$cheese) || is.null(object$Finv)){stop("fitted model does not have 'cheese' for sandwich variance.")}
-  val <- object$Finv %*% object$cheese %*% object$Finv
-  if(adjust) val <- val * object$nobs / (object$nobs - NROW(object$Finv))
-  rownames(val) <- colnames(val) <- names(object$estimate)
-  val
 }
 
 #' @export
@@ -321,7 +333,7 @@ pred_helper <- function(tseq, xnew, func_type, conf.level,
     } else stop("'func_type' must be 'Surv' or 'Haz'")
   } else if(hazard_lab=="Piecewise Constant"){
     if(func_type=="S"){
-      basis <- get_basis(x = tseq,knots = knots_vec,hazard = "piecewise")
+      basis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = "piecewise")
       Lambda0 <- as.vector(basis %*% exp(phi))
       if(pred_type=="marginal"){
         denom <- (1+theta*Lambda0*exp(eta))
@@ -342,14 +354,14 @@ pred_helper <- function(tseq, xnew, func_type, conf.level,
                                                                  ncol = length(xnew), byrow = T))
       }
     } else if(func_type=="h"){
-      dbasis <- get_basis(x = tseq,knots = knots_vec,hazard = "piecewise",deriv = TRUE)
+      dbasis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = "piecewise",deriv = TRUE)
       out_temp <- as.vector(dbasis %*% exp(phi) * exp(eta))
       if(pred_type=="marginal"){
 
         #here I tested out a few equivalent ways of computing marginal hazard
         #they gave same haz but slightly different (all anticonservative) CIs
 
-        basis <- get_basis(x = tseq,knots = knots_vec,hazard = "piecewise")
+        basis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = "piecewise")
         Lambda0 <- as.vector(basis %*% exp(phi))
         denom <- (1+theta*Lambda0*exp(eta))
         # #For phi partial derivs, first, multiply every row of basis by exp(phi),
@@ -363,8 +375,8 @@ pred_helper <- function(tseq, xnew, func_type, conf.level,
 
         # #compute jacobian of log marginal hazard numerically (slightly diff CI)
         # marg_loghaz <- function(para,t){
-        #   basis <- get_basis(x = t,knots = knots_vec,hazard = "piecewise")
-        #   dbasis <- get_basis(x = t,knots = knots_vec,hazard = "piecewise",deriv=TRUE)
+        #   basis <- get_basis(y = t,knots_vec = knots_vec,hazard = "piecewise")
+        #   dbasis <- get_basis(y = t,knots_vec = knots_vec,hazard = "piecewise",deriv=TRUE)
         #   log(as.vector(dbasis %*% exp(para[-1]))) - log1p(exp(para[1])*as.vector(basis %*% exp(para[-1])))
         # }
         # out_temp <- exp(marg_loghaz(para = c(logtheta,phi), t=tseq))
@@ -375,8 +387,8 @@ pred_helper <- function(tseq, xnew, func_type, conf.level,
 
         # #this one also used a different delta method, in terms of hazard directly
         # marg_haz <- function(para,t){
-        #   basis <- get_basis(x = t,knots = knots_vec,hazard = "piecewise")
-        #   dbasis <- get_basis(x = t,knots = knots_vec,hazard = "piecewise",deriv=TRUE)
+        #   basis <- get_basis(y = t,knots_vec = knots_vec,hazard = "piecewise")
+        #   dbasis <- get_basis(y = t,knots_vec = knots_vec,hazard = "piecewise",deriv=TRUE)
         #   as.vector(dbasis %*% exp(para[-1])) / (1 + exp(para[1])*as.vector(basis %*% exp(para[-1])))
         # }
         # out_temp <- marg_haz(para = c(logtheta,phi), t=tseq)
@@ -396,7 +408,7 @@ pred_helper <- function(tseq, xnew, func_type, conf.level,
       }
     } else stop("'func_type' must be 'Surv' or 'Haz'")
   } else if(hazard_lab=="Royston-Parmar"){
-    basis <- get_basis(x = tseq,knots = knots_vec,hazard = "royston-parmar")
+    basis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = "royston-parmar")
     Lambda0 <- as.vector(exp(basis %*% phi))
     if(func_type=="S"){
       if(pred_type=="marginal"){
@@ -409,10 +421,10 @@ pred_helper <- function(tseq, xnew, func_type, conf.level,
                                                                 ncol = length(xnew), byrow = T))
       }
     } else if(func_type=="h"){
-      dbasis <- get_basis(x = tseq,knots = knots_vec,hazard = "royston-parmar",deriv = TRUE)
+      dbasis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = "royston-parmar",deriv = TRUE)
       out_temp <- as.vector(dbasis %*% phi / tseq * exp(basis %*% phi + eta))
       if(pred_type=="marginal"){
-        basis <- get_basis(x = tseq,knots = knots_vec,hazard = "royston-parmar")
+        basis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = "royston-parmar")
         Lambda0 <- as.vector(exp(basis %*% phi))
         denom <- (1+theta*Lambda0*exp(eta))
         out_temp <- out_temp / denom
@@ -435,8 +447,8 @@ pred_helper <- function(tseq, xnew, func_type, conf.level,
                                            quad_method=quad_method)$weights
     quad_points <- transform_quad_points(n_quad = n_quad,
                                          quad_method=quad_method, a = 0,b = tseq)
-    basis <- get_basis(x=tseq,knots=knots_vec,hazard="bspline")
-    basis_quad <- get_basis(x=quad_points, knots=knots_vec,hazard="bspline")
+    basis <- get_basis(y=tseq,knots_vec=knots_vec,hazard="bspline")
+    basis_quad <- get_basis(y=quad_points, knots_vec=knots_vec,hazard="bspline")
     lambda0 <- as.vector(exp(basis_quad %*% phi))
     if(func_type=="S"){
       #reshape lambda0 from a n*n_quad length vector

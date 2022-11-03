@@ -34,6 +34,10 @@ get_start(
 
 \item{delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
 
+\item{yL}{Numeric vector of length \eqn{n} with left-truncation times.}
+
+\item{anyLT}{Boolean (or 1/0) value that is \code{TRUE} (or 1) if there are any non-zero left truncation times, and \code{FALSE} (or 0) otherwise}
+
 \item{Xmat1}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
 \item{Xmat2}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
@@ -42,8 +46,9 @@ get_start(
 
 \item{knots_list}{Used for hazard specifications besides Weibull, a
 list of three increasing sequences of integers, each corresponding to
-the knots for the flexible model on the corresponding transition baseline hazard. If
-\code{NULL}, will be created by \code{\link{get_default_knots_list}}.}
+the knots for the flexible model on the corresponding transition baseline hazard.
+If \code{NULL}, will be created by \code{\link{get_default_knots_list}}
+according to the number of parameters specified by \code{nP0}.}
 
 \item{basis1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
 with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
@@ -74,6 +79,9 @@ Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} res
 be included. Currently this must be set to \code{TRUE}.}
 
 \item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
+
+\item{weights}{Vector of numeric weights of length \eqn{n} corresponding
+to each observed individual.}
 
 \item{sparse_start}{Boolean indicating whether to set all regression parameters
 to 0 if \code{TRUE}, or to pre-estimate them using univariate models if \code{FALSE}.}

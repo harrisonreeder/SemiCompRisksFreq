@@ -7,10 +7,13 @@
 transform_quad_points(n_quad, quad_method, a, b)
 }
 \arguments{
-\item{n_quad}{Scalar for number of Gaussian quadrature points used to evaluate numerical integral of B-spline.}
+\item{n_quad}{Scalar for number of Gaussian quadrature points used to
+evaluate numerical integral of B-spline.}
 
-\item{quad_method}{String indicating which quadrature method to use to evaluate numerical integral of B-spline.
-Options are 'kronrod' for Gauss-Kronrod quadrature or 'legendre' for Gauss-Legendre quadrature.}
+\item{quad_method}{String indicating which quadrature method to use to
+evaluate numerical integral of B-spline. Options are
+\code{"kronrod"} for Gauss-Kronrod quadrature or
+\code{"legendre"} for Gauss-Legendre quadrature.}
 
 \item{a}{vector lower limit of the integral}
 

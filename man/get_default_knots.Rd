@@ -7,11 +7,14 @@
 get_default_knots(y, delta, p0, hazard)
 }
 \arguments{
-\item{y}{Numeric vector of length \eqn{n} with (possibly censored) event times}
+\item{y}{Numeric vector of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
 
 \item{delta}{Numeric vector of length \eqn{n}  with indicator of 1 if the event was observed and 0 otherwise}
 
-\item{p0}{Integer indicating how many parameters the model for the baseline hazard should specify.}
+\item{p0}{Integer indicating how many baseline hazard parameters
+should be specified for each of the three transition hazards.
+This input is only relevant when hazard is something other than
+\code{"weibull"} and is superceded by knots_vec.}
 
 \item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
 Options are \code{"weibull"} for Weibull,

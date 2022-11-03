@@ -40,6 +40,9 @@ Options are \code{"weibull"} for Weibull,
 and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
 Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
+\item{weights}{Vector of numeric weights of length \eqn{n} corresponding
+to each observed individual.}
+
 \item{basis}{Numeric matrix with \eqn{n} rows and \eqn{k} columns
 with piecewise/spline basis function values at the corresponding \code{y} values.
 Not used under Weibull model.}

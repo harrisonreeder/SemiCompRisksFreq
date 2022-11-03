@@ -1,41 +1,59 @@
 #' Fit Parametric Frailty Illness-Death Model for Semi-Competing Risks Data
 #'
 #' @inheritParams nll_func
+#' @inheritParams FreqSurv_HReg2
 #' @param Formula a Formula object, with the outcome on the left of a
-#'   \code{~}, and covariates on the right. It is of the form, \code{time to non-terminal
+#'   \code{~}, and covariates on the right. It is of the form,
+#'   \code{left truncation time | time to non-terminal
 #'   event + corresponding censoring indicator | time to terminal event
 #'   + corresponding censoring indicator ~ covariates for h_1 |
-#'   covariates for h_2 | covariates for h_3}. For example, \code{y_1 + delta_1 | y_2 + delta_2 ~ x_1 | x_2 | x_3}.
-#' @param data a \code{data.frame} in which to interpret the variables named in Formula.
-#' @param na.action how NAs are treated. See \code{\link[stats]{model.frame}}.
-#' @param subset a specification of the rows to be used: defaults to all rows. See \code{\link[stats]{model.frame}}.
+#'   covariates for h_2 | covariates for h_3}.
+#'   For example, \code{y_L | y_1 + delta_1 | y_2 + delta_2 ~ x_1 | x_2 | x_3}.
+#'   If there is no left truncation, then the lefthand side should only contain
+#'   the two sets of outcome variables.
 #' @param knots_list Used for hazard specifications besides Weibull, a
 #'   list of three increasing sequences of integers, each corresponding to
-#'   the knots for the flexible model on the corresponding transition baseline hazard. If
-#'   \code{NULL}, will be created by \code{\link{get_default_knots_list}}.
-#' @param nP0 vector of length three of integers indicating how many baseline hazard parameters
-#'   should be specified for each of the three transition hazards. This input is only relevant when
+#'   the knots for the flexible model on the corresponding transition baseline hazard.
+#'   If \code{NULL}, will be created by \code{\link{get_default_knots_list}}
+#'   according to the number of parameters specified by \code{nP0}.
+#' @param nP0 vector of length three of integers indicating how many
+#'   baseline hazard parameters
+#'   should be specified for each of the three transition hazards.
+#'   This input is only relevant when
 #'   hazard is something other than "weibull" and is superceded by knots_list.
-#' @param startVals A numeric vector of parameter starting values, arranged as follows:
-#'   the first \eqn{k_1+k_2+k_3} elements correspond to the baseline hazard parameters,
-#'   then the \eqn{k_1+k_2+k_3+1} element corresponds to the gamma frailty log-variance parameter,
-#'   then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameters.
-#'   If set to \code{NULL}, will be generated automatically using \code{\link{get_start}}.
-#' @param hessian Boolean indicating whether the hessian (aka, the inverse of the covariance matrix)
-#'   should be computed and returned.
-#' @param control a list of control attributes passed directly into the \code{optim} function.
-#' @param n_quad Scalar for number of Gaussian quadrature points used to evaluate numerical integral of B-spline.
-#' @param quad_method String indicating which quadrature method to use to evaluate numerical integral of B-spline.
-#'   Options are 'kronrod' for Gauss-Kronrod quadrature or 'legendre' for Gauss-Legendre quadrature.
-#' @param optim_method a string naming which \code{optim} method should be used.
-#' @param extra_starts Integer giving the number of extra starts to try when optimizing.
+#' @param startVals A numeric vector of parameter starting values,
+#'   arranged as follows:
+#'   the first \eqn{k_1+k_2+k_3} elements are the baseline hazard parameters,
+#'   then the gamma frailty log-variance parameter,
+#'   then the last\eqn{q_1+q_2+q_3} elements are the regression parameters.
+#'   If set to \code{NULL}, generated internally using \code{\link{get_start}}.
+#' @param output_options List of named boolean elements specifying whether
+#'   certain additional components should be included in
+#'   the model object output. Options include
+#'   \itemize{
+#'     \item{Finv}{Variance-covariance matrix. Defaults to \code{TRUE}.}
+#'     \item{nf_fit}{If \code{frailty} is \code{TRUE}, include an
+#'     additional fit object for the corresponding non-frailty model.
+#'     Defaults to \code{TRUE}.}
+#'     \item{eb_frailties}{Include vector of empirical Bayes
+#'     predicted gamma frailty values. Defaults to \code{TRUE}.}
+#'     \item{grad_mat_return}{Matrix with rowwise
+#'     score vectors for each individual evaluated at the MLE.
+#'     Used to compute "cheese" or "meat" in robust standard error computation.
+#'     Defaults to \code{FALSE}.}
+#'     \item{cheese}{Sum of outer products of individual score vectors,
+#'     used as the "cheese" or "meat" in robust standard error computation.
+#'     Defaults to \code{TRUE}.}
+#'     \item{data_return}{Original data frame used to fit model.
+#'     Defaults to \code{FALSE}.}
+#'   }
 #'
 #' @return \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.
 #' @import Formula
 #' @export
 FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weights=NULL,
                         hazard=c("weibull"), frailty=TRUE, model, knots_list=NULL,
-                        nP0=rep(4,3), startVals=NULL, hessian=TRUE, control=NULL,
+                        nP0=rep(4,3), startVals=NULL, control=NULL,
                         quad_method="kronrod", n_quad=15,
                         optim_method="BFGS", extra_starts=0, output_options=NULL){
   # browser()
@@ -60,7 +78,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
 
   #if any output options have been given, override the defaults
   out_options=list(nf_fit=TRUE,Finv=TRUE,grad_mat_return=FALSE,
-                   cheese=TRUE,frail_pred=TRUE,data_return=FALSE)
+                   cheese=TRUE,eb_frailties=TRUE,data_return=FALSE)
   nmsO <- names(out_options)
   namO <- names(output_options)
   out_options[namO] <- output_options
@@ -117,50 +135,50 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
     #now, each spline specification has it's own details regarding generating
     #basis functions, so we go through them one by one.
     if(hazard %in% c("royston-parmar","rp")){
-      basis1 <- get_basis(x=y1,knots=knots_list[[1]],hazard=hazard)
-      basis2 <- get_basis(x=y1,knots=knots_list[[2]],hazard=hazard)
+      basis1 <- get_basis(y=y1,knots_vec=knots_list[[1]],hazard=hazard)
+      basis2 <- get_basis(y=y1,knots_vec=knots_list[[2]],hazard=hazard)
       if(anyLT){
-        basis1_yL <- get_basis(x=yL,knots=knots_list[[1]],hazard=hazard)
-        basis2_yL <- get_basis(x=yL,knots=knots_list[[2]],hazard=hazard)
+        basis1_yL <- get_basis(y=yL,knots_vec=knots_list[[1]],hazard=hazard)
+        basis2_yL <- get_basis(y=yL,knots_vec=knots_list[[2]],hazard=hazard)
       } else{
         basis1_yL <- NULL
         basis2_yL <- NULL
       }
       #royston-parmar model also uses a set of derivative basis functions
-      dbasis1 <- get_basis(x=y1,knots=knots_list[[1]],hazard=hazard,deriv=TRUE)
-      dbasis2 <- get_basis(x=y1,knots=knots_list[[2]],hazard=hazard,deriv=TRUE)
+      dbasis1 <- get_basis(y=y1,knots_vec=knots_list[[1]],hazard=hazard,deriv=TRUE)
+      dbasis2 <- get_basis(y=y1,knots_vec=knots_list[[2]],hazard=hazard,deriv=TRUE)
       if(tolower(model)=="semi-markov"){
-        basis3 <- get_basis(x=y2-y1,knots=knots_list[[3]],hazard=hazard)
-        dbasis3 <- get_basis(x=y2-y1,knots=knots_list[[3]],hazard=hazard,deriv=TRUE)
+        basis3 <- get_basis(y=y2-y1,knots_vec=knots_list[[3]],hazard=hazard)
+        dbasis3 <- get_basis(y=y2-y1,knots_vec=knots_list[[3]],hazard=hazard,deriv=TRUE)
         basis3_y1 <-  NULL
       } else{
-        basis3 <- get_basis(x=y2,knots=knots_list[[3]],hazard=hazard)
-        dbasis3 <- get_basis(x=y2,knots=knots_list[[3]],hazard=hazard,deriv=TRUE)
+        basis3 <- get_basis(y=y2,knots_vec=knots_list[[3]],hazard=hazard)
+        dbasis3 <- get_basis(y=y2,knots_vec=knots_list[[3]],hazard=hazard,deriv=TRUE)
         #royston-parmar model requires separate basis3_y1 matrix
-        basis3_y1 <-  get_basis(x=y1,knots=knots_list[[3]],hazard=hazard)
+        basis3_y1 <-  get_basis(y=y1,knots_vec=knots_list[[3]],hazard=hazard)
       }
     } else if(hazard %in% c("piecewise","pw")){
-      basis1 <- get_basis(x=y1,knots=knots_list[[1]],hazard=hazard)
-      basis2 <- get_basis(x=y1,knots=knots_list[[2]],hazard=hazard)
+      basis1 <- get_basis(y=y1,knots_vec=knots_list[[1]],hazard=hazard)
+      basis2 <- get_basis(y=y1,knots_vec=knots_list[[2]],hazard=hazard)
       if(anyLT){
-        basis1_yL <- get_basis(x=yL,knots=knots_list[[1]],hazard=hazard)
-        basis2_yL <- get_basis(x=yL,knots=knots_list[[2]],hazard=hazard)
+        basis1_yL <- get_basis(y=yL,knots_vec=knots_list[[1]],hazard=hazard)
+        basis2_yL <- get_basis(y=yL,knots_vec=knots_list[[2]],hazard=hazard)
       } else{
         basis1_yL <- NULL
         basis2_yL <- NULL
       }
       #piecewise constant model also uses a set of derivative basis functions
-      dbasis1 <- get_basis(x=y1,knots=knots_list[[1]],hazard=hazard,deriv=TRUE)
-      dbasis2 <- get_basis(x=y1,knots=knots_list[[2]],hazard=hazard,deriv=TRUE)
+      dbasis1 <- get_basis(y=y1,knots_vec=knots_list[[1]],hazard=hazard,deriv=TRUE)
+      dbasis2 <- get_basis(y=y1,knots_vec=knots_list[[2]],hazard=hazard,deriv=TRUE)
       if(tolower(model)=="semi-markov"){
-        basis3 <- get_basis(x=y2-y1,knots=knots_list[[3]],hazard=hazard)
-        dbasis3 <- get_basis(x=y2-y1,knots=knots_list[[3]],hazard=hazard,deriv=TRUE)
+        basis3 <- get_basis(y=y2-y1,knots_vec=knots_list[[3]],hazard=hazard)
+        dbasis3 <- get_basis(y=y2-y1,knots_vec=knots_list[[3]],hazard=hazard,deriv=TRUE)
       } else{
         #for markov piecewise constant model, we simplify by setting
         #basis3 as the difference of bases for y2 and y1
-        basis3 <- get_basis(x=y2,knots=knots_list[[3]],hazard=hazard) -
-          get_basis(x=y1,knots=knots_list[[3]],hazard=hazard)
-        dbasis3 <- get_basis(x=y2,knots=knots_list[[3]],hazard=hazard,deriv=TRUE)
+        basis3 <- get_basis(y=y2,knots_vec=knots_list[[3]],hazard=hazard) -
+          get_basis(y=y1,knots_vec=knots_list[[3]],hazard=hazard)
+        dbasis3 <- get_basis(y=y2,knots_vec=knots_list[[3]],hazard=hazard,deriv=TRUE)
         basis3_y1 <- NULL
       }
     } else if(hazard %in% c("bspline","bs")){
@@ -174,17 +192,17 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
       y1_quad <- c(y1,transform_quad_points(n_quad=n_quad,
                                             quad_method=quad_method,
                                             a=yL,b=y1)) #note that for a start, incorporate left truncation in here
-      basis1 <- get_basis(x=y1_quad, knots=knots_list[[1]],hazard=hazard)
-      basis2 <- get_basis(x=y1_quad, knots=knots_list[[2]],hazard=hazard)
+      basis1 <- get_basis(y=y1_quad, knots_vec=knots_list[[1]],hazard=hazard)
+      basis2 <- get_basis(y=y1_quad, knots_vec=knots_list[[2]],hazard=hazard)
       if(tolower(model)=="semi-markov"){
         y2y1_quad <- c(y2-y1, transform_quad_points(n_quad=n_quad,a=0,b=y2-y1,
                                                     quad_method=quad_method))
-        basis3 <- get_basis(x=y2y1_quad,knots=knots_list[[3]],hazard=hazard)
+        basis3 <- get_basis(y=y2y1_quad,knots_vec=knots_list[[3]],hazard=hazard)
         dbasis3 <- NULL
       } else{ #markov (i.e., time to y2 treating y1 as left-truncation time)
         y2_quad <- c(y2, transform_quad_points(n_quad=n_quad,a=y1,b=y2,
                                                  quad_method=quad_method))
-        basis3 <- get_basis(x=y2_quad,knots=knots_list[[3]],hazard=hazard)
+        basis3 <- get_basis(y=y2_quad,knots_vec=knots_list[[3]],hazard=hazard)
         basis3_y1 <- dbasis3 <- NULL
       }
       #lastly, we add attribute storing quadrature method
@@ -259,7 +277,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                 basis1_yL=basis1_yL, basis2_yL=basis2_yL,weights=weights,
                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                control=con, hessian=hessian,optim_method=optim_method,
+                control=con, hessian=out_options$Finv,optim_method=optim_method,
                 extra_starts=extra_starts)
   } else{
     #Even for frailty model fit, optionally fit non-frailty model for comparison
@@ -271,7 +289,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                            basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                            basis1_yL=basis1_yL, basis2_yL=basis2_yL,weights=weights,
                            dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                           control=con, hessian=hessian,optim_method=optim_method,
+                           control=con, hessian=out_options$Finv,optim_method=optim_method,
                            extra_starts=extra_starts)
       #check gradient of individual non-frailty fits against gradient function
       grad3_nf <- ngrad_func(para = fit_nf$estimate,y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
@@ -307,12 +325,12 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
     if(hazard %in% c("bspline","bs") && anyLT && frailty){
       y1_quad <- c(y1,transform_quad_points(n_quad=n_quad,a=0,b=y1,
                                             quad_method=quad_method))
-      basis1 <- get_basis(x=y1_quad, knots=knots_list[[1]],hazard=hazard)
-      basis2 <- get_basis(x=y1_quad, knots=knots_list[[2]],hazard=hazard)
+      basis1 <- get_basis(y=y1_quad, knots_vec=knots_list[[1]],hazard=hazard)
+      basis2 <- get_basis(y=y1_quad, knots_vec=knots_list[[2]],hazard=hazard)
       yL_quad <- c(y1,transform_quad_points(n_quad=n_quad,a=0,b=yL,
                                             quad_method=quad_method))
-      basis1_yL <- get_basis(x=yL_quad, knots=knots_list[[1]],hazard=hazard)
-      basis2_yL <- get_basis(x=yL_quad, knots=knots_list[[2]],hazard=hazard)
+      basis1_yL <- get_basis(y=yL_quad, knots_vec=knots_list[[1]],hazard=hazard)
+      basis2_yL <- get_basis(y=yL_quad, knots_vec=knots_list[[2]],hazard=hazard)
       #lastly, we add attribute storing quadrature method
       attr(x=basis1,which="quad_method") <- attr(x=basis2,which="quad_method") <-
         attr(x=basis1_yL,which="quad_method") <- attr(x=basis2_yL,which="quad_method") <-
@@ -351,7 +369,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                 basis1=basis1, basis2=basis2, basis3=basis3, basis3_y1=basis3_y1,
                 basis1_yL=basis1_yL, basis2_yL=basis2_yL, weights=weights,
                 dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
-                control=con, hessian=hessian,optim_method=optim_method,
+                control=con, hessian=out_options$Finv,optim_method=optim_method,
                 extra_starts=extra_starts)
 
     if(!is.null(value$fail)){
@@ -376,6 +394,14 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
       } else{frailty_lrtest <- c(stat=NA,pval=NA)}
     }
 
+    if(out_options$eb_frailties){
+      eb_frailties <- pred_frailties(para = value$estimate,
+                        hazard = hazard, model = model, knots_list = knots_list,
+                        y1=y1, y2 = y2, delta1=delta1, delta2=delta2,
+                        Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                        yL=yL, quad_method = quad_method, n_quad = n_quad)
+    }
+
     myLabels <- c(myLabels, "log(theta)")
   }
 
@@ -391,7 +417,6 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
 
   #if requested, compute gradient contributions for every subject
   if(out_options$grad_mat_return){
-    #note division by n following `sandwich::meat' function
     grad_mat <- -ngrad_mat_func(para = value$estimate,
                  y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                  Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
@@ -402,7 +427,6 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
   } else{ grad_mat <- NULL }
 
   #if requested, compute the sandwich variance "cheese"
-  #note division by n following `sandwich::cheese' function
   if(out_options$cheese){
     if(out_options$grad_mat_return){
       cheese <- crossprod(grad_mat)
@@ -424,6 +448,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
              optim_details=value$optim_details,
              Finv=Finv,
              cheese=cheese,
+             eb_frailties=eb_frailties,
              startVals=value$startVals,
              knots_list=knots_list,
              myLabels=myLabels,

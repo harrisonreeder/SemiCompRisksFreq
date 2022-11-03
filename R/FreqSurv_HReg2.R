@@ -2,34 +2,60 @@
 #'
 #' @inheritParams nll_func
 #' @param Formula a Formula object, with the outcome on the left of a
-#'   \code{~}, and covariates on the right. It is of the form, \code{time to non-terminal
-#'   event + corresponding censoring indicator | time to terminal event
-#'   + corresponding censoring indicator ~ covariates for h_1 |
-#'   covariates for h_2 | covariates for h_3}. For example, \code{y_1 + delta_1 | y_2 + delta_2 ~ x_1 | x_2 | x_3}.
-#' @param data a \code{data.frame} in which to interpret the variables named in Formula.
+#'   \code{~}, and covariates on the right. It is of the form,
+#'   \code{left truncation time | time to event +
+#'   corresponding censoring indicator ~ covariates}.
+#'   For example, \code{y_L | y + delta ~ x_1 + x_2 + x_3}.
+#'   If there is no left truncation, then the lefthand side should only contain
+#'   the two sets of outcome variables.
+#' @param data a \code{data.frame} in which to interpret
+#'   the variables named in Formula.
 #' @param na.action how NAs are treated. See \code{\link[stats]{model.frame}}.
-#' @param subset a specification of the rows to be used: defaults to all rows. See \code{\link[stats]{model.frame}}.
+#' @param subset a specification of the rows to be used: defaults to all rows.
+#'   See \code{\link[stats]{model.frame}}.
 #' @param knots_vec Used for hazard specifications besides Weibull, a
 #'   vector increasing sequence of integers, each corresponding to
-#'   the knots for the flexible model on the baseline hazard. If
-#'   \code{NULL}, will be created by \code{\link{get_default_knots}}.
+#'   the knots for the flexible model on the baseline hazard.
+#'   If \code{NULL}, will be created by \code{\link{get_default_knots}}
+#'   according to the number of parameters specified by \code{nP0}.
 #' @param p0 Integer indicating how many baseline hazard parameters
-#'   should be specified for each of the three transition hazards. This input is only relevant when
-#'   hazard is something other than \code{"weibull"} and is superceded by knots_vec.
-#' @param startVals A numeric vector of parameter starting values, arranged as follows:
-#'   the first \eqn{k_1+k_2+k_3} elements correspond to the baseline hazard parameters,
-#'   then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameters.
-#'   If set to \code{NULL}, will be generated automatically using \code{\link{get_start}}.
-#' @param hessian Boolean indicating whether the hessian (aka, the inverse of the covariance matrix)
-#'   should be computed and returned.
-#' @param control a list of control attributes passed directly into the \code{optim} function.
-#' @param n_quad Scalar for number of Gaussian quadrature points used to evaluate numerical integral of B-spline.
-#' @param quad_method String indicating which quadrature method to use to evaluate numerical integral of B-spline.
-#'   Options are \code{"kronrod"} for Gauss-Kronrod quadrature or \code{"legendre"} for Gauss-Legendre quadrature.
-#' @param optim_method a string naming which \code{optim} method should be used for optimization.
-#' @param extra_starts Integer giving the number of extra starts to try when optimizing.
+#'   should be specified for each of the three transition hazards.
+#'   This input is only relevant when hazard is something other than
+#'   \code{"weibull"} and is superceded by knots_vec.
+#' @param startVals A numeric vector of parameter starting values,
+#'   arranged as follows:
+#'   the first \eqn{k} elements are the baseline hazard parameters,
+#'   then the last\eqn{q} elements are the regression parameters.
+#'   If set to \code{NULL}, generated internally using \code{\link{get_start}}.
+#' @param control a list of control attributes passed directly
+#'   into the \code{optim} function.
+#' @param n_quad Scalar for number of Gaussian quadrature points used to
+#'   evaluate numerical integral of B-spline.
+#' @param quad_method String indicating which quadrature method to use to
+#'   evaluate numerical integral of B-spline. Options are
+#'   \code{"kronrod"} for Gauss-Kronrod quadrature or
+#'   \code{"legendre"} for Gauss-Legendre quadrature.
+#' @param optim_method a string naming which \code{optim}
+#'   method should be used for optimization.
+#' @param extra_starts Integer giving the number of extra
+#'   starts to try when optimizing.
+#' @param output_options List of named boolean elements specifying whether
+#'   certain additional components should be included in
+#'   the model object output. Options include
+#'   \itemize{
+#'     \item{Finv}{Variance-covariance matrix. Defaults to \code{TRUE}.}
+#'     \item{grad_mat_return}{Matrix with rowwise
+#'     score vectors for each individual evaluated at the MLE.
+#'     Used to compute "cheese" or "meat" in robust standard error computation.
+#'     Defaults to \code{FALSE}.}
+#'     \item{cheese}{Sum of outer products of individual score vectors,
+#'     used as the "cheese" or "meat" in robust standard error computation.
+#'     Defaults to \code{TRUE}.}
+#'     \item{data_return}{Original data frame used to fit model.
+#'     Defaults to \code{FALSE}.}
+#'   }
 #'
-#' @return \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.
+#' @return An object of class \code{Freq_HReg}.
 #' @import Formula
 #' @export
 FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
@@ -108,11 +134,11 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     # basis functions (esp. to account for left-truncation),
     # so we go through them one by one.
     if(hazard %in% c("piecewise","pw")){
-      basis <- get_basis(x=y,knots=knots_vec,hazard=hazard)
-      dbasis <- get_basis(x=y,knots=knots_vec,hazard=hazard,deriv=TRUE)
+      basis <- get_basis(y=y,knots_vec=knots_vec,hazard=hazard)
+      dbasis <- get_basis(y=y,knots_vec=knots_vec,hazard=hazard,deriv=TRUE)
       #to account for left truncation, directly subtract off the basis of yL
       if(anyLT){
-        basis <- basis - get_basis(x=yL,knots=knots_vec,hazard=hazard)
+        basis <- basis - get_basis(y=yL,knots_vec=knots_vec,hazard=hazard)
       }
     } else if(hazard %in% c("bspline","bs")){
       if(anyLT){ #presence of left-truncation
@@ -123,14 +149,14 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
         y_quad <- c(y, transform_quad_points(n_quad=n_quad, a=0,b=y,
                                              quad_method=quad_method))
       }
-      basis <- get_basis(x=y_quad,knots=knots_vec,hazard=hazard)
+      basis <- get_basis(y=y_quad,knots_vec=knots_vec,hazard=hazard)
       basis_yL <- dbasis <- NULL
       attr(x=basis,which="quad_method") <- tolower(quad_method)
     } else if(hazard %in% c("royston-parmar","rp")){
-      basis <- get_basis(x=y,knots=knots_vec,hazard=hazard)
-      dbasis <- get_basis(x=y,knots=knots_vec,hazard=hazard,deriv=TRUE)
+      basis <- get_basis(y=y,knots_vec=knots_vec,hazard=hazard)
+      dbasis <- get_basis(y=y,knots_vec=knots_vec,hazard=hazard,deriv=TRUE)
       #royston-parmar model requires separate matrix for left truncation
-      basis_yL <- if(anyLT) get_basis(x=yL,knots=knots_vec,hazard=hazard) else NULL
+      basis_yL <- if(anyLT) get_basis(y=yL,knots_vec=knots_vec,hazard=hazard) else NULL
     }
   } else{
     basis_yL <- basis <- dbasis <- NULL
@@ -159,7 +185,7 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   #if the user has not provided start values, we generate them here
   if(is.null(startVals)){
     startVals <- get_start_uni(y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,
-                               knots=knots_vec,hazard=hazard,basis=basis,weights=weights)
+                               knots_vec=knots_vec,hazard=hazard,basis=basis,weights=weights)
   }
 
   grad1 <- ngrad_uni_func(para=startVals, y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,

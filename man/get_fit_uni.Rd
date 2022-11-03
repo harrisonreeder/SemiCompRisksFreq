@@ -23,10 +23,11 @@ get_fit_uni(
 )
 }
 \arguments{
-\item{startVals}{A numeric vector of parameter starting values, arranged as follows:
-the first \eqn{k_1+k_2+k_3} elements correspond to the baseline hazard parameters,
-then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameters.
-If set to \code{NULL}, will be generated automatically using \code{\link{get_start}}.}
+\item{startVals}{A numeric vector of parameter starting values,
+arranged as follows:
+the first \eqn{k} elements are the baseline hazard parameters,
+then the last\eqn{q} elements are the regression parameters.
+If set to \code{NULL}, generated internally using \code{\link{get_start}}.}
 
 \item{y}{Numeric vector of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
 
@@ -57,14 +58,20 @@ Options are \code{"weibull"} for Weibull,
 and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
 Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
 
-\item{control}{a list of control attributes passed directly into the \code{optim} function.}
+\item{weights}{Vector of numeric weights of length \eqn{n} corresponding
+to each observed individual.}
 
-\item{hessian}{Boolean indicating whether the hessian (aka, the inverse of the covariance matrix)
-should be computed and returned.}
+\item{control}{a list of control attributes passed directly
+into the \code{optim} function.}
 
-\item{optim_method}{a string naming which \code{optim} method should be used for optimization.}
+\item{hessian}{Boolean indicating whether the hessian
+(inverse of the covariance matrix) should be computed and returned.}
 
-\item{extra_starts}{Integer giving the number of extra starts to try when optimizing.}
+\item{optim_method}{a string naming which \code{optim}
+method should be used for optimization.}
+
+\item{extra_starts}{Integer giving the number of extra
+starts to try when optimizing.}
 }
 \value{
 A fit object.
