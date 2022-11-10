@@ -416,7 +416,7 @@ transform_quad_points <- function(n_quad, quad_method, a, b) {
                      FUN = function(x) ((b - a) / 2) * x + ((b + a) / 2))))
 }
 
-####HELPER KNOT AND BASIS FUNCTIONS####
+####HELPER KNOT, BASIS, AND FITTING FUNCTIONS####
 
 ####Univariate####
 

@@ -50,6 +50,24 @@
 #'
 #' @return \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.
 #' @import Formula
+#'
+#' @examples
+#' #loading a data set
+#' data(scrData)
+#'
+#' #fitting Weibull semi-Markov illness-death model with gamma frailties
+#' form <- Formula::Formula(time1 + event1 | time2 + event2 ~ x1 + x2 + x3 | x1 + x2 | x1 + x2)
+#' fit_WB	<- FreqID_HReg2(Formula = form, data=scrData, model="semi-Markov",
+#' extra_starts = 0,hazard = "weibull",frailty = TRUE,optim_method = c("BFGS"))
+#'
+#' #exploring results
+#' fit_WB
+#' summ.fit_WB <- summary(fit_WB); names(summ.fit_WB)
+#' summ.fit_WB
+#' pred_WB <- predict(fit_WB, tseq=seq(from=0.1, to=30, length.out=100))
+#' plot(pred_WB, plot.est="Haz")
+#' plot(pred_WB, plot.est="Surv")
+#'
 #' @export
 FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weights=NULL,
                         hazard=c("weibull"), frailty=TRUE, model, knots_list=NULL,

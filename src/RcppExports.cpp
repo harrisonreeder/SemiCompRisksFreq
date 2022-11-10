@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // nlogLikPW_uni
 double nlogLikPW_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::vec& weights);
 RcppExport SEXP _SemiCompRisksFreq_nlogLikPW_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP weightsSEXP) {
