@@ -19,8 +19,13 @@ simID2(
   kappa1.true,
   kappa2.true,
   kappa3.true,
+  phi1.true,
+  phi2.true,
+  phi3.true,
   theta.true,
   SigmaV.true = NULL,
+  hazard = "weibull",
+  knots_list,
   model = "semi-markov",
   frailty_type = "gamma",
   beta2frail.true = 1,
@@ -33,44 +38,84 @@ simID2(
 }
 \arguments{
 \item{id}{A vector of cluster information for \code{n} subjects.
-The cluster membership must be set to consecutive positive integers, \eqn{1:J}.
+The cluster membership must be set to consecutive positive integers, \code{1:J}.
 Required only when generating clustered data.}
 
 \item{x1, x2, x3}{Covariate matrices with \code{n} rows.}
 
-\item{beta1.true, beta2.true, beta3.true}{Vectors of true regression parameter values.
-The length of each vector should equal the number of columns in the corresponding covariate matrix.}
+\item{beta1.true, beta2.true, beta3.true}{Vectors of true regression
+parameter values. The length of each vector should equal
+the number of columns in the corresponding covariate matrix.}
 
-\item{alpha1.true, alpha2.true, alpha3.true, kappa1.true, kappa2.true, kappa3.true}{Vectors of true baseline parameter values.}
+\item{alpha1.true, alpha2.true, alpha3.true, kappa1.true, kappa2.true, kappa3.true}{scalar true baseline parameter values.}
+
+\item{phi1.true, phi2.true, phi3.true}{Vectors of true baseline parameter values.}
 
 \item{theta.true}{True value for \eqn{\theta}.}
 
-\item{SigmaV.true}{True value for covariance matrix of MVN cluster-level random effects.
-Required only when generating clustered data. Should be a numeric \eqn{J\times J} matrix.}
+\item{SigmaV.true}{True value for covariance matrix of MVN
+cluster-level random effects. Required only when generating clustered data.
+Should be a numeric \eqn{J\times J} matrix.}
+
+\item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
+Options are \code{"weibull"} for Weibull,
+\code{"piecewise"} for piecewise constant on the hazard scale,
+\code{"bspline"} for cubic B-spline on the log-hazard scale,
+and \code{"royston-parmar"} for restricted cubic spline on the log-cumulative hazard scale.
+Aliases for these are \code{"wb"}, \code{"pw"}, \code{"bs"}, and \code{"rp"} respectively.}
+
+\item{knots_list}{Used for hazard specifications besides Weibull, a
+list of three increasing sequences of integers, each corresponding to
+the knots for the flexible model on the corresponding transition baseline hazard.
+If \code{NULL}, will be created by \code{\link{get_default_knots_list}}
+according to the number of parameters specified by \code{nP0}.}
 
 \item{model}{String (not case sensitive) specifying the transition assumption: either \code{"semi-Markov"}}
 
-\item{frailty_type}{string denoting "gamma" for gamma-distributed frailty with variance \code{theta}, or "lognormal" for lognormal distributed frailty with log-frailty variance \code{theta}}
+\item{frailty_type}{string denoting "gamma" for gamma-distributed frailty
+with variance \code{theta}, or "lognormal" for lognormal distributed
+frailty with log-frailty variance \code{theta}}
 
-\item{beta2frail.true, beta3frail.true}{scalar for the coefficient of the shared frailty in the logit submodel.}
+\item{beta2frail.true, beta3frail.true}{scalar for the coefficient
+of the shared frailty in the \eqn{h_2} and \eqn{h_3} submodels.}
 
-\item{beta3tv.true}{Vectors of true regression parameter values for effects of T1 on the logit and h3 submodels.}
+\item{beta3tv.true}{Vectors of true regression parameter values
+for direct effects of \eqn{T_1} on the \eqn{h_3} submodel.}
 
-\item{h3tv_degree}{either the string "cs" indicating restricted cubic spline, or an integer for degree of time-varying hazard/odds ratio B-spline basis. (0 is piecewise constant)}
+\item{h3tv_degree}{either the string "cs" indicating restricted
+cubic spline, or an integer for degree of time-varying hazard/odds ratio
+B-spline basis. (0 is piecewise constant)}
 
-\item{LT_interval}{A numeric vector of two elements. The left truncation censoring times are generated from Uniform(\eqn{LT_interval[1]}, \eqn{LT_interval[2]}).}
+\item{LT_interval}{A numeric vector of two elements. The left truncation
+times are generated from Uniform(\eqn{LT_interval[1]}, \eqn{LT_interval[2]}).
+Setting to \code{c(0,0)} corresponds with no left-truncation.}
 
-\item{cens}{A numeric vector of two elements. The right censoring times are generated from Uniform(\eqn{cens[1]}, \eqn{cens[2]}).}
+\item{cens}{A numeric vector of two elements. The right censoring
+times are generated from Uniform(\eqn{cens[1]}, \eqn{cens[2]}).
+Setting to \code{c(0,0)} corresponds with no independent right censoring.}
 }
 \value{
-returns a data.frame containing semi-competing risks outcomes from \code{n} subjects.
-It is of dimension \eqn{n\times 4}: the columns correspond to \eqn{y_1}, \eqn{\delta_1}, \eqn{y_2}, \eqn{\delta_2}. \cr
-\itemize{
-\item{y1}{a vector of \code{n} times to the non-terminal event}
-\item{y2}{a vector of \code{n} times to the terminal event}
+returns a data.frame containing semi-competing risks
+outcomes from \code{n} subjects, with columns as follows: \cr
+\describe{
+\item{y1}{a vector of \code{n} times for the non-terminal event}
 \item{delta1}{a vector of \code{n} censoring indicators for the non-terminal event time (1=event occurred, 0=censored)}
+\item{y2}{a vector of \code{n} times for the terminal event}
 \item{delta2}{a vector of \code{n} censoring indicators for the terminal event time (1=event occurred, 0=censored)}
-\item{deltaD}{a vector of \code{n} indicators whether the terminal event occurred immediately}
+\item{yL}{a vector of \code{n} times of left censoring}
+\item{gamma.true}{a vector of true frailty values}
+\item{x3tv}{a matrix of basis functions corresponding to the direct
+time-varying effect of \eqn{T_1} on \eqn{h_3}, if applicable.}
+\item{id}{a vector of cluster membership labels}
+\item{Vmat}{an \eqn{n \times 3} matrix of true cluster-specific random effects}
+}
+\cr
+Additionally, if a direct time-varying effect of \eqn{T_1} on \eqn{h_3} is
+specified, the returned data frame is given the following attributes:
+\describe{
+\item{p3tv}{total number of parameters corresponding to effect}
+\item{h3tv_degree}{degree of spline effect, as specified by user}
+\item{h3tv_knots}{vector of knots corresponding with effect}
 }
 }
 \description{

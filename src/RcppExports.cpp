@@ -590,6 +590,54 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// nlogLikWB_ID_theta
+double nlogLikWB_ID_theta(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::vec& yL, const int anyLT, const std::string model, const arma::vec& weights, const int frailty_ind);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikWB_ID_theta(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP modelSEXP, SEXP weightsSEXP, SEXP frailty_indSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type para(paraSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type y1(y1SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type y2(y2SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type delta1(delta1SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type delta2(delta2SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X1(X1SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X2(X2SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X3(X3SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type yL(yLSEXP);
+    Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
+    rcpp_result_gen = Rcpp::wrap(nlogLikWB_ID_theta(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, weights, frailty_ind));
+    return rcpp_result_gen;
+END_RCPP
+}
+// nlogLikWB_ID_marg
+double nlogLikWB_ID_marg(const arma::vec& para, const arma::vec& y1, const arma::vec& y2, const arma::vec& delta1, const arma::vec& delta2, const arma::mat& X1, const arma::mat& X2, const arma::mat& X3, const arma::vec& yL, const int anyLT, const std::string model, const arma::vec& weights, const int frailty_ind, const arma::vec& gauss_nodes, const arma::vec& gauss_weights);
+RcppExport SEXP _SemiCompRisksFreq_nlogLikWB_ID_marg(SEXP paraSEXP, SEXP y1SEXP, SEXP y2SEXP, SEXP delta1SEXP, SEXP delta2SEXP, SEXP X1SEXP, SEXP X2SEXP, SEXP X3SEXP, SEXP yLSEXP, SEXP anyLTSEXP, SEXP modelSEXP, SEXP weightsSEXP, SEXP frailty_indSEXP, SEXP gauss_nodesSEXP, SEXP gauss_weightsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type para(paraSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type y1(y1SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type y2(y2SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type delta1(delta1SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type delta2(delta2SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X1(X1SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X2(X2SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X3(X3SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type yL(yLSEXP);
+    Rcpp::traits::input_parameter< const int >::type anyLT(anyLTSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< const int >::type frailty_ind(frailty_indSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type gauss_nodes(gauss_nodesSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type gauss_weights(gauss_weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(nlogLikWB_ID_marg(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, weights, frailty_ind, gauss_nodes, gauss_weights));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_SemiCompRisksFreq_nlogLikPW_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikPW_uni, 7},
@@ -618,6 +666,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_SemiCompRisksFreq_ngradWB_ID_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradWB_ID_mat, 13},
     {"_SemiCompRisksFreq_nhessWB_ID_frail_SM", (DL_FUNC) &_SemiCompRisksFreq_nhessWB_ID_frail_SM, 8},
     {"_SemiCompRisksFreq_nhessWB_ID_frail_M", (DL_FUNC) &_SemiCompRisksFreq_nhessWB_ID_frail_M, 8},
+    {"_SemiCompRisksFreq_nlogLikWB_ID_theta", (DL_FUNC) &_SemiCompRisksFreq_nlogLikWB_ID_theta, 13},
+    {"_SemiCompRisksFreq_nlogLikWB_ID_marg", (DL_FUNC) &_SemiCompRisksFreq_nlogLikWB_ID_marg, 15},
     {NULL, NULL, 0}
 };
 

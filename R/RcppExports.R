@@ -105,3 +105,11 @@ nhessWB_ID_frail_M <- function(para, y1, y2, delta1, delta2, X1, X2, X3) {
     .Call(`_SemiCompRisksFreq_nhessWB_ID_frail_M`, para, y1, y2, delta1, delta2, X1, X2, X3)
 }
 
+nlogLikWB_ID_theta <- function(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, weights, frailty_ind) {
+    .Call(`_SemiCompRisksFreq_nlogLikWB_ID_theta`, para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, weights, frailty_ind)
+}
+
+nlogLikWB_ID_marg <- function(para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, weights, frailty_ind, gauss_nodes, gauss_weights) {
+    .Call(`_SemiCompRisksFreq_nlogLikWB_ID_marg`, para, y1, y2, delta1, delta2, X1, X2, X3, yL, anyLT, model, weights, frailty_ind, gauss_nodes, gauss_weights)
+}
+

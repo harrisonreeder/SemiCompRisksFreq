@@ -50,6 +50,7 @@
 #'
 #' @return \code{FreqID_HReg2} returns an object of class \code{Freq_HReg}.
 #' @import Formula
+#' @importFrom pracma grad
 #'
 #' @examples
 #' #loading a data set

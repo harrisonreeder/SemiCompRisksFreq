@@ -2939,6 +2939,449 @@ arma::mat nhessWB_ID_frail_M(const arma::vec& para,
 
 
 
+/******
+Reparameterized log-likelihood functions in terms of theta (instead of logtheta)
+*******/
+
+// [[Rcpp::export]]
+double nlogLikWB_ID_theta(const arma::vec& para,
+                          const arma::vec& y1,const arma::vec& y2,
+                          const arma::vec& delta1, const arma::vec& delta2,
+                          const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
+                          const arma::vec& yL, const int anyLT,
+                          const std::string model, const arma::vec& weights, const int frailty_ind){
+  //define constants
+  int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;	int n = X1.n_rows;
+  double k1 = para(0);
+  double a1 = para(1);
+  double k2 = para(2);
+  double a2 = para(3);
+  double k3 = para(4);
+  double a3 = para(5);
+  double h;
+  if(frailty_ind==1){
+    h = para(6); //this is now theta, not logtheta
+  }
+  //define linear predictors
+  arma::vec eta1(n,arma::fill::zeros);
+  arma::vec eta2(n,arma::fill::zeros);
+  arma::vec eta3(n,arma::fill::zeros);
+  if(p1 > 0){
+    eta1 = X1 * para(arma::span(frailty_ind + 6, frailty_ind + 5 + p1));
+  }
+  if(p2 > 0){
+    eta2 = X2 * para(arma::span(frailty_ind + 6 + p1, frailty_ind + 5 + p1 + p2));
+  }
+  if(p3 > 0){
+    eta3 = X3 * para(arma::span(frailty_ind + 6 + p1 + p2 , frailty_ind + 5 + p1 + p2 + p3));
+  }
+
+  //define collected terms
+  arma::vec AVec = getLambda0WB(y1,a1,k1) % arma::exp(eta1)
+    + getLambda0WB(y1,a2,k2) % arma::exp(eta2);
+  arma::vec logdiff;
+  if (model.compare("markov") == 0){ //markov
+    AVec += (getLambda0WB(y2,a3,k3) - getLambda0WB(y1,a3,k3)) % arma::exp(eta3);
+    logdiff = arma::log(y2); //awkward name reflects the fact that the markov assumption sets log(y2|y1) = log(y2), so there's no 'difference' here
+  } else { //semi-markov
+    AVec += getLambda0WB(y2-y1,a3,k3) % arma::exp(eta3);
+    logdiff = arma::log(y2-y1);
+    //log(y2-y1) with the negative infinity values replaced with 0's.
+    logdiff = logdiff.replace(-arma::datum::inf, 0);
+  }
+
+  double obj_val;
+  if(frailty_ind == 1){
+    if(abs(h) < 1e-6){ //use a cubic expansion following rondeau et al., which is also safe for theta=0
+      obj_val = arma::accu(weights % ( delta1 % (a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1)
+                                         + (1-delta1) % delta2 %  (a2 + k2 + (exp(a2) - 1) * arma::log(y1) + eta2)
+                                         + delta1 % delta2 % (a3 + k3 + (exp(a3) - 1) * logdiff + eta3 + log1p(h))
+                                         - (AVec - h*AVec%AVec/2 + h*h*AVec%AVec%AVec)
+                                         - (delta1 + delta2) % arma::log1p(h * AVec) ));
+    } else{
+      obj_val = arma::accu(weights % ( delta1 % (a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1)
+                                         + (1-delta1) % delta2 %  (a2 + k2 + (exp(a2) - 1) * arma::log(y1) + eta2)
+                                         + delta1 % delta2 % (a3 + k3 + (exp(a3) - 1) * logdiff + eta3 + log1p(h))
+                                         - (1/h + delta1 + delta2) % arma::log1p(h * AVec) ));
+    }
+  } else {
+    obj_val = arma::accu(weights % ( delta1 % (a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1)
+                                       + (1-delta1) % delta2 %  (a2 + k2 + (exp(a2) - 1) * arma::log(y1) + eta2)
+                                       + delta1 % delta2 % (a3 + k3 + (exp(a3) - 1) * logdiff + eta3) - AVec ));
+  }
+
+  //now, incorporate left-truncation
+  if(anyLT==1){
+    //just reuse this vector, now it is H1(yL) + H2(yL)
+    AVec = getLambda0WB(yL,a1,k1) % arma::exp(eta1)
+    + getLambda0WB(yL,a2,k2) % arma::exp(eta2);
+    if(frailty_ind ==1){
+      if(abs(h) < 1e-6){ //use a cubic expansion following rondeau et al. (2003), which is also safe for theta=0
+        obj_val += arma::accu(weights % (AVec - h*AVec%AVec/2 + h*h*AVec%AVec%AVec));
+      } else{
+        obj_val += 1/h * arma::accu(weights % arma::log1p(h * AVec));
+      }
+    } else {
+      obj_val += arma::accu(weights % AVec);
+    }
+  }
+
+  return(-obj_val);
+}
+
+
+
+/******
+Numerically Marginalized (Gaussian Quadrature) likelihood functions
+*******/
+
+arma::vec logsumexp_vec(const arma::vec& x, const arma::vec& y){
+  arma::vec c = arma::max(x,y);
+  return c + arma::log( arma::exp(x-c) + arma::exp(y-c) );
+}
+
+
+
+// [[Rcpp::export]]
+double nlogLikWB_ID_marg(const arma::vec& para,
+                   const arma::vec& y1,const arma::vec& y2,
+                   const arma::vec& delta1, const arma::vec& delta2,
+                   const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
+                   const arma::vec& yL, const int anyLT,
+                   const std::string model, const arma::vec& weights, const int frailty_ind,
+                   const arma::vec &gauss_nodes, const arma::vec &gauss_weights){
+  //define constants
+  int n = y1.n_rows;
+  int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;
+
+  double k1 = para(0);
+  double a1 = para(1);
+  double k2 = para(2);
+  double a2 = para(3);
+  double k3 = para(4);
+  double a3 = para(5);
+  double h, beta2frail, beta3frail;
+  if(frailty_ind == 1){
+    h = para(6);
+    beta2frail = 1;
+    beta3frail = 1;
+  }
+  if(frailty_ind == 2){
+    h = para(6);
+    beta2frail = para(7);
+    beta3frail = para(7);
+  }
+  if(frailty_ind == 3){
+    h = para(6);
+    beta2frail = para(7);
+    beta3frail = para(8);
+  }
+  //define linear predictors
+  arma::vec eta1(n,arma::fill::zeros);
+  arma::vec eta2(n,arma::fill::zeros);
+  arma::vec eta3(n,arma::fill::zeros);
+  if(p1 > 0){
+    eta1 = X1 * para(arma::span(frailty_ind + 6, frailty_ind + 5 + p1));
+  }
+  if(p2 > 0){
+    eta2 = X2 * para(arma::span(frailty_ind + 6 + p1, frailty_ind + 5 + p1 + p2));
+  }
+  if(p3 > 0){
+    eta3 = X3 * para(arma::span(frailty_ind + 6 + p1 + p2 , frailty_ind + 5 + p1 + p2 + p3));
+  }
+
+  //define collected terms
+  arma::vec Lambda1 = getLambda0WB(y1,a1,k1) % arma::exp(eta1);
+  arma::vec Lambda2 = getLambda0WB(y1,a2,k2) % arma::exp(eta2);
+  arma::vec logdiff, Lambda3;
+  if (model.compare("markov") == 0){ //markov
+    Lambda3 = (getLambda0WB(y2,a3,k3) - getLambda0WB(y1,a3,k3)) % arma::exp(eta3);
+    logdiff = arma::log(y2); //awkward name reflects the fact that the markov assumption sets log(y2|y1) = log(y2), so there's no 'difference' here
+  } else { //semi-markov
+    Lambda3 = getLambda0WB(y2-y1,a3,k3) % arma::exp(eta3);
+    logdiff = arma::log(y2-y1);
+    //log(y2-y1) with the negative infinity values replaced with 0's.
+    logdiff = logdiff.replace(-arma::datum::inf, 0);
+  }
+
+  arma::vec Lambda1_yL, Lambda2_yL;
+  if(anyLT==1){
+    Lambda1_yL = getLambda0WB(yL,a1,k1) % arma::exp(eta1);
+    Lambda2_yL = getLambda0WB(yL,a2,k2) % arma::exp(eta2);
+  }
+
+  double logfrail;
+  arma::vec AVec, loglik_vec_marg, loglik_vec_j;
+
+  arma::vec log_gauss_weights= arma::log(gauss_weights);
+  //loop through nodes
+  for(int j = 0; j < gauss_nodes.n_rows; j++){
+    logfrail = log(gauss_nodes(j)); //note we're making adjustment here
+    AVec = Lambda1 * exp(logfrail)
+      + Lambda2 * exp(beta2frail * logfrail)
+      + Lambda3 * exp(beta3frail * logfrail);
+
+    loglik_vec_j = delta1 %    (a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1 + logfrail)
+      + (1-delta1) % delta2 %  (a2 + k2 + (exp(a2) - 1) * arma::log(y1) + eta2 + beta2frail * logfrail)
+      + delta1 % delta2 %      (a3 + k3 + (exp(a3) - 1) * logdiff +       eta3 + beta3frail * logfrail)
+      - AVec;
+
+    //Incorporate left truncation
+    if(anyLT==1){
+      //just reuse this vector, now it is H1(yL) + H2(yL)
+      AVec = Lambda1_yL * exp(logfrail)
+           + Lambda2_yL * exp(beta2frail * logfrail);
+      loglik_vec_j += AVec;
+    }
+
+    if(j == 0){
+      loglik_vec_marg = loglik_vec_j + log_gauss_weights(j);
+    } else{
+      loglik_vec_marg = logsumexp_vec(loglik_vec_marg, loglik_vec_j + log_gauss_weights(j));
+    }
+  }
+
+  return(-arma::accu(weights % loglik_vec_marg));
+}
+
+
+
+/* It is annoying but eventually I could work out the form of the gradient
+
+// [[Rcpp::export]]
+arma::vec ngradWB_ID_marg(const arma::vec& para,
+                  const arma::vec& y1,const arma::vec& y2,
+                  const arma::vec& delta1, const arma::vec& delta2,
+                  const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
+                  const arma::vec& yL, const int anyLT,
+                  const std::string model, const arma::vec& weights, const int frailty_ind,
+                  const arma::vec &gauss_nodes, const arma::vec &gauss_weights){
+
+  //define constants
+  int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;	int n = X1.n_rows;
+  double k1 = para(0);
+  double a1 = para(1);
+  double k2 = para(2);
+  double a2 = para(3);
+  double k3 = para(4);
+  double a3 = para(5);
+  double h, beta2frail, beta3frail;
+  if(frailty_ind == 1){
+    h = para(6);
+    beta2frail = 1;
+    beta3frail = 1;
+  }
+  if(frailty_ind == 2){
+    h = para(6);
+    beta2frail = para(7);
+    beta3frail = para(7);
+  }
+  if(frailty_ind == 3){
+    h = para(6);
+    beta2frail = para(7);
+    beta3frail = para(8);
+  }
+  //define linear predictors
+  arma::vec eta1(n,arma::fill::zeros);
+  arma::vec eta2(n,arma::fill::zeros);
+  arma::vec eta3(n,arma::fill::zeros);
+  if(p1 > 0){
+    eta1 = X1 * para(arma::span(frailty_ind + 6, frailty_ind + 5 + p1));
+  }
+  if(p2 > 0){
+    eta2 = X2 * para(arma::span(frailty_ind + 6 + p1, frailty_ind + 5 + p1 + p2));
+  }
+  if(p3 > 0){
+    eta3 = X3 * para(arma::span(frailty_ind + 6 + p1 + p2 , frailty_ind + 5 + p1 + p2 + p3));
+  }
+
+  arma::vec Lambda01 = getLambda0WB(y1, a1, k1);
+  arma::vec Lambda02 = getLambda0WB(y1, a2, k2);
+  arma::vec AVec = Lambda01 % arma::exp(eta1) + Lambda02 % arma::exp(eta2);
+  arma::vec logdiff, Lambda03,Lambda03y2,Lambda03y1, commonVec;
+  if (model.compare("markov") == 0){ //markov
+    Lambda03y2 = getLambda0WB(y2, a3, k3);
+    Lambda03y1 = getLambda0WB(y1, a3, k3);
+    AVec += (Lambda03y2-Lambda03y1) % arma::exp(eta3);
+  } else { //semi-markov
+    Lambda03 = getLambda0WB(y2-y1, a3, k3);
+    AVec += Lambda03 % arma::exp(eta3);
+    logdiff = arma::log(y2-y1);
+    //negative infinity values replaced with 0's.
+    logdiff = logdiff.replace(-arma::datum::inf, 0);
+  }
+
+  //make a temporary matrix with each column corresponding to a parameter
+  arma::vec temp_scoremat(n,p1+p2+p3+6+frailty_ind,arma::fill::zeros);
+
+  double logfrail;
+  arma::vec AVec, loglik_vec_marg, loglik_vec_j;
+
+  arma::vec log_gauss_weights= arma::log(gauss_weights);
+  //loop through nodes
+  for(int j = 0; j < gauss_nodes.n_rows; j++){
+    logfrail = log(gauss_nodes(j)); //note we're making adjustment here
+
+    //k1 (what ina calls u5)
+    temp_scoremat.col(0) = weights % (delta1 - Lambda01 % arma::exp(eta1));
+    //a1 (what ina calls u6)
+    temp_scoremat.col(1) = weights % ( delta1 % (1 + exp(a1) * arma::log(y1)) -
+      Lambda01 % arma::exp(a1+eta1) % arma::log(y1) );
+    //k2 (what ina calls u7)
+    temp_scoremat.col(2) = weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2));
+    //a2 (what ina calls u8)
+    temp_scoremat.col(3) = weights % ( (1-delta1) % delta2 % (1 + exp(a2) * arma::log(y1)) -
+      Lambda02 % arma::exp(a2+eta2) % arma::log(y1) );
+    //beta1 (what ina calls u2)
+    if(p1 > 0){
+      temp_scoremat.cols(6, 6+p1-1) =
+        X1.each_col() % (weights % (delta1 - Lambda01 % arma::exp(eta1)));
+    }
+    //beta2 (what ina calls u3)
+    if(p2 > 0){
+      temp_scoremat.cols(6+p1, 6+p1+p2-1) =
+        X2.each_col() % (weights % ((1-delta1) % delta2 - Lambda02 % arma::exp(eta2)));
+    }
+
+
+  }
+
+}
+
+*/
+
+
+
+// This was me doing some testing of gauss-laguerre on a known problem: mean and variance of a gamma distribution
+
+// double logsumexp_num(double x, double  y){
+//   double c = fmax(x,y);
+//   return c + log( exp(x-c) + exp(y-c) );
+// }
+//
+// // [[Rcpp::export]]
+// arma::vec gl_test(double alpha, double beta, arma::vec mean,
+//                 const arma::vec &gauss_nodes, const arma::vec &gauss_weights){
+//
+//   arma::vec log_gauss_weights_adj = arma::log(gauss_weights)
+//     - lgamma(alpha) + (alpha-1) * arma::log(gauss_nodes);
+//   //double log_out_j, log_out, frail;
+//   double frail;
+//   arma::vec log_out, log_out_j;
+//
+//   //loop through nodes
+//   for(int j = 0; j < gauss_nodes.n_rows; j++){
+//     frail = gauss_nodes(j) / beta; //note we're making adjustment here
+//     log_out_j = arma::log( (frail - mean) % (frail - mean) );
+//     if(j == 0){
+//       log_out = log_out_j + log_gauss_weights_adj(j);
+//     } else{
+//       log_out = logsumexp_vec(log_out, log_out_j + log_gauss_weights_adj(j));
+//     }
+//   }
+//   return(log_out);
+// }
+
+
+
+
+// This wasn't working, and also was not using "generalized" gauss-legendre and so
+//was liable to serious inaccuracy if there was a singularity at zero. New approach
+//leverages statmod package and is much more convenient.
+
+// // [[Rcpp::export]]
+// double nlogLikWB_ID_marg_old(const arma::vec& para,
+//                          const arma::vec& y1,const arma::vec& y2,
+//                          const arma::vec& delta1, const arma::vec& delta2,
+//                          const arma::mat& X1, const arma::mat& X2, const arma::mat& X3,
+//                          const std::string model, const int frailtyparam_num,
+//                          const arma::vec &gauss_nodes, const arma::vec &gauss_weights){
+//   //define constants
+//   int n = y1.n_rows;
+//   int p1 = X1.n_cols; int p2 = X2.n_cols;	int p3 = X3.n_cols;
+//
+//   // //nodes are scaled by sqrt(2) * sigma * x + mu, but here sigma = sqrt(theta) and mu=0
+//   // arma::vec gh_nodes_adj = sqrt(theta * 2) * gh_nodes;
+//   // //note in gauss-hermite derivation there's an extra pi^{-.5} to fold into weights
+//   // arma::vec log_gh_weights_adj = arma::log(gh_weights) - 0.5 * log(Pi);
+//
+//   double k1 = para(0);
+//   double a1 = para(1);
+//   double k2 = para(2);
+//   double a2 = para(3);
+//   double k3 = para(4);
+//   double a3 = para(5);
+//   double h, beta2frail, beta3frail;
+//   if(frailtyparam_num == 1){
+//     h = para(6);
+//     beta2frail = 1;
+//     beta3frail = 1;
+//   }
+//   if(frailtyparam_num == 2){
+//     h = para(6);
+//     beta2frail = para(7);
+//     beta3frail = para(7);
+//   }
+//   if(frailtyparam_num == 3){
+//     h = para(6);
+//     beta2frail = para(7);
+//     beta3frail = para(8);
+//   }
+//   //define linear predictors
+//   arma::vec eta1(n,arma::fill::zeros);
+//   arma::vec eta2(n,arma::fill::zeros);
+//   arma::vec eta3(n,arma::fill::zeros);
+//   if(p1 > 0){
+//     eta1 = X1 * para(arma::span(frailtyparam_num + 6, frailtyparam_num + 5 + p1));
+//   }
+//   if(p2 > 0){
+//     eta2 = X2 * para(arma::span(frailtyparam_num + 6 + p1, frailtyparam_num + 5 + p1 + p2));
+//   }
+//   if(p3 > 0){
+//     eta3 = X3 * para(arma::span(frailtyparam_num + 6 + p1 + p2 , frailtyparam_num + 5 + p1 + p2 + p3));
+//   }
+//
+//   //define collected terms
+//   arma::vec Lambda1 = getLambda0WB(y1,a1,k1) % arma::exp(eta1);
+//   arma::vec Lambda2 = getLambda0WB(y1,a2,k2) % arma::exp(eta2);
+//   arma::vec logdiff, Lambda3;
+//   if (model.compare("markov") == 0){ //markov
+//     Lambda3 = (getLambda0WB(y2,a3,k3) - getLambda0WB(y1,a3,k3)) % arma::exp(eta3);
+//     logdiff = arma::log(y2); //awkward name reflects the fact that the markov assumption sets log(y2|y1) = log(y2), so there's no 'difference' here
+//   } else { //semi-markov
+//     Lambda3 = getLambda0WB(y2-y1,a3,k3) % arma::exp(eta3);
+//     logdiff = arma::log(y2-y1);
+//     //log(y2-y1) with the negative infinity values replaced with 0's.
+//     logdiff = logdiff.replace(-arma::datum::inf, 0);
+//   }
+//
+//   double logfrail;
+//   arma::vec AVec, loglik_vec_marg, loglik_vec_j;
+//
+//   arma::vec log_gauss_weights_adj = arma::log(gauss_weights)
+//     - lgamma(exp(-h)) + expm1(-h) * arma::log(gauss_nodes);
+//   //loop through nodes
+//   for(int j = 0; j < gauss_nodes.n_rows; j++){
+//     logfrail = log(gauss_nodes(j)) + h; //note we're making adjustment here
+//     AVec = Lambda1 * exp(logfrail) + Lambda2 * exp(beta2frail * logfrail)
+//       + Lambda3 * exp(beta3frail * logfrail);
+//
+//     loglik_vec_j = delta1 % (a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1 + logfrail)
+//       + (1-delta1) % delta2 %  (a2 + k2 + (exp(a2) - 1) * arma::log(y1) + eta2 + beta2frail * logfrail)
+//       + delta1 % delta2 % (a3 + k3 + (exp(a3) - 1) * logdiff + eta3 + beta3frail * logfrail)
+//       - AVec;
+//
+//       if(j == 0){
+//         loglik_vec_marg = loglik_vec_j + log_gauss_weights_adj(j);
+//       } else{
+//         loglik_vec_marg = logsumexp_vec(loglik_vec_marg, loglik_vec_j + log_gauss_weights_adj(j));
+//       }
+//   }
+//
+//   return(-accu(loglik_vec_marg));
+// }
+//
+//
 
 
 

@@ -3,30 +3,56 @@
 #'
 #' @inheritParams FreqID_HReg2
 #' @param id A vector of cluster information for \code{n} subjects.
-#'   The cluster membership must be set to consecutive positive integers, \eqn{1:J}.
-#'   Required only when generating clustered data.
+#' The cluster membership must be set to consecutive positive integers, \code{1:J}.
+#' Required only when generating clustered data.
 #' @param x1,x2,x3 Covariate matrices with \code{n} rows.
-#' @param beta1.true,beta2.true,beta3.true Vectors of true regression parameter values.
-#'   The length of each vector should equal the number of columns in the corresponding covariate matrix.
-#' @param beta2frail.true,beta3frail.true scalar for the coefficient of the shared frailty in the logit submodel.
-#' @param beta3tv.true Vectors of true regression parameter values for effects of T1 on the logit and h3 submodels.
-#' @param alpha1.true,alpha2.true,alpha3.true,kappa1.true,kappa2.true,kappa3.true Vectors of true baseline parameter values.
+#' @param beta1.true,beta2.true,beta3.true Vectors of true regression
+#' parameter values. The length of each vector should equal
+#' the number of columns in the corresponding covariate matrix.
+#' @param alpha1.true,alpha2.true,alpha3.true,kappa1.true,kappa2.true,kappa3.true scalar true baseline parameter values.
+#' @param phi1.true,phi2.true,phi3.true Vectors of true baseline parameter values.
 #' @param theta.true True value for \eqn{\theta}.
-#' @param SigmaV.true True value for covariance matrix of MVN cluster-level random effects.
-#'   Required only when generating clustered data. Should be a numeric \eqn{J\times J} matrix.
-#' @param h3tv_degree either the string "cs" indicating restricted cubic spline, or an integer for degree of time-varying hazard/odds ratio B-spline basis. (0 is piecewise constant)
-#' @param frailty_type string denoting "gamma" for gamma-distributed frailty with variance \code{theta}, or "lognormal" for lognormal distributed frailty with log-frailty variance \code{theta}
-#' @param LT_interval A numeric vector of two elements. The left truncation censoring times are generated from Uniform(\eqn{LT_interval[1]}, \eqn{LT_interval[2]}).
-#' @param cens A numeric vector of two elements. The right censoring times are generated from Uniform(\eqn{cens[1]}, \eqn{cens[2]}).
+#' @param SigmaV.true True value for covariance matrix of MVN
+#' cluster-level random effects. Required only when generating clustered data.
+#' Should be a numeric \eqn{J\times J} matrix.
+#' @param frailty_type string denoting "gamma" for gamma-distributed frailty
+#' with variance \code{theta}, or "lognormal" for lognormal distributed
+#' frailty with log-frailty variance \code{theta}
+#' @param beta2frail.true,beta3frail.true scalar for the coefficient
+#' of the shared frailty in the \eqn{h_2} and \eqn{h_3} submodels.
+#' @param beta3tv.true Vectors of true regression parameter values
+#' for direct effects of \eqn{T_1} on the \eqn{h_3} submodel.
+#' @param h3tv_degree either the string "cs" indicating restricted
+#' cubic spline, or an integer for degree of time-varying hazard/odds ratio
+#' B-spline basis. (0 is piecewise constant)
+#' @param LT_interval A numeric vector of two elements. The left truncation
+#'  times are generated from Uniform(\eqn{LT_interval[1]}, \eqn{LT_interval[2]}).
+#'  Setting to \code{c(0,0)} corresponds with no left-truncation.
+#' @param cens A numeric vector of two elements. The right censoring
+#'  times are generated from Uniform(\eqn{cens[1]}, \eqn{cens[2]}).
+#'  Setting to \code{c(0,0)} corresponds with no independent right censoring.
 #'
-#' @return returns a data.frame containing semi-competing risks outcomes from \code{n} subjects.
-#'   It is of dimension \eqn{n\times 4}: the columns correspond to \eqn{y_1}, \eqn{\delta_1}, \eqn{y_2}, \eqn{\delta_2}. \cr
-#'   \itemize{
-#'   \item{y1}{a vector of \code{n} times to the non-terminal event}
-#'   \item{y2}{a vector of \code{n} times to the terminal event}
+#' @return returns a data.frame containing semi-competing risks
+#'   outcomes from \code{n} subjects, with columns as follows: \cr
+#'   \describe{
+#'   \item{y1}{a vector of \code{n} times for the non-terminal event}
 #'   \item{delta1}{a vector of \code{n} censoring indicators for the non-terminal event time (1=event occurred, 0=censored)}
+#'   \item{y2}{a vector of \code{n} times for the terminal event}
 #'   \item{delta2}{a vector of \code{n} censoring indicators for the terminal event time (1=event occurred, 0=censored)}
-#'   \item{deltaD}{a vector of \code{n} indicators whether the terminal event occurred immediately}
+#'   \item{yL}{a vector of \code{n} times of left censoring}
+#'   \item{gamma.true}{a vector of true frailty values}
+#'   \item{x3tv}{a matrix of basis functions corresponding to the direct
+#'   time-varying effect of \eqn{T_1} on \eqn{h_3}, if applicable.}
+#'   \item{id}{a vector of cluster membership labels}
+#'   \item{Vmat}{an \eqn{n \times 3} matrix of true cluster-specific random effects}
+#'   }
+#'   \cr
+#'   Additionally, if a direct time-varying effect of \eqn{T_1} on \eqn{h_3} is
+#'   specified, the returned data frame is given the following attributes:
+#'   \describe{
+#'   \item{p3tv}{total number of parameters corresponding to effect}
+#'   \item{h3tv_degree}{degree of spline effect, as specified by user}
+#'   \item{h3tv_knots}{vector of knots corresponding with effect}
 #'   }
 #'
 #' @export
@@ -34,7 +60,8 @@ simID2 <- function(id = NULL, x1, x2, x3,
                   beta1.true, beta2.true, beta3.true,
                   alpha1.true, alpha2.true, alpha3.true,
                   kappa1.true, kappa2.true, kappa3.true,
-                  theta.true, SigmaV.true = NULL,
+                  phi1.true, phi2.true, phi3.true,
+                  theta.true, SigmaV.true = NULL, hazard="weibull", knots_list,
                   model="semi-markov", frailty_type="gamma",
                   beta2frail.true=1, beta3frail.true=1,
                   beta3tv.true=NULL, h3tv_degree=3,
@@ -55,7 +82,7 @@ simID2 <- function(id = NULL, x1, x2, x3,
     if(tolower(frailty_type)=="gamma"){
       gamma.true <- stats::rgamma(n, 1/theta.true, 1/theta.true)
     } else {
-      gamma.true <- exp(stats::rnorm(n,0,sqrt(theta.true)))
+      gamma.true <- stats::rlnorm(n, meanlog = 0, sdlog = sqrt(theta.true))
     }
   } else if(theta.true == 0){
     gamma.true <- rep(1, n)
@@ -76,27 +103,70 @@ simID2 <- function(id = NULL, x1, x2, x3,
     LP3 <- LP3 + as.vector(Vmat[,3])
   } else{ Vmat <- NULL }
 
+  #if not weibull, must be piecewise, so set that up
+  if(!(tolower(hazard) %in% c("weibull","wb"))){
+    #make it so that index can be made rowwise whether there is 1 col or 3
+    #function already accounts for whether or not knots vectors begin with 0
+    if(is.list(knots_list)){
+      if(length(knots_list) == 3){
+        knots01 <- knots_list[[1]]
+        knots02 <- knots_list[[2]]
+        knots03 <- knots_list[[3]]
+      } else if(length(knots_list)==1){
+        knots01 <- knots02 <- knots03 <- knots_list[[1]]
+      } else{
+        stop("knots must be either vector of knots lambdas,
+           or list with three elements corresponding to hazard-specific knot vectors")
+      }
+    } else{
+      if(is.vector(knots_list)){
+        knots03 <- knots02 <- knots01 <- knots_list
+      } else{
+        stop("knots must be either vector of knots lambdas,
+           or list with three elements corresponding to hazard-specific knot vectors")
+      }
+    }
+  }
 
-
-  #check the lower.bound stuff to make sure that I have the right probs and not 1-probs
   if(anyLT){
     yL <- stats::runif(n,min=LT_interval[1],max=LT_interval[2])
-    R_bound <- stats::pweibull(yL, lower.tail = TRUE, shape = alpha1.true,
-                               scale = exp(-(log(kappa1.true) + LP1 + log(gamma.true))/alpha1.true))
-    D_bound <- stats::pweibull(yL, lower.tail = TRUE, shape = alpha2.true,
-                               scale = exp(-(log(kappa2.true) + LP2 + beta2frail.true * log(gamma.true))/alpha2.true))
-    R_prob <- stats::runif(n,min=R_bound,max=1)
-    D_prob <- stats::runif(n,min=D_bound,max=1)
-    R <- stats::qweibull(R_prob, lower.tail = TRUE, shape = alpha1.true,
-                         scale = exp(-(log(kappa1.true) + LP1 + log(gamma.true))/alpha1.true))
-    D <- stats::qweibull(D_prob, lower.tail = TRUE, shape = alpha2.true,
-                         scale = exp(-(log(kappa2.true) + LP2 + beta2frail.true * log(gamma.true))/alpha2.true))
+    if(tolower(hazard) %in% c("weibull","wb")){
+      R_bound <- stats::pweibull(yL, lower.tail = FALSE, shape = alpha1.true,
+                  scale = exp(-(log(kappa1.true) + LP1 + log(gamma.true))/alpha1.true))
+      D_bound <- stats::pweibull(yL, lower.tail = FALSE, shape = alpha2.true,
+                  scale = exp(-(log(kappa2.true) + LP2 + beta2frail.true * log(gamma.true))/alpha2.true))
+      R_prob <- stats::runif(n,min=0, max=R_bound)
+      D_prob <- stats::runif(n,min=0, max=D_bound)
+      R <- stats::qweibull(R_prob, lower.tail = FALSE, shape = alpha1.true,
+                  scale = exp(-(log(kappa1.true) + LP1 + log(gamma.true))/alpha1.true))
+      D <- stats::qweibull(D_prob, lower.tail = FALSE, shape = alpha2.true,
+                  scale = exp(-(log(kappa2.true) + LP2 + beta2frail.true * log(gamma.true))/alpha2.true))
+    } else{
+      R_bound <- ppwexp(yL, lower.tail = FALSE, log.p=FALSE,
+                        phi=phi1.true, knots_vec=knots01, eta = LP1 + log(gamma.true))
+      D_bound <- ppwexp(yL, lower.tail = FALSE, log.p=FALSE,
+                        phi=phi2.true, knots_vec=knots02, eta = LP2 + beta2frail.true * log(gamma.true))
+      R_prob <- stats::runif(n,min=0, max=R_bound)
+      D_prob <- stats::runif(n,min=0, max=D_bound)
+      R <- qpwexp(R_prob, lower.tail = FALSE, phi=phi1.true, knots_vec=knots01,
+                  eta = LP1 + log(gamma.true))
+      D <- qpwexp(D_prob, lower.tail = FALSE, phi=phi2.true, knots_vec=knots02,
+                  eta = LP2 + beta2frail.true * log(gamma.true))
+    }
   } else{
     yL <- numeric(n)
-    R <- stats::rweibull(n, shape = alpha1.true,
-                         scale = exp(-(log(kappa1.true) + LP1 + log(gamma.true))/alpha1.true))
-    D <- stats::rweibull(n, shape = alpha2.true,
-                         scale = exp(-(log(kappa2.true) + LP2 + beta2frail.true * log(gamma.true))/alpha2.true))
+    if(tolower(hazard) %in% c("weibull","wb")){
+      R <- stats::rweibull(n, shape = alpha1.true,
+            scale = exp(-(log(kappa1.true) + LP1 + log(gamma.true))/alpha1.true))
+      D <- stats::rweibull(n, shape = alpha2.true,
+            scale = exp(-(log(kappa2.true) + LP2 + beta2frail.true * log(gamma.true))/alpha2.true))
+    } else{
+      #still generate data by inverse probability
+      R <- qpwexp(stats::runif(n), lower.tail = FALSE, phi=phi1.true,
+                         knots_vec=knots01, eta = LP1 + log(gamma.true))
+      D <- qpwexp(stats::runif(n), lower.tail = FALSE, phi=phi2.true,
+                         knots_vec=knots02, eta = LP2 + beta2frail.true * log(gamma.true))
+    }
   }
 
   yesR <- R < D
@@ -141,17 +211,32 @@ simID2 <- function(id = NULL, x1, x2, x3,
 
   #check the lower.bound stuff to make sure that I have the right probs and not 1-probs
   if(tolower(model) %in% c("markov","m")){
-    M_bounds <- stats::pweibull(R[yesR],lower.tail = TRUE, shape = alpha3.true,
-                      scale = exp(-(log(kappa3.true) + LP3[yesR] +
-                                    beta3frail.true * log(gamma.true[yesR]))/alpha3.true),)
-    M_probs <- stats::runif(sum(yesR),min=M_bounds, max=1)
-    D[yesR] <- stats::qweibull(p = M_probs, lower.tail = TRUE, shape = alpha3.true,
-                scale = exp(-(log(kappa3.true) + LP3[yesR] +
-                              beta3frail.true * log(gamma.true[yesR]))/alpha3.true))
+    if(tolower(hazard) %in% c("weibull","wb")){
+      M_bound <- stats::pweibull(R[yesR],lower.tail = FALSE, shape = alpha3.true,
+                        scale = exp(-(log(kappa3.true) + LP3[yesR] +
+                                      beta3frail.true * log(gamma.true[yesR]))/alpha3.true),)
+      M_prob <- stats::runif(sum(yesR),min=0, max=M_bound)
+      D[yesR] <- stats::qweibull(p = M_prob, lower.tail = FALSE, shape = alpha3.true,
+                  scale = exp(-(log(kappa3.true) + LP3[yesR] +
+                                beta3frail.true * log(gamma.true[yesR]))/alpha3.true))
+    } else{
+      M_bound <- ppwexp(R[yesR], lower.tail = FALSE, log.p=FALSE,
+                        phi=phi3.true, knots_vec=knots03,
+                        eta = LP3[yesR] + beta3frail.true * log(gamma.true[yesR]))
+      M_prob <- stats::runif(sum(yesR),min=0, max=M_bound)
+      D[yesR] <- qpwexp(M_prob, lower.tail = FALSE, phi=phi3.true,
+                        knots_vec=knots03, eta = LP3[yesR] + beta3frail.true * log(gamma.true[yesR]))
+    }
   } else{
-    D[yesR] <- R[yesR] + stats::rweibull(sum(yesR), shape = alpha3.true,
-                          scale = exp(-(log(kappa3.true) + LP3[yesR] +
-                                        beta3frail.true * log(gamma.true[yesR]))/alpha3.true))
+    if(tolower(hazard) %in% c("weibull","wb")){
+      D[yesR] <- R[yesR] + stats::rweibull(sum(yesR), shape = alpha3.true,
+                            scale = exp(-(log(kappa3.true) + LP3[yesR] +
+                                          beta3frail.true * log(gamma.true[yesR]))/alpha3.true))
+    } else {
+      D[yesR] <- R[yesR] + qpwexp(stats::runif(sum(yesR)), lower.tail = FALSE,
+                                  phi=phi3.true, knots_vec=knots03,
+                                  eta =  LP3[yesR] + beta3frail.true * log(gamma.true[yesR]))
+    }
   }
   delta1 <- rep(NA, n)
   delta2 <- rep(NA, n)
@@ -207,6 +292,12 @@ simID2 <- function(id = NULL, x1, x2, x3,
     attr(ret,which = "h3tv_degree") <- h3tv_degree
     attr(ret,which = "h3tv_knots") <- h3_knots
   }
+
+  # if(!(tolower(hazard) %in% c("weibull","wb"))){
+  #   attr(ret,which = "knots01") <- knots01
+  #   attr(ret,which = "knots02") <- knots02
+  #   attr(ret,which = "knots03") <- knots03
+  # }
 
   return(ret)
 }
