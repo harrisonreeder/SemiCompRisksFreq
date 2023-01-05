@@ -6,6 +6,7 @@
 #'   Typically, this function will not be used directly by the user,
 #'   but as part of a larger estimation procedure.
 #' @inheritParams nll_func
+#' @inheritParams FreqSurv_HReg2
 #' @param frailtyparam_num count of parameters associated with frailty
 #'
 #' @return Returns numeric sum of negative log likelihood contributions.
@@ -108,7 +109,7 @@ nll_marg_profile_func <- function(fixed_param, fixed_param_ind, para_mle,
   out_list$conv <- numeric(n_points)
   for(i in 1:n_points){
     if(verbose) print(paste0(i," of ",n_points))
-    temp_fit <- optim(par = start_vec, fn = nll_marg_profile_helper_func,
+    temp_fit <- stats::optim(par = start_vec, fn = nll_marg_profile_helper_func,
                       fixed_param=fixed_param[i,],fixed_param_ind=fixed_param_ind,
                       y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                       Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
@@ -202,7 +203,7 @@ nll_profile_func <- function(fixed_param, fixed_param_ind, para_mle,
   out_list$conv <- numeric(n_points)
   for(i in 1:n_points){
     if(verbose) print(paste0(i," of ",n_points))
-    temp_fit <- optim(par = start_vec, fn = nll_profile_helper_func,
+    temp_fit <- stats::optim(par = start_vec, fn = nll_profile_helper_func,
                       fixed_param=fixed_param[i,],fixed_param_ind=fixed_param_ind,
                       y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                       Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
@@ -295,7 +296,7 @@ nll_profile_theta_func <- function(fixed_param, fixed_param_ind, para_mle,
   out_list$conv <- numeric(n_points)
   for(i in 1:n_points){
     if(verbose) print(paste0(i," of ",n_points))
-    temp_fit <- optim(par = start_vec, fn = nll_profile_theta_helper_func,
+    temp_fit <- stats::optim(par = start_vec, fn = nll_profile_theta_helper_func,
                       fixed_param=fixed_param[i,],fixed_param_ind=fixed_param_ind,
                       y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                       Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3, model=model,

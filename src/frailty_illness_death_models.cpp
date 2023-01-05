@@ -3111,7 +3111,7 @@ double nlogLikWB_ID_marg(const arma::vec& para,
   }
 
   double logfrail;
-  arma::vec AVec, loglik_vec_marg, loglik_vec_j;
+  arma::vec AVec, loglik_vec_marg, logsurv_vec_marg_yL, loglik_vec_j;
 
   arma::vec log_gauss_weights= arma::log(gauss_weights);
   //loop through nodes
@@ -3126,22 +3126,26 @@ double nlogLikWB_ID_marg(const arma::vec& para,
       + delta1 % delta2 %      (a3 + k3 + (exp(a3) - 1) * logdiff +       eta3 + beta3frail * logfrail)
       - AVec;
 
-    //Incorporate left truncation
+    //For left truncation, separately integrate over
+    //probability of being event free at yL.
     if(anyLT==1){
-      //just reuse this vector, now it is H1(yL) + H2(yL)
+      //just reuse this vector, now it is H1(yL) + H2(yL) (aka -log(S(y_L)))
       AVec = Lambda1_yL * exp(logfrail)
-           + Lambda2_yL * exp(beta2frail * logfrail);
-      loglik_vec_j += AVec;
+      + Lambda2_yL * exp(beta2frail * logfrail);
+      if(j == 0){
+        logsurv_vec_marg_yL = -AVec + log_gauss_weights(j);
+      } else{
+        logsurv_vec_marg_yL = logsumexp_vec(logsurv_vec_marg_yL, -AVec + log_gauss_weights(j));
+      }
     }
 
-    if(j == 0){
-      loglik_vec_marg = loglik_vec_j + log_gauss_weights(j);
-    } else{
-      loglik_vec_marg = logsumexp_vec(loglik_vec_marg, loglik_vec_j + log_gauss_weights(j));
-    }
   }
 
-  return(-arma::accu(weights % loglik_vec_marg));
+  double obj_val = arma::accu(weights % loglik_vec_marg);
+  if(anyLT==1){
+    obj_val -= arma::accu(weights % logsurv_vec_marg_yL);
+  }
+  return(-obj_val);
 }
 
 

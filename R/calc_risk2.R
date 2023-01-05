@@ -458,3 +458,170 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
   return(out_mat)
 }
 
+
+
+
+
+
+
+#' Get matrix of observed outcome categories
+#'
+#' This function returns a matrix giving the observed outcome categories of each observation at various
+#'   time cutoffs.
+#'
+#' @inheritParams nll_func
+#' @inheritParams calc_risk2
+#'
+#' @return a matrix or array.
+#' @export
+get_outcome_mat <- function(y1, y2, delta1, delta2, t_cutoff){
+
+  n <- length(y1)
+  t_length <- length(t_cutoff)
+
+  if(n > 1){
+    if(t_length > 1){
+      out_mat <- array(dim=c(t_length,4,n),dimnames = list(paste0("t",t_cutoff),c("ntonly","both","tonly","neither"),paste0("i",1:n)))
+    } else{
+      out_mat <- matrix(nrow=n,ncol=4,dimnames = list(paste0("i",1:n),c("ntonly","both","tonly","neither")))
+    }
+  } else{
+    out_mat <- matrix(nrow=t_length,ncol=4,dimnames = list(paste0("t",t_cutoff),c("ntonly","both","tonly","neither")))
+  }
+
+  for(t_ind in 1:t_length){
+
+    #For cases where y=t_cutoff, I consider events that happened exactly at t_cutoff in categorization.
+    neither <- t_cutoff[t_ind] < y1 | #neither
+      y2 <= t_cutoff[t_ind] & delta1 == 0 & delta2 == 0 #neither
+    ntonly <- y1 <= t_cutoff[t_ind] & t_cutoff[t_ind] < y2 | #ntonly
+      y2 <= t_cutoff[t_ind] & delta1 == 1 & delta2 == 0 #ntonly
+    tonly <- y2 <= t_cutoff[t_ind] & delta1 == 0 & delta2 == 1 #tonly
+    both <- y2 <= t_cutoff[t_ind] & delta1 == 1 & delta2 == 1 #both
+
+
+
+    out_temp <- cbind(ntonly=as.numeric(ntonly),
+                      both=as.numeric(both),
+                      tonly=as.numeric(tonly),
+                      neither=as.numeric(neither))
+
+    if(n > 1){
+      if(t_length > 1){
+        out_mat[t_ind,,] <- t(out_temp)
+      } else{
+        out_mat <- out_temp
+      }
+    } else{
+      out_mat[t_ind,] <- out_temp
+    }
+  }
+  out_mat
+}
+
+#' Get inverse probability of censoring weights
+#'
+#' This function returns a vector of inverse probability of censoring weights from an unadjusted Cox model
+#'   for censoring times.
+#'
+#' @inheritParams nll_func
+#' @inheritParams calc_risk2
+#'
+#' @return a vector.
+#' @export
+get_ipcw_mat <- function(y2,delta2,t_cutoff){
+
+  # browser()
+  n <- length(y2)
+  t_length <- length(t_cutoff)
+
+  #this is Ghat, a non-parametric model of the 'survival distribution' of censoring var C.
+  sfcens <- survival::survfit(survival::Surv(y2, delta2==0) ~ 1)
+
+  #* want to get Ghat(z) where (following Graf 1999 'three categories')
+  #* Category 1:
+  #* z=y2- if y2<=s and delta2=1,
+  #* Category 2:
+  #* z=s if s<y2
+  #* Category 3:
+  #* z=Inf if y2<s and delta2=0, (aka, 1/Ghat(z)=0, I know they're subtly different)
+  #* z=s if s=y2 and delta2=0, #this one situation is what I'm unsure about
+  #* because graf and spitoni would say that if s=y2 and delta2=0, then z=Inf and result should be tossed.
+  #* below I defer to them, but I'm just noting that to me there is logic in the other direction.
+  #*
+  #* so, we define
+  #* z = min(y2,s)
+  #* then change z=y2- if y2<=s and delta2=1
+  #* then change z=Inf if y2<=s and delta2=0 (again, technically change 1/Ghat(z)=0 for these obs but still)
+  #*
+  #* then change z=Inf if y2< s and delta2=0 (again, technically change 1/Ghat(z)=0 for these obs but still)
+  #* and that should do it! (I hope)
+
+  ipcw_mat <- matrix(nrow=n,ncol=t_length,dimnames = list(paste0("i",1:n),paste0("t",t_cutoff)))
+  for(t_ind in 1:t_length){
+    #vector of min(ttilde,t)
+    y_last <- pmin(y2,t_cutoff[t_ind])
+    if(sum(y2 <= t_cutoff[t_ind] & delta2==1)>0){
+      y_last[y2 <= t_cutoff[t_ind] & delta2==1] <- y_last[y2 <= t_cutoff[t_ind] & delta2==1] - 1e-8
+    }
+    y_last_cens <- rep(NA,n)
+    y_last_cens[order(y_last)] <- summary(sfcens, times = y_last, extend=TRUE)$surv
+
+    #now, to eliminate the the 'censored' observations
+    if(sum(y_last <= t_cutoff[t_ind] & delta2==0) > 0){
+      y_last_cens[y2 <= t_cutoff[t_ind] & delta2==0] <- Inf
+    }
+    #below is my former definition, but I will defer to graf and spitoni above
+    # if(sum(y_last < t_cutoff[t_ind] & delta2==0) > 0){
+    #   y_last_cens[y2 < t_cutoff[t_ind] & delta2==0] <- Inf
+    # }
+    ipcw_mat[,t_ind] <- 1/y_last_cens
+  }
+  ipcw_mat
+}
+
+
+#' Compute prediction performance score
+#'
+#' This function takes in all of the ingredients needed for prediction validation,
+#'   and returns the corresponding scores.
+#'
+#' @param outcome_mat Output from get_outcome_mat function
+#' @param pred_mat Output from calc_risks function
+#' @param ipcw_mat Output from get_ipcw_mat function
+#' @param score String indicating whether 'brier' score, or 'entropy' should be computed.
+#'
+#' @return a vector.
+#' @export
+compute_score <- function(outcome_mat, pred_mat, ipcw_mat, score="brier"){
+  #this function is for brier and kl scores (aka cross entropy)
+  #one weird thing is that in spitoni, the authors divide by n instead of by the sum of weights, is that right?
+  # browser()
+  if(length(dim(outcome_mat))==3){
+    if(tolower(score) %in% c("brier")){
+      out <- apply( t(apply((outcome_mat - pred_mat)^2,
+                            MARGIN = c(1,3),
+                            FUN = sum)) *
+                      ipcw_mat, MARGIN = 2, FUN = mean)
+    } else{
+      out <- apply( t(apply(-outcome_mat*log(pred_mat),
+                            MARGIN = c(1,3),
+                            FUN = sum)) *
+                      ipcw_mat, MARGIN = 2, FUN = mean)
+    }
+  } else{ #this must mean that there is only a single time cutoff, so the input mats are n by 4 and weights is just a vector
+    if(tolower(score) %in% c("brier")){
+      out <- colMeans( apply((outcome_mat - pred_mat)^2,
+                             MARGIN = c(1),
+                             FUN = sum) * ipcw_mat)
+    } else{
+      out <- colMeans( apply(-outcome_mat*log(pred_mat),
+                             MARGIN = c(1),
+                             FUN = sum) * ipcw_mat)
+    }
+  }
+  out
+}
+
+
+

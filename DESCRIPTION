@@ -23,6 +23,7 @@ Imports:
     pracma,
     Rcpp,
     splines2,
+    statmod,
     survival
 Depends: 
     R (>= 2.10)
