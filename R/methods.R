@@ -1,27 +1,65 @@
-#' Extract robust "sandwich" estimate of variance-covariance matrix
+#' Compute estimates of variance-covariance matrix
 #'
-#' This function computes the robust "sandwich" variance estimate from frequentist
-#' model object, provided that the model object includes the "cheese" or "meat" matrix comprising
-#' the summed outer products of each individual subject's scores evaluated at the MLE.
+#' This function computes different variance estimate from frequentist
+#' model object, using the observed information and/or the summed outer products
+#' of each individual subject's scores evaluated at the MLE.
 #'
-#' @param object Model object
-#' @param adjust Boolean for whether to include "finite sample"
+#' @param Finv inverse of observed information matrix
+#' @param cheese summed score function outer products
+#' @param n number of observations
+#' @param var_type String giving type of variance covariance matrix estimate to return.
+#'  Options are "modelbased" which returns the inverse of the observed information,
+#'  "outer" which returns the inverse of the summed score function outer products,
+#'  or "sandwich" which returns the sandwich estimator
+#' @param name_vec String vector giving the desired names of each row/column of the matrix
+#' @param df_adjust Boolean for whether to include "finite sample"
 #'  degrees-of-freedom adjustment by multiplication with \eqn{n/(n-k)}
 #'  where \eqn{n} is the number of observations and
 #'  \eqn{k} is the number of estimated parameters.
-#' @param ... Other arguments (currently unused).
 #'
 #' @export
-vcov_sandwich <- function (object, adjust = FALSE, ...){
-  if(is.null(object$cheese) || is.null(object$Finv)){stop("fitted model does not have 'cheese' for sandwich variance.")}
-  val <- object$Finv %*% object$cheese %*% object$Finv
-  if(adjust) val <- val * object$nobs / (object$nobs - NROW(object$Finv))
-  rownames(val) <- colnames(val) <- names(object$estimate)
+vcov_helper <- function (Finv=NULL, cheese=NULL,
+                         n, name_vec=NULL,
+                         var_type=c("modelbased","sandwich","outer"),
+                         df_adjust = FALSE){
+  var_type <- match.arg(var_type)
+
+  if(var_type %in% c("modelbased","sandwich") & is.null(Finv)){
+    warning("'Finv' variance-covariance matrix not provided. Returning NULL.")
+    return(NULL)
+  }
+  if(var_type %in% c("outer","sandwich") & is.null(cheese)){
+    warning("fitted model does not have 'cheese' for sandwich variance stored. Returning NULL")
+    return(NULL)
+  }
+
+  val <- NULL
+  if(var_type == "modelbased"){ val <- Finv }
+  if(var_type == "sandwich"){ val <- Finv %*% cheese %*% Finv }
+  if(var_type == "outer"){
+    val <- tryCatch(MASS::ginv(cheese),
+             error=function(cnd){message(cnd);cat("\n");return(NULL)})
+  }
+
+  if(!is.null(val) & !all(is.na(val))){
+    if(df_adjust) val <- val * n / (n - NROW(val))
+    rownames(val) <- colnames(val) <- name_vec
+  }
+
   val
 }
 
+
+#Now, a bunch of standard methods defined for model fit object classes
+
+#returns model-based estimate using inverse of observed information.
 #' @export
 vcov.Freq_HReg2 <- function (object, ...){
+  if(is.null(object$Finv)){
+    warning("object does not have 'Finv' variance-covariance matrix stored.
+            Returning NULL.")
+    return(NULL)
+  }
   val <- object$Finv
   rownames(val) <- colnames(val) <- names(object$estimate)
   val
@@ -48,17 +86,18 @@ coef.Freq_HReg2 <- function (object, ...){
 #' @export
 print.Freq_HReg2 <- function (x, digits = 3, alpha = 0.05, ...)
 {
-  conf.level = alpha
   logEst <- x$estimate
   logSE <- if(all(is.na(x$Finv))) NA else sqrt(diag(x$Finv))
-  value <- cbind(logEst, logSE,
-                 logEst - abs(stats::qnorm(conf.level/2, 0, 1)) * logSE,
-                 logEst + abs(stats::qnorm(conf.level/2, 0, 1)) * logSE)
-  dimnames(value) <- list(x$myLabels, c("Estimate", "SE", "LL", "UL"))
+  value <- cbind(beta=logEst,SE=logSE,
+                 LL=logEst - abs(stats::qnorm(alpha/2, 0, 1)) * logSE,
+                 UL=logEst + abs(stats::qnorm(alpha/2, 0, 1)) * logSE,
+                 z=logEst/logSE,
+                 pvalue=stats::pchisq((logEst/logSE)^2,df = 1,lower.tail = FALSE))
+  dimnames(value) <- list(x$myLabels, c("beta", "SE", "LL", "UL","z","pvalue"))
   if (x$class[2] == "Surv") {
     cat("\nAnalysis of independent univariate time-to-event data \n")
     cat(x$class[4], "baseline hazard specification\n")
-    cat("Confidence level: ", conf.level, "\n", sep = "")
+    cat("Confidence level: ", round(1-alpha,3)*100, "%\n", sep = "")
     if (sum(x$nP) != 0) {
       cat("\nRegression coefficients:\n")
       print(round(value[-c(1:(sum(x$nP0))), ], digits = digits))
@@ -68,17 +107,24 @@ print.Freq_HReg2 <- function (x, digits = 3, alpha = 0.05, ...)
     cat("\nAnalysis of independent semi-competing risks data \n")
     cat(x$class[4], "baseline hazard specification\n")
     cat(x$class[5], "specification for h3\n")
-    cat("Confidence level: ", conf.level, "\n", sep = "")
-    cat("\nVariance of frailties, theta:\n")
-    if (x$frailty == TRUE)
-      value_theta <- matrix(exp(value[sum(x$nP0)+1, ]), ncol = 4)
-      dimnames(value_theta) <- list("", c("Estimate", "SE", "LL", "UL"))
-      #update theta SE with delta method
-      value_theta[1, 2] <- value[sum(x$nP0)+1, 2] * exp(value[sum(x$nP0)+1, 1])
+    cat("Confidence level: ", round(1-alpha,3)*100, "%\n", sep = "")
 
+    #print the frailty variance results
+    if (x$frailty == TRUE){
+      cat("\nVariance of frailties, theta:\n")
+      value_theta <- c(exp(value[sum(x$nP0)+1,1:4]),
+                       x$frailty_lrtest[c("test","pvalue")])
+      names(value_theta) <- c("theta", "SE", "LL", "UL","test","pvalue")
+      #update theta SE using delta method
+      value_theta[2] <- value[sum(x$nP0)+1, 2] * exp(value[sum(x$nP0)+1, 1])
       print(round(value_theta, digits = digits))
-    if (x$frailty == FALSE)
-      cat("NA")
+      cat("SE computed from SE(log(theta)) via delta method.")
+      cat("\nBounds formed for log(theta) and exponentiated.")
+      cat("\nLikelihood ratio of theta=0 vs. theta>0 using mixture of chi-squareds null.\n")
+    } else{
+      #no frailty variance estimate, so just say so.
+      cat("\nNon-frailty model fit\n")
+    }
     if (sum(x$nP) != 0) {
       cat("\nRegression coefficients:\n")
       if (x$frailty == TRUE)
@@ -92,106 +138,135 @@ print.Freq_HReg2 <- function (x, digits = 3, alpha = 0.05, ...)
 }
 
 #' @export
-summary.Freq_HReg2 <- function (object, digits = 3, alpha = 0.05, ...) {
+summary.Freq_HReg2 <- function (object, alpha = 0.05,
+                                var_type=c("modelbased","sandwich","outer"), ...) {
   # browser()
-  conf.level = alpha
-  obj <- object
-  logEst <- obj$estimate
-  logSE <- if(all(is.na(obj$Finv))) NA else sqrt(diag(obj$Finv))
-  results <- cbind(logEst,
-                   logEst - abs(stats::qnorm(conf.level/2, 0, 1)) * logSE,
-                   logEst + abs(stats::qnorm(conf.level/2, 0, 1)) * logSE)
-  if (obj$class[2] == "Surv") {
-    output.coef <- results[-c(1:obj$nP0),,drop=FALSE]
-    dimnames(output.coef) <- list(unique(obj$myLabels[-c(1:obj$nP0)]),
-                                  c("beta", "LL", "UL"))
-    output.h0 <- results[1:obj$nP0,,drop=FALSE]
-    if(obj$class[4]=="Weibull"){
+  var_type <- match.arg(var_type)
+  logEst <- object$estimate
+  temp_vcov <- vcov_helper(Finv = object$Finv, cheese = object$cheese,
+                           n = object$nobs, name_vec = names(object$estimate),
+                           var_type = var_type, df_adjust = FALSE)
+  logSE <- if(!is.null(temp_vcov) & !all(is.na(temp_vcov))) sqrt(diag(object$Finv)) else NA
+  results <- cbind(beta=logEst,SE=logSE,
+                LL=logEst - abs(stats::qnorm(alpha/2, 0, 1)) * logSE,
+                UL=logEst + abs(stats::qnorm(alpha/2, 0, 1)) * logSE,
+                z=logEst/logSE,
+                pvalue=stats::pchisq((logEst/logSE)^2,df = 1,lower.tail = FALSE))
+  if (object$class[2] == "Surv") {
+    output.coef <- results[-c(1:object$nP0),,drop=FALSE]
+    dimnames(output.coef) <- list(unique(object$myLabels[-c(1:object$nP0)]),
+                                  c("beta", "SE", "LL", "UL","z","pvalue"))
+    output.HR <- exp(output.coef[,c("beta","LL","UL")])
+    colnames(output.HR) <- c("exp(beta)","LL","UL")
+
+    output.h0 <- results[1:object$nP0,,drop=FALSE]
+    if(object$class[4]=="Weibull"){
       dimnames(output.h0) <- list(c("Weibull: log-kappa", "Weibull: log-alpha"),
-                                  c("h-PM", "LL", "UL"))
+                                  c("h-PM", "SE", "LL", "UL"))
       knots_mat <- NULL
     } else{
-      dimnames(output.h0) <- list(paste0(obj$class[4],": phi",1:obj$nP0),
-                               c("h-PM", "LL", "UL"))
-      knots_mat <- as.matrix(obj$knots_vec)
-      rownames(knots_mat) <- paste0("knot",1:length(obj$knots_vec))
+      dimnames(output.h0) <- list(paste0(object$class[4],": phi",1:object$nP0),
+                               c("h-PM", "SE", "LL", "UL"))
+      knots_mat <- as.matrix(object$knots_vec)
+      rownames(knots_mat) <- paste0("knot",1:length(object$knots_vec))
     }
-    value <- list(coef = output.coef, h0 = output.h0,
-                  logLike = obj$logLike,
-                  nP = nrow(results), class = obj$class,
-                  conf.level = conf.level, knots_mat=knots_mat)
+
+    value <- list(HR = output.HR,
+                  coef = output.coef, h0 = output.h0,
+                  logLike = object$logLike,
+                  nP = nrow(results), class = object$class,
+                  alpha=alpha, #conf.level = conf.level,
+                  knots_mat=knots_mat, var_type=var_type)
   }
-  if (obj$class[2] == "ID") {
-    nP.0 <- ifelse(obj$frailty, sum(obj$nP0)+1, sum(obj$nP0))
-    nP.1 <- obj$nP[1]; nP.2 <- obj$nP[2]; nP.3 <- obj$nP[3]
-    beta.names <- unique(obj$myLabels[-c(1:nP.0)])
+  if (object$class[2] == "ID") {
+    nP.0 <- ifelse(object$frailty, sum(object$nP0)+1, sum(object$nP0))
+    nP.1 <- object$nP[1]; nP.2 <- object$nP[2]; nP.3 <- object$nP[3]
+    beta.names <- unique(object$myLabels[-c(1:nP.0)])
     nP <- length(beta.names)
-    output <- matrix(NA, nrow = nP, ncol = 9)
-    dimnames(output) <- list(beta.names, c("beta1", "LL", "UL",
-                                           "beta2", "LL", "UL",
-                                           "beta3", "LL", "UL"))
+    output.coef <- matrix(NA, nrow = nP, ncol = 18)
+    dimnames(output.coef) <- list(beta.names,
+        c("beta1", "beta1_SE", "beta1_LL", "beta1_UL","beta1_z","beta1_pvalue",
+          "beta2", "beta2_SE", "beta2_LL", "beta2_UL","beta2_z","beta2_pvalue",
+          "beta3", "beta3_SE", "beta3_LL", "beta3_UL","beta3_z","beta3_pvalue"))
     for (i in 1:nP) {
       if (nP.1 != 0) {
-        for (j in 1:nP.1) if (obj$myLabels[nP.0+j] == beta.names[i])
-          output[i,1:3] <- results[nP.0+j,]
+        for (j in 1:nP.1) if (object$myLabels[nP.0+j] == beta.names[i])
+          output.coef[i,1:6] <- results[nP.0+j,]
       }
       if (nP.2 != 0) {
-        for (j in 1:nP.2) if (obj$myLabels[nP.0+nP.1+j] == beta.names[i])
-          output[i,4:6] <- results[nP.0+nP.1+j,]
+        for (j in 1:nP.2) if (object$myLabels[nP.0+nP.1+j] == beta.names[i])
+          output.coef[i,7:12] <- results[nP.0+nP.1+j,]
       }
       if (nP.3 != 0) {
-        for (j in 1:nP.3) if (obj$myLabels[nP.0+nP.1+nP.2+j] == beta.names[i])
-          output[i,7:9] <- results[nP.0+nP.1+nP.2+j,]
+        for (j in 1:nP.3) if (object$myLabels[nP.0+nP.1+nP.2+j] == beta.names[i])
+          output.coef[i,13:18] <- results[nP.0+nP.1+nP.2+j,]
       }
     }
-    output.coef <- output
-    output <- matrix(NA, nrow = 1, ncol = 3)
-    dimnames(output) <- list(c("theta"), c("Estimate", "LL", "UL"))
-    if (obj$frailty == TRUE)
-      output[1, ] <- exp(results[nP.0, ])
-    if (obj$frailty == FALSE)
-      output[1, ] <- rep(NA, 3)
-    output.theta <- output
+    output.HR <- exp(output.coef[,c("beta1","beta1_LL","beta1_UL",
+                                    "beta2","beta2_LL","beta2_UL",
+                                    "beta3","beta3_LL","beta3_UL")])
+    colnames(output.HR) <- c("exp(beta1)", "LL", "UL",
+                             "exp(beta2)", "LL", "UL",
+                             "exp(beta3)", "LL", "UL")
+
+    output.theta <- output.ltheta <- rep(NA,6)
+    if(object$frailty){
+      output.ltheta <- c(results[nP.0,1:4],
+                         object$frailty_lrtest[c("test","pvalue")])
+      output.theta <- c(exp(results[nP.0,1:4]),
+                        object$frailty_lrtest[c("test","pvalue")])
+      #replace with standard error of theta from delta method
+      output.theta[2] <- results[nP.0,2] * exp(results[nP.0,1])
+    }
+    names(output.ltheta) <- c("log(theta)", "SE", "LL", "UL", "test", "pvalue")
+    names(output.theta) <- c("theta", "SE", "LL", "UL", "test", "pvalue")
 
     knots_mat <- NULL
-    if(obj$class[4]=="Weibull"){
-      output <- matrix(NA, nrow = 2, ncol = 9)
-      dimnames(output) <- list(c("Weibull: log-kappa", "Weibull: log-alpha"),
-                               c("h1-PM", "LL", "UL",
-                                 "h2-PM", "LL", "UL",
-                                 "h3-PM", "LL", "UL"))
-      output[1, 1:3] <- results[1, ]
-      output[1, 4:6] <- results[3, ]
-      output[1, 7:9] <- results[5, ]
-      output[2, 1:3] <- results[2, ]
-      output[2, 4:6] <- results[4, ]
-      output[2, 7:9] <- results[6, ]
-    } else{ #this covers piecewise and spline
-      p01 <- obj$nP0[1]; p02 <- obj$nP0[2]; p03 <- obj$nP0[3]
-      p0max <- max(obj$nP0)
+    if(object$class[4]=="Weibull"){
+      output.h0 <- matrix(NA, nrow = 2, ncol = 12,
+                    dimnames=list(c("Weibull: log-kappa", "Weibull: log-alpha"),
+                               c("h1-PM", "SE", "LL", "UL",
+                                 "h2-PM", "SE", "LL", "UL",
+                                 "h3-PM", "SE", "LL", "UL")))
+      output.h0[1, 1:4] <- results[1,1:4]
+      output.h0[1, 5:8] <- results[3,1:4]
+      output.h0[1, 9:12] <- results[5,1:4]
+      output.h0[2, 1:4] <- results[2,1:4]
+      output.h0[2, 5:8] <- results[4,1:4]
+      output.h0[2, 9:12] <- results[6,1:4]
+    } else{ #this covers piecewise and spline models
+      p01 <- object$nP0[1]; p02 <- object$nP0[2]; p03 <- object$nP0[3]
+      p0max <- max(object$nP0)
 
       #generate "wide" matrix of baseline parameters by padding with 0s so all are same height
-      output <- cbind(
-        rbind(results[1:p01,],matrix(data=0,ncol=3,nrow=(p0max-p01))),
-        rbind(results[(1+p01):(p01+p02),],matrix(data=0,ncol=3,nrow=(p0max-p02))),
-        rbind(results[(1+p01+p02):(p01+p02+p03),],matrix(data=0,ncol=3,nrow=(p0max-p03)))
+      output.h0 <- cbind(
+        rbind(results[1:p01,1:4],matrix(data=0,ncol=4,nrow=(p0max-p01))),
+        rbind(results[(1+p01):(p01+p02),1:4],matrix(data=0,ncol=4,nrow=(p0max-p02))),
+        rbind(results[(1+p01+p02):(p01+p02+p03),1:4],matrix(data=0,ncol=4,nrow=(p0max-p03)))
       )
-      dimnames(output) <- list(paste0(obj$class[4],": phi",1:p0max),
-                               c("h1-PM", "LL", "UL",
-                                 "h2-PM", "LL", "UL",
-                                 "h3-PM","LL", "UL"))
+      dimnames(output.h0) <- list(paste0(object$class[4],": phi",1:p0max),
+                               c("h1-PM", "SE", "LL", "UL",
+                                 "h2-PM", "SE", "LL", "UL",
+                                 "h3-PM", "SE", "LL", "UL"))
 
       #lastly, make a matrix with the knot locations, padded with NAs
-      knotmax <- max(sapply(obj$knots_list,length))
-      knots_mat <- sapply(obj$knots_list,FUN = function(x) c(x,rep(NA,knotmax-length(x))))
+      knotmax <- max(sapply(object$knots_list,length))
+      knots_mat <- sapply(object$knots_list,FUN = function(x) c(x,rep(NA,knotmax-length(x))))
       dimnames(knots_mat) <- list(paste0("knot",1:knotmax), c("h1","h2","h3"))
     }
 
-    output.h0 <- output
-    value <- list(coef = output.coef, theta = output.theta,
-                  h0 = output.h0, logLike = obj$logLike,
-                  nP = nrow(results), class = obj$class,
-                  conf.level = conf.level, knots_mat=knots_mat)
+    value <- list(HR = output.HR,
+                  coef = output.coef,
+                  coef_long = results[-(1:nP.0),],
+                  theta = output.theta,
+                  ltheta = output.ltheta,
+                  h0 = output.h0,
+                  h0_long = results[1:sum(object$nP0),1:4],
+                  logLike = object$logLike,
+                  nP = nrow(results), class = object$class,
+                  frailty = object$frailty,
+                  alpha = alpha, #conf.level = conf.level,
+                  knots_mat = knots_mat, var_type=var_type)
   }
   class(value) <- "summ.Freq_HReg2"
   return(value)
@@ -200,29 +275,44 @@ summary.Freq_HReg2 <- function (object, digits = 3, alpha = 0.05, ...) {
 #' @export
 print.summ.Freq_HReg2 <- function (x, digits = 3, ...)
 {
-  obj <- x
-  if (obj$class[2] == "Surv") {
+  if (x$class[2] == "Surv") {
     cat("\nAnalysis of independent univariate time-to-event data \n")
   }
-  if (obj$class[2] == "ID") {
+  if (x$class[2] == "ID") {
     cat("\nAnalysis of independent semi-competing risks data \n")
-    cat(obj$class[4], "baseline hazard specification\n")
-    cat(obj$class[5], "specification for h3\n")
+    cat(x$class[4], "baseline hazard specification\n")
+    cat(x$class[5], "specification for h3\n")
   }
-  cat("Confidence level: ", x$conf.level, "\n", sep = "")
-  if (!is.null(obj$coef)) {
+  cat("Confidence level: ", round(1-x$alpha,3)*100, "%\n", sep = "")
+
+  if(x$var_type != "modelbased"){
+    if(x$var_type=="sandwich"){
+      cat("Variances estimated by robust sandwich estimator.")
+    } else if(x$var_type=="outer"){
+      cat("Variances estimated")
+    }
+  }
+
+  if (!is.null(x$coef)) {
     cat("\nHazard ratios:\n")
-    print(round(exp(obj$coef), digits = digits))
+    print(round(x$HR, digits = digits))
   }
-  if (obj$class[2] == "ID") {
-    cat("\nVariance of frailties:\n")
-    print(round(obj$theta, digits = digits))
+  if (x$class[2] == "ID") {
+    if(x$frailty){
+      cat("\nVariance of frailties:\n")
+      print(round(x$theta, digits = digits))
+      cat("SE computed from log(theta) via delta method. Bounds exponentiated from log(theta).")
+      cat("\nLikelihood ratio test of theta=0 vs. theta>0 using mixture of chi-squareds null.\n")
+    } else{
+      #no frailty variance estimate, so just say so.
+      cat("\nNon-frailty model fit\n")
+    }
   }
   cat("\nBaseline hazard function components:\n")
-  print(round(obj$h0, digits = digits))
-  if (obj$class[4] != "Weibull") {
+  print(round(x$h0, digits = digits))
+  if (x$class[4] != "Weibull") {
     cat("\nKnots:\n")
-    print(round(obj$knots_mat, digits = digits))
+    print(round(x$knots_mat, digits = digits))
   }
   invisible()
 }
@@ -259,9 +349,11 @@ pred_helper <- function(tseq, xnew, func_type,
     } else {
       #out_temp is Lambda, may be transformed to survival at the end
       out_temp <- kappa * (tseq)^alpha * exp(eta)
+
+      #we use log-cumulative hazard (aka complementary log-log survival)
+      #and delta method to compute confidence intervals for cumulative hazard / survival
       if(get_se){
-        #under weibull, log(-log(S(t))) = logkappa + xtbeta + exp(logalpha)*log(t)
-        #Use log-log delta method to compute baseline survival confidence intervals
+        #under weibull, log(-log(S(t))) = log(H(t)) = logkappa + xtbeta + exp(logalpha)*log(t)
         #matrix with as many columns as parameters in S1, and as many rows as times in tseq
         #so, each row of J is the gradient at a particular tseq wrt logkappa, logalpha, beta1, ..., betap
         J <- cbind(1, #partial derivative of logkappa
@@ -275,7 +367,6 @@ pred_helper <- function(tseq, xnew, func_type,
       dbasis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = "piecewise",deriv = TRUE)
       out_temp <- as.vector(dbasis %*% exp(phi) * exp(eta))
       if(get_se){
-        #Use delta method on log(haz) to compute baseline hazard confidence intervals
         J <- cbind(t(t(dbasis) * exp(phi)) * exp(eta) / out_temp,
                    if (!is.null(xnew) & length(beta) > 0) matrix(xnew, nrow = length(tseq),
                                                                  ncol = length(xnew), byrow = T))
@@ -298,7 +389,6 @@ pred_helper <- function(tseq, xnew, func_type,
       dbasis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = "royston-parmar",deriv = TRUE)
       out_temp <- as.vector(dbasis %*% phi / tseq * exp(basis %*% phi + eta))
       if(get_se){
-        #Use delta method on log(haz) to compute baseline hazard confidence intervals
         #log(h(t)) = log(s'(z)) + s(z) + xtbeta where z=log(t)
         J <- cbind(dbasis/as.vector(dbasis %*% phi) + basis,
                    if(!is.null(xnew) & length(beta) > 0) matrix(xnew, nrow = length(tseq),
@@ -323,7 +413,6 @@ pred_helper <- function(tseq, xnew, func_type,
     if(func_type=="h"){
       out_temp <- as.vector(exp(basis %*% phi) * exp(eta))
       if(get_se){
-        #Use delta method on log(haz) to compute baseline hazard confidence intervals
         #log(haz) is Btphi + xtbeta
         J <- cbind(basis, #partial derivative of phi
                    if(!is.null(xnew) & length(beta) > 0) matrix(xnew, nrow = length(tseq),
@@ -379,7 +468,7 @@ predict.Freq_HReg2 <- function (object, xnew = NULL,
                                 tseq = seq(0,object$ymax,length.out = 100),
                                 alpha = 0.05, pred_type="conditional",
                                 n_quad=15, quad_method="kronrod", ...) {
-  browser()
+  # browser()
   conf.level = alpha
   obj <- object
   yLim <- NULL
@@ -514,7 +603,8 @@ predict.Freq_HReg2 <- function (object, xnew = NULL,
 
 
 #' @export
-plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz", xlab = NULL, ylab = NULL, ...)
+plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
+                                  xlab = NULL, ylab = NULL, ...)
 {
   # browser()
   obj <- x

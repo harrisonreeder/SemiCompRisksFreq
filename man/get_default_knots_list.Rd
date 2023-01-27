@@ -7,13 +7,9 @@
 get_default_knots_list(y1, y2, delta1, delta2, p01, p02, p03, hazard, model)
 }
 \arguments{
-\item{y1}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
+\item{y1, y2}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
 
-\item{y2}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
-
-\item{delta1}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
-
-\item{delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
+\item{delta1, delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
 
 \item{p01, p02, p03}{Integers indicating how many parameters the model for each
 transition baseline hazard should specify.}

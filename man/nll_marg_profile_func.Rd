@@ -34,23 +34,15 @@ nll_marg_profile_func(
 
 \item{fixed_param_ind}{index of parameter after which fixed parameters would be inserted}
 
-\item{y1}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
+\item{y1, y2}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
 
-\item{y2}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
-
-\item{delta1}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
-
-\item{delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
+\item{delta1, delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
 
 \item{yL}{Numeric vector of length \eqn{n} with left-truncation times.}
 
 \item{anyLT}{Boolean (or 1/0) value that is \code{TRUE} (or 1) if there are any non-zero left truncation times, and \code{FALSE} (or 0) otherwise}
 
-\item{Xmat1}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
-
-\item{Xmat2}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
-
-\item{Xmat3}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
+\item{Xmat1, Xmat2, Xmat3}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
 \item{weights}{Vector of numeric weights of length \eqn{n} corresponding
 to each observed individual.}

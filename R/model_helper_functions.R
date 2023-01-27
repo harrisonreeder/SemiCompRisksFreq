@@ -653,7 +653,8 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots_vec, basis,
 #' @export
 get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
                         basis, dbasis, basis_yL, hazard, weights,
-                        control, hessian, optim_method, extra_starts){
+                        control, optim_method, extra_starts,
+                        hessian){
   best_ll <- -Inf
   output <- list(fail=TRUE)
 
@@ -743,13 +744,19 @@ get_fit_uni <- function(startVals, y, delta, yL, anyLT, Xmat,
 
   #if any of the methods worked, then set the output to correspond with the best method
   if(best_ll > -Inf){
+    Finv <- NULL
+    if(hessian){
+      Finv <- tryCatch(MASS::ginv(final_nhess),
+                  error=function(cnd){message(cnd);cat("\n");return(NULL)})
+    }
     output <- list(estimate=final_est,
                    logLike=best_ll,
                    grad=final_grad,
-                   nhess=final_nhess,
+                   Finv=Finv,
                    optim_details=optim_details,
                    startVals=final_startVals)
   }
+
   output
 }
 
@@ -880,16 +887,15 @@ get_start <- function(y1,y2,delta1,delta2,yL,anyLT,
 #' @inheritParams nll_func
 #' @inheritParams FreqID_HReg2
 #' @inheritParams get_fit_uni
-#' @param startVals_nf A vector of starting parameter values without a frailty variance,
-#'   such as computed by \code{\link{get_start}}.
 #'
 #' @return A vector of starting parameter values.
 #' @export
-get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,yL,anyLT,
-                       Xmat1,Xmat2,Xmat3, knots_list, weights,
+get_fit_nf <- function(startVals,y1,y2,delta1,delta2,yL,anyLT,
+                       Xmat1,Xmat2,Xmat3, weights,
                        basis1,basis2,basis3,basis3_y1,basis1_yL,basis2_yL,
-                       dbasis1,dbasis2,dbasis3,hazard,model,control,
-                       hessian,optim_method,extra_starts){
+                       dbasis1,dbasis2,dbasis3,hazard,model,
+                       control,optim_method,extra_starts,
+                       hessian){
   # browser()
   #generate starting values based on the chosen form of the baseline hazard.
   p01 <- if(tolower(hazard) %in% c("weibull","wb")) 2 else ncol(basis1)
@@ -900,12 +906,12 @@ get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,yL,anyLT,
   nP0_tot <- sum(nP0)
 
   #get start values from inputs (which are arranged assuming no frailty)
-  start1 <- c(startVals_nf[1:p01],
-              if(nP[1]>0) startVals_nf[(1+nP0_tot):(nP0_tot+nP[1])] )
-  start2 <- c(startVals_nf[(1+p01):(p01+p02)],
-              if(nP[2]>0) startVals_nf[(1+nP0_tot+nP[1]):(nP0_tot+nP[1]+nP[2])] )
-  start3 <- c(startVals_nf[(1+p01+p02):(p01+p02+p03)],
-              if(nP[3]>0) startVals_nf[(1+nP0_tot+nP[1]+nP[2]):(nP0_tot+nP[1]+nP[2]+nP[3])] )
+  start1 <- c(startVals[1:p01],
+              if(nP[1]>0) startVals[(1+nP0_tot):(nP0_tot+nP[1])] )
+  start2 <- c(startVals[(1+p01):(p01+p02)],
+              if(nP[2]>0) startVals[(1+nP0_tot+nP[1]):(nP0_tot+nP[1]+nP[2])] )
+  start3 <- c(startVals[(1+p01+p02):(p01+p02+p03)],
+              if(nP[3]>0) startVals[(1+nP0_tot+nP[1]+nP[2]):(nP0_tot+nP[1]+nP[2]+nP[3])] )
 
   #prepare event indicator for second transition model fit
   delta_cr <- ifelse(y1 < y2, 0, delta2)
@@ -971,31 +977,34 @@ get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,yL,anyLT,
     return(list(fail=TRUE,logLike=NA))
   }
 
-  #if needed, construct block-diagonal vcov matrix
-  if(hessian){
-    Finv1 <- MASS::ginv(fit01$nhess)
-    Finv2 <- MASS::ginv(fit02$nhess)
-    Finv3 <- MASS::ginv(fit03$nhess)
+  Finv <- NULL
+  if(hessian & !is.null(fit01$Finv) & !is.null(fit02$Finv) &  !is.null(fit03$Finv)){
     #create block-diagonal matrix
     Finv <- rbind(
-      cbind(Finv1[1:p01,1:p01],matrix(data=0,nrow=p01,ncol=p02+p03+sum(nP))),
-      cbind(matrix(data=0,nrow=p02,ncol=p01),Finv2[1:p02,1:p02],matrix(data=0,nrow=p02,ncol=p03+sum(nP))),
-      cbind(matrix(data=0,nrow=p03,ncol=p01+p02),Finv3[1:p03,1:p03],matrix(data=0,nrow=p03,ncol=sum(nP))),
-      cbind(matrix(data=0,nrow=nP[1],ncol=sum(nP0)),Finv1[-(1:p01),-(1:p01)],matrix(data=0,nrow=nP[1],ncol=nP[2]+nP[3])),
-      cbind(matrix(data=0,nrow=nP[2],ncol=sum(nP0)+nP[1]),Finv2[-(1:p02),-(1:p02)],matrix(data=0,nrow=nP[2],ncol=nP[3])),
-      cbind(matrix(data=0,nrow=nP[3],ncol=sum(nP0)+nP[1]+nP[2]),Finv3[-(1:p03),-(1:p03)]))
+      cbind(fit01$Finv[1:p01,1:p01],
+            matrix(data=0,nrow=p01,ncol=p02+p03+sum(nP))),
+      cbind(matrix(data=0,nrow=p02,ncol=p01),
+            fit02$Finv[1:p02,1:p02],matrix(data=0,nrow=p02,ncol=p03+sum(nP))),
+      cbind(matrix(data=0,nrow=p03,ncol=p01+p02),
+            fit03$Finv[1:p03,1:p03],matrix(data=0,nrow=p03,ncol=sum(nP))),
+      cbind(matrix(data=0,nrow=nP[1],ncol=sum(nP0)),
+            fit01$Finv[-(1:p01),-(1:p01)],matrix(data=0,nrow=nP[1],ncol=nP[2]+nP[3])),
+      cbind(matrix(data=0,nrow=nP[2],ncol=sum(nP0)+nP[1]),
+            fit02$Finv[-(1:p02),-(1:p02)],matrix(data=0,nrow=nP[2],ncol=nP[3])),
+      cbind(matrix(data=0,nrow=nP[3],ncol=sum(nP0)+nP[1]+nP[2]),
+            fit03$Finv[-(1:p03),-(1:p03)]))
   }
 
   return(list(
     estimate=c(fit01$estimate[1:p01],fit02$estimate[1:p02],fit03$estimate[1:p03],
       fit01$estimate[-(1:p01)],fit02$estimate[-(1:p02)],fit03$estimate[-(1:p03)]),
-    Finv = if(hessian) Finv else NA,
+    Finv = Finv,
     grad = c(fit01$grad[1:p01],fit02$grad[1:p02],fit03$grad[1:p03],
              fit01$grad[-(1:p01)],fit02$grad[-(1:p02)],fit03$grad[-(1:p03)]),
     logLike = sum(fit01$logLike,fit02$logLike,fit03$logLike),
     logLike_ind = c(fit01$logLike,fit02$logLike,fit03$logLike),
     optim_details = list(fit01$optim_details,fit02$optim_details,fit03$optim_details),
-    startVals=startVals_nf
+    startVals=startVals
   ))
 }
 
@@ -1013,10 +1022,11 @@ get_fit_nf <- function(startVals_nf,y1,y2,delta1,delta2,yL,anyLT,
 #' @return A vector of starting parameter values.
 #' @export
 get_fit_frail <- function(startVals,y1,y2,delta1,delta2,yL,anyLT,
-                       Xmat1,Xmat2,Xmat3, knots_list, weights,
+                       Xmat1,Xmat2,Xmat3, weights,
                        basis1,basis2,basis3,basis3_y1,basis1_yL,basis2_yL,
                        dbasis1,dbasis2,dbasis3, hazard,model,frailty,
-                       control,hessian,optim_method,extra_starts){
+                       control,optim_method,extra_starts,
+                       hessian){
   # browser()
   best_ll <- -Inf
   output <- list(fail=TRUE)
@@ -1127,12 +1137,18 @@ get_fit_frail <- function(startVals,y1,y2,delta1,delta2,yL,anyLT,
 
   #if any of the methods worked, set the output to correspond with the best method
   if(best_ll > -Inf){
+    Finv <- NULL
+    if(hessian){
+      Finv <- tryCatch(MASS::ginv(final_nhess),
+                  error=function(cnd){message(cnd);cat("\n");return(NULL)})
+    }
     output <- list(estimate=final_est,
                    logLike=best_ll,
                    grad=final_grad,
-                   nhess=final_nhess,
+                   Finv=Finv,
                    optim_details=optim_details,
                    startVals=final_startVals)
   }
+
   output
 }

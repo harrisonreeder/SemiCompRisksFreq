@@ -44,14 +44,14 @@
 #'   the model object output. Options include
 #'   \itemize{
 #'     \item{Finv}{Variance-covariance matrix. Defaults to \code{TRUE}.}
-#'     \item{grad_mat_return}{Matrix with rowwise
+#'     \item{grad_mat}{Matrix with rowwise
 #'     score vectors for each individual evaluated at the MLE.
 #'     Used to compute "cheese" or "meat" in robust standard error computation.
 #'     Defaults to \code{FALSE}.}
 #'     \item{cheese}{Sum of outer products of individual score vectors,
 #'     used as the "cheese" or "meat" in robust standard error computation.
 #'     Defaults to \code{TRUE}.}
-#'     \item{data_return}{Original data frame used to fit model.
+#'     \item{data}{Original data frame used to fit model.
 #'     Defaults to \code{FALSE}.}
 #'   }
 #'
@@ -101,11 +101,13 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   con[namc] <- control
 
   #if any output options have been given, override the defaults
-  out_options=list(Finv=TRUE,grad_mat_return=FALSE,
-                   cheese=TRUE,data_return=FALSE)
+  out_options=list(Finv=TRUE, grad_mat=FALSE, cheese=TRUE, data=FALSE)
   nmsO <- names(out_options)
   namO <- names(output_options)
   out_options[namO] <- output_options
+
+  #initialize placeholder versions of possible objects to export
+  grad_mat <- cheese <- NULL
 
   ##DATA PREPROCESSING##
   ##******************##
@@ -234,25 +236,18 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                 extra_starts=extra_starts))
   }
 
-  #if requested, compute the inverse hessian (aka sandwich "bread")
-  if(out_options$Finv){
-    Finv <- tryCatch(MASS::ginv(value$nhess),
-                    error=function(cnd){message(cnd);cat("\n");return(NA)})
-  } else{ Finv <- NA }
-
   #if requested, compute gradient contributions for every subject
-  if(out_options$grad_mat_return){
-    #note division by n following `sandwich::meat' function
+  if(out_options$grad_mat){
     grad_mat <- -ngrad_uni_mat_func(para = value$estimate,
                                          y=y, delta=delta, yL=yL, anyLT=anyLT,
                                          Xmat=Xmat, hazard=hazard,
                                          basis=basis, basis_yL=basis_yL,
                                          dbasis=dbasis, weights=weights)
-  } else{ grad_mat <- NULL }
+  }
 
   #if requested, compute the sandwich variance "cheese" outer product of scores
   if(out_options$cheese){
-    if(out_options$grad_mat_return){
+    if(out_options$grad_mat){
       cheese <- crossprod(grad_mat)
     } else{
       cheese <- crossprod(ngrad_uni_mat_func(para = value$estimate,
@@ -261,24 +256,23 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                                            basis=basis, basis_yL=basis_yL,
                                            dbasis=dbasis, weights=weights))
       }
-  } else{ cheese <- NA }
+  }
 
   #add the other quantities to the output
   value <- list(
     estimate=as.vector(value$estimate),
     logLike=value$logLike,
     grad=as.vector(value$grad),
-    optim_details=value$optim_details,
-    Finv = Finv,
-    cheese = cheese,
+    Finv=value$Finv,
+    cheese=cheese, grad_mat=grad_mat,
     startVals=value$startVals,
     knots_vec=knots_vec,
     myLabels=myLabels,
-    formula=form2,nP=nP,nP0=nP0,nobs=length(y),ymax=max(y),n_quad=n_quad,
-    quad_method=quad_method,optim_method=optim_method,extra_starts=extra_starts,
-    control=con,
-    grad_mat=grad_mat,
-    data=if(out_options$data_return) data else NULL)
+    formula=form2, nP=nP, nP0=nP0, nobs=length(y), ymax=max(y),
+    optim_details=value$optim_details,
+    optim_method=optim_method, extra_starts=extra_starts, control=con,
+    n_quad=n_quad, quad_method=quad_method,
+    data=if(out_options$data) data else NULL)
 
   names(value$estimate) <- names(startVals)
   names(value$grad) <- names(startVals)

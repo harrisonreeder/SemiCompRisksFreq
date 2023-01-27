@@ -15,7 +15,6 @@ get_fit_frail(
   Xmat1,
   Xmat2,
   Xmat3,
-  knots_list,
   weights,
   basis1,
   basis2,
@@ -30,9 +29,9 @@ get_fit_frail(
   model,
   frailty,
   control,
-  hessian,
   optim_method,
-  extra_starts
+  extra_starts,
+  hessian
 )
 }
 \arguments{
@@ -43,78 +42,26 @@ then the gamma frailty log-variance parameter,
 then the last\eqn{q_1+q_2+q_3} elements are the regression parameters.
 If set to \code{NULL}, generated internally using \code{\link{get_start}}.}
 
-\item{y1}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
+\item{y1, y2}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
 
-\item{y2}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
-
-\item{delta1}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
-
-\item{delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
+\item{delta1, delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
 
 \item{yL}{Numeric vector of length \eqn{n} with left-truncation times.}
 
 \item{anyLT}{Boolean (or 1/0) value that is \code{TRUE} (or 1) if there are any non-zero left truncation times, and \code{FALSE} (or 0) otherwise}
 
-\item{Xmat1}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
-
-\item{Xmat2}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
-
-\item{Xmat3}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
-
-\item{knots_list}{Used for hazard specifications besides Weibull, a
-list of three increasing sequences of integers, each corresponding to
-the knots for the flexible model on the corresponding transition baseline hazard.
-If \code{NULL}, will be created by \code{\link{get_default_knots_list}}
-according to the number of parameters specified by \code{nP0}.}
+\item{Xmat1, Xmat2, Xmat3}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
 \item{weights}{Vector of numeric weights of length \eqn{n} corresponding
 to each observed individual.}
 
-\item{basis1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+\item{basis1, basis2, basis3, basis3_y1, basis1_yL, basis2_yL}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
 with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
 Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
 while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
 Not used under Weibull model.}
 
-\item{basis2}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
-Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
-while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
-Not used under Weibull model.}
-
-\item{basis3}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
-Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
-while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
-Not used under Weibull model.}
-
-\item{basis3_y1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
-Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
-while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
-Not used under Weibull model.}
-
-\item{basis1_yL}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
-Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
-while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
-Not used under Weibull model.}
-
-\item{basis2_yL}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
-Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
-while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
-Not used under Weibull model.}
-
-\item{dbasis1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function derivative values at the corresponding \code{y1} and \code{y2} values.
-Used only under Royston-Parmar model.}
-
-\item{dbasis2}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function derivative values at the corresponding \code{y1} and \code{y2} values.
-Used only under Royston-Parmar model.}
-
-\item{dbasis3}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
+\item{dbasis1, dbasis2, dbasis3}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
 with piecewise/spline basis function derivative values at the corresponding \code{y1} and \code{y2} values.
 Used only under Royston-Parmar model.}
 
@@ -133,14 +80,14 @@ be included. Currently this must be set to \code{TRUE}.}
 \item{control}{a list of control attributes passed directly
 into the \code{optim} function.}
 
-\item{hessian}{Boolean indicating whether the hessian
-(inverse of the covariance matrix) should be computed and returned.}
-
 \item{optim_method}{a string naming which \code{optim}
 method should be used for optimization.}
 
 \item{extra_starts}{Integer giving the number of extra
 starts to try when optimizing.}
+
+\item{hessian}{Boolean indicating whether the hessian
+(inverse of the covariance matrix) should be computed and returned.}
 }
 \value{
 A vector of starting parameter values.

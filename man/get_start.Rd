@@ -26,47 +26,21 @@ get_start(
 )
 }
 \arguments{
-\item{y1}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
+\item{y1, y2}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
 
-\item{y2}{Numeric vectors of length \eqn{n} with (possibly censored) non-terminal and terminal event times}
-
-\item{delta1}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
-
-\item{delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
+\item{delta1, delta2}{Numeric vectors of length \eqn{n}  with indicators of 1 if the event was observed and 0 otherwise}
 
 \item{yL}{Numeric vector of length \eqn{n} with left-truncation times.}
 
 \item{anyLT}{Boolean (or 1/0) value that is \code{TRUE} (or 1) if there are any non-zero left truncation times, and \code{FALSE} (or 0) otherwise}
 
-\item{Xmat1}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
-
-\item{Xmat2}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
-
-\item{Xmat3}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
+\item{Xmat1, Xmat2, Xmat3}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
 
 \item{knots_list}{Used for hazard specifications besides Weibull, a
 list of three increasing sequences of integers, each corresponding to
 the knots for the flexible model on the corresponding transition baseline hazard.
 If \code{NULL}, will be created by \code{\link{get_default_knots_list}}
 according to the number of parameters specified by \code{nP0}.}
-
-\item{basis1}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
-Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
-while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
-Not used under Weibull model.}
-
-\item{basis2}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
-Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
-while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
-Not used under Weibull model.}
-
-\item{basis3}{Numeric matrices with \eqn{n} rows and \eqn{k_1,k_2,k_3} columns
-with piecewise/spline basis function values at the corresponding \code{y1} and \code{y2} values.
-Under semi-Markov model, basis3 represents basis derived from \eqn{y_2-y_1} and \code{basis3_y1} is unused,
-while under Markov model, basis3 represents basis derived from \eqn{y_2} and \code{basis3_y1} is from \eqn{y_1}
-Not used under Weibull model.}
 
 \item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
 Options are \code{"weibull"} for Weibull,

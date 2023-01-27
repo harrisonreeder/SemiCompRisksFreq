@@ -17,9 +17,9 @@ get_fit_uni(
   hazard,
   weights,
   control,
-  hessian,
   optim_method,
-  extra_starts
+  extra_starts,
+  hessian
 )
 }
 \arguments{
@@ -64,14 +64,14 @@ to each observed individual.}
 \item{control}{a list of control attributes passed directly
 into the \code{optim} function.}
 
-\item{hessian}{Boolean indicating whether the hessian
-(inverse of the covariance matrix) should be computed and returned.}
-
 \item{optim_method}{a string naming which \code{optim}
 method should be used for optimization.}
 
 \item{extra_starts}{Integer giving the number of extra
 starts to try when optimizing.}
+
+\item{hessian}{Boolean indicating whether the hessian
+(inverse of the covariance matrix) should be computed and returned.}
 }
 \value{
 A fit object.

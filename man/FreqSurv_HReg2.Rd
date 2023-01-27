@@ -88,14 +88,14 @@ certain additional components should be included in
 the model object output. Options include
 \itemize{
 \item{Finv}{Variance-covariance matrix. Defaults to \code{TRUE}.}
-\item{grad_mat_return}{Matrix with rowwise
+\item{grad_mat}{Matrix with rowwise
 score vectors for each individual evaluated at the MLE.
 Used to compute "cheese" or "meat" in robust standard error computation.
 Defaults to \code{FALSE}.}
 \item{cheese}{Sum of outer products of individual score vectors,
 used as the "cheese" or "meat" in robust standard error computation.
 Defaults to \code{TRUE}.}
-\item{data_return}{Original data frame used to fit model.
+\item{data}{Original data frame used to fit model.
 Defaults to \code{FALSE}.}
 }}
 }
