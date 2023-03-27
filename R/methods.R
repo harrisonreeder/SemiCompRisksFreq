@@ -156,10 +156,10 @@ summary.Freq_HReg2 <- function (object, alpha = 0.05,
     output.coef <- results[-c(1:object$nP0),,drop=FALSE]
     dimnames(output.coef) <- list(unique(object$myLabels[-c(1:object$nP0)]),
                                   c("beta", "SE", "LL", "UL","z","pvalue"))
-    output.HR <- exp(output.coef[,c("beta","LL","UL")])
+    output.HR <- exp(output.coef[,c("beta","LL","UL"),drop=FALSE])
     colnames(output.HR) <- c("exp(beta)","LL","UL")
 
-    output.h0 <- results[1:object$nP0,,drop=FALSE]
+    output.h0 <- results[1:object$nP0,1:4,drop=FALSE]
     if(object$class[4]=="Weibull"){
       dimnames(output.h0) <- list(c("Weibull: log-kappa", "Weibull: log-alpha"),
                                   c("h-PM", "SE", "LL", "UL"))
@@ -275,6 +275,7 @@ summary.Freq_HReg2 <- function (object, alpha = 0.05,
 #' @export
 print.summ.Freq_HReg2 <- function (x, digits = 3, ...)
 {
+
   if (x$class[2] == "Surv") {
     cat("\nAnalysis of independent univariate time-to-event data \n")
   }
@@ -606,6 +607,9 @@ predict.Freq_HReg2 <- function (object, xnew = NULL,
 plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
                                   xlab = NULL, ylab = NULL, ...)
 {
+  #color blind friendly colors from here: https://davidmathlogic.com/colorblind/#%23648FFF-%23785EF0-%23DC267F-%23FE6100-%23FFB000
+  cb_blue <- "#648FFF"; cb_red <- "#DC267F"; cb_purple <- "#785EF0"; cb_orange <- "#FE6100"; cb_grey <- "#CACACA"
+
   # browser()
   obj <- x
   T2seq <- x$tseq
@@ -633,9 +637,9 @@ plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
                                                S(t), "")), axes = FALSE)
       graphics::axis(1, at = T2seq)
       graphics::axis(2, at = yLim)
-      graphics::lines(obj$S$time, obj$S$S, col = "red", lwd = 3)
-      graphics::lines(obj$S$time, obj$S$LL, col = "red", lwd = 3, lty = 3)
-      graphics::lines(obj$S$time, obj$S$UL, col = "red", lwd = 3, lty = 3)
+      graphics::lines(obj$S$time, obj$S$S, col = cb_red, lwd = 3)
+      graphics::lines(obj$S$time, obj$S$LL, col = cb_red, lwd = 3, lty = 3)
+      graphics::lines(obj$S$time, obj$S$UL, col = cb_red, lwd = 3, lty = 3)
     }
     if (plot.est == "Haz") {
       plot(range(T2seq), range(yLim), xlab = xlab, ylab = ylab,
@@ -643,9 +647,9 @@ plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
                                                h(t), "")), axes = FALSE)
       graphics::axis(1, at = T2seq)
       graphics::axis(2, at = round(yLim, 4))
-      graphics::lines(obj$h$time, obj$h$h, col = "red", lwd = 3)
-      graphics::lines(obj$h$time, obj$h$LL, col = "red", lwd = 3, lty = 3)
-      graphics::lines(obj$h$time, obj$h$UL, col = "red", lwd = 3, lty = 3)
+      graphics::lines(obj$h$time, obj$h$h, col = cb_red, lwd = 3)
+      graphics::lines(obj$h$time, obj$h$LL, col = cb_red, lwd = 3, lty = 3)
+      graphics::lines(obj$h$time, obj$h$UL, col = cb_red, lwd = 3, lty = 3)
     }
   } else if (obj$class[2] == "ID") {
     if (is.null(xlab)) {
@@ -673,30 +677,30 @@ plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
                                                S[1](t), "")), axes = FALSE)
       graphics::axis(1, at = T2seq)
       graphics::axis(2, at = yLim)
-      graphics::lines(obj$S.1$time, obj$S.1$S.1, col = "blue", lwd = 3)
-      graphics::lines(obj$S.1$time, obj$S.1$LL.1, col = "blue", lwd = 3,
+      graphics::lines(obj$S.1$time, obj$S.1$S.1, col = cb_blue, lwd = 3)
+      graphics::lines(obj$S.1$time, obj$S.1$LL.1, col = cb_blue, lwd = 3,
                       lty = 3)
-      graphics::lines(obj$S.1$time, obj$S.1$UL.1, col = "blue", lwd = 3,
+      graphics::lines(obj$S.1$time, obj$S.1$UL.1, col = cb_blue, lwd = 3,
                       lty = 3)
       plot(range(T2seq), range(yLim), xlab = xlab[2], ylab = ylab,
            type = "n", main = expression(paste("Estimated ",
                                                S[2](t), "")), axes = FALSE)
       graphics::axis(1, at = T2seq)
       graphics::axis(2, at = yLim)
-      graphics::lines(obj$S.2$time, obj$S.2$S.2, col = "red", lwd = 3)
-      graphics::lines(obj$S.2$time, obj$S.2$LL.2, col = "red", lwd = 3,
+      graphics::lines(obj$S.2$time, obj$S.2$S.2, col = cb_red, lwd = 3)
+      graphics::lines(obj$S.2$time, obj$S.2$LL.2, col = cb_red, lwd = 3,
                       lty = 3)
-      graphics::lines(obj$S.2$time, obj$S.2$UL.2, col = "red", lwd = 3,
+      graphics::lines(obj$S.2$time, obj$S.2$UL.2, col = cb_red, lwd = 3,
                       lty = 3)
       plot(range(T2seq), range(yLim), xlab = xlab[3], ylab = ylab,
            type = "n", main = expression(paste("Estimated ",
                                                S[3](t), "")), axes = FALSE)
       graphics::axis(1, at = T2seq)
       graphics::axis(2, at = yLim)
-      graphics::lines(obj$S.3$time, obj$S.3$S.3, col = "red", lwd = 3)
-      graphics::lines(obj$S.3$time, obj$S.3$LL.3, col = "red", lwd = 3,
+      graphics::lines(obj$S.3$time, obj$S.3$S.3, col = cb_purple, lwd = 3)
+      graphics::lines(obj$S.3$time, obj$S.3$LL.3, col = cb_purple, lwd = 3,
                       lty = 3)
-      graphics::lines(obj$S.3$time, obj$S.3$UL.3, col = "red", lwd = 3,
+      graphics::lines(obj$S.3$time, obj$S.3$UL.3, col = cb_purple, lwd = 3,
                       lty = 3)
       graphics::par(mfrow = c(1, 1))
     }
@@ -707,34 +711,41 @@ plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
                                                h[1](t), "")), axes = FALSE)
       graphics::axis(1, at = T2seq)
       graphics::axis(2, at = round(yLim, 4))
-      graphics::lines(obj$h.1$time, obj$h.1$h.1, col = "blue", lwd = 3)
-      graphics::lines(obj$h.1$time, obj$h.1$LL.1, col = "blue", lwd = 3,
+      graphics::lines(obj$h.1$time, obj$h.1$h.1, col = cb_blue, lwd = 3)
+      graphics::lines(obj$h.1$time, obj$h.1$LL.1, col = cb_blue, lwd = 3,
                       lty = 3)
-      graphics::lines(obj$h.1$time, obj$h.1$UL.1, col = "blue", lwd = 3,
+      graphics::lines(obj$h.1$time, obj$h.1$UL.1, col = cb_blue, lwd = 3,
                       lty = 3)
       plot(range(T2seq), range(yLim), xlab = xlab[2], ylab = ylab,
            type = "n", main = expression(paste("Estimated ",
                                                h[2](t), "")), axes = FALSE)
       graphics::axis(1, at = T2seq)
       graphics::axis(2, at = round(yLim, 4))
-      graphics::lines(obj$h.2$time, obj$h.2$h.2, col = "red", lwd = 3)
-      graphics::lines(obj$h.2$time, obj$h.2$LL.2, col = "red", lwd = 3,
+      graphics::lines(obj$h.2$time, obj$h.2$h.2, col = cb_red, lwd = 3)
+      graphics::lines(obj$h.2$time, obj$h.2$LL.2, col = cb_red, lwd = 3,
                       lty = 3)
-      graphics::lines(obj$h.2$time, obj$h.2$UL.2, col = "red", lwd = 3,
+      graphics::lines(obj$h.2$time, obj$h.2$UL.2, col = cb_red, lwd = 3,
                       lty = 3)
       plot(range(T2seq), range(yLim), xlab = xlab[3], ylab = ylab,
            type = "n", main = expression(paste("Estimated ",
                                                h[3](t), "")), axes = FALSE)
       graphics::axis(1, at = T2seq)
       graphics::axis(2, at = round(yLim, 4))
-      graphics::lines(obj$h.3$time, obj$h.3$h.3, col = "red", lwd = 3)
-      graphics::lines(obj$h.3$time, obj$h.3$LL.3, col = "red", lwd = 3,
+      graphics::lines(obj$h.3$time, obj$h.3$h.3, col = cb_purple, lwd = 3)
+      graphics::lines(obj$h.3$time, obj$h.3$LL.3, col = cb_purple, lwd = 3,
                       lty = 3)
-      graphics::lines(obj$h.3$time, obj$h.3$UL.3, col = "red", lwd = 3,
+      graphics::lines(obj$h.3$time, obj$h.3$UL.3, col = cb_purple, lwd = 3,
                       lty = 3)
       graphics::par(mfrow = c(1, 1))
     }
   }
   invisible()
 }
+
+#I'm picturing an approach to predicting risk that uses pred_helper above,
+#combines the results to form the relevant integrands, and then uses the
+#trapezoid method / riemann summing to estimate each risk
+#then, just like use a for-loop or something to do it for
+#each subject if there's multiple
+
 

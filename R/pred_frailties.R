@@ -5,8 +5,15 @@
 #' @inheritParams nll_func
 #' @inheritParams FreqID_HReg2
 #'
-#' @return if Xmat has only one row, and t_cutoff is a scalar, then returns a 4 element row matrix
-#'   of probabilities. If Xmat has \code{n} rows, then returns an \code{n} by 4 matrix of probabilities.
+#' @return if Xmat has only one row, and t_cutoff is a scalar, then returns a 1 by 4 element row matrix
+#'   of the following values:
+#'   \itemize{
+#'     \item{\code{mean} of subject's gamma empirical bayes posterior, i.e., shape/rate.)}
+#'     \item{\code{median} of subject's gamma empirical bayes posterior.)}
+#'     \item{\code{shape} parameter (as used in, e.g., \code{dgamma}, of subject's gamma empirical bayes posterior.)}
+#'     \item{\code{rate} parameter (as used in, e.g., \code{dgamma}, of subject's gamma empirical bayes posterior.)}
+#'   }
+#'   If Xmat has \code{n} rows, then returns an \code{n} by 4 matrix.
 #'   If Xmat has \code{n} rows and t_cutoff is a vector of length \code{s}, then returns an \code{s} by 4 by \code{n} array.
 #' @export
 pred_frailties <- function(para, y1, delta1, y2, delta2, yL=NULL,

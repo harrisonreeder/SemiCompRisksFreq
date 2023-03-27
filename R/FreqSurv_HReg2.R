@@ -258,6 +258,14 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
       }
   }
 
+  class_temp <- c("Freq_HReg2","Surv","Ind",
+                   switch(tolower(hazard),
+                          weibull="Weibull",wb="Weibull",
+                          bspline="B-Spline",bs="B-Spline",
+                          "royston-parmar"="Royston-Parmar",rp="Royston-Parmar",
+                          piecewise="Piecewise Constant",pw="Piecewise Constant"))
+
+
   #add the other quantities to the output
   value <- list(
     estimate=as.vector(value$estimate),
@@ -272,17 +280,12 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     optim_details=value$optim_details,
     optim_method=optim_method, extra_starts=extra_starts, control=con,
     n_quad=n_quad, quad_method=quad_method,
-    data=if(out_options$data) data else NULL)
+    data=if(out_options$data) data else NULL,
+    class=class_temp)
 
   names(value$estimate) <- names(startVals)
   names(value$grad) <- names(startVals)
 
-  value$class <- c("Freq_HReg2","Surv","Ind",
-                   switch(tolower(hazard),
-                      weibull="Weibull",wb="Weibull",
-                      bspline="B-Spline",bs="B-Spline",
-                      "royston-parmar"="Royston-Parmar",rp="Royston-Parmar",
-                      piecewise="Piecewise Constant",pw="Piecewise Constant"))
   class(value) <- "Freq_HReg2"
   return(value)
 

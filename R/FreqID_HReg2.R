@@ -402,26 +402,6 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
     }
 
-    # #for non-frailty model, we know the off-diagonals should be zero
-    # #but, I don't know if it's ok to encode that or not!
-    # if(!frailty){
-    #   browser()
-    #   cheese[1:p01, (1+p01):NCOL(cheese)] <- 0
-    #   cheese[(1+p01):NCOL(cheese), 1:p01] <- 0
-    #   cheese[(1+p01):(p01+p02), (1+p01+p02):NCOL(cheese)] <- 0
-    #   cheese[(1+p01+p02):NCOL(cheese), (1+p01):(p01+p02)] <- 0
-    #   cheese[(1+p01+p02):(p01+p02+p03), (1+p01+p02+p03):NCOL(cheese)] <- 0
-    #   cheese[(1+p01+p02+p03):NCOL(cheese), (1+p01+p02):(p01+p02+p03)] <- 0
-    #   if(nP[1]>0){
-    #     cheese[(1+p01+p02+p03):(p01+p02+p03+nP[1]), (1+p01+p02+p03+nP[1]):NCOL(cheese)] <- 0
-    #     cheese[(1+p01+p02+p03+nP[1]):NCOL(cheese), (1+p01+p02+p03):(p01+p02+p03+nP[1])] <- 0
-    #   }
-    #   if(nP[2]>0){
-    #     cheese[(1+p01+p02+p03+nP[1]):(p01+p02+p03+nP[1]+nP[2]), (1+p01+p02+p03+nP[1]+nP[2]):NCOL(cheese)] <- 0
-    #     cheese[(1+p01+p02+p03+nP[1]+nP[2]):NCOL(cheese), (1+p01+p02+p03+nP[1]):(p01+p02+p03+nP[1]+nP[2])] <- 0
-    #   }
-    # }
-
   }
 
   class_temp <- c("Freq_HReg2","ID","Ind",
