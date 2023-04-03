@@ -17,13 +17,13 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Imports: 
-    Formula,
     MASS,
     nleqslv,
     pracma,
     Rcpp,
     splines2,
-    statmod,
-    survival
+    statmod
 Depends: 
-    R (>= 2.10)
+    R (>= 2.10),
+    Formula,
+    survival

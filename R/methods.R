@@ -146,7 +146,7 @@ summary.Freq_HReg2 <- function (object, alpha = 0.05,
   temp_vcov <- vcov_helper(Finv = object$Finv, cheese = object$cheese,
                            n = object$nobs, name_vec = names(object$estimate),
                            var_type = var_type, df_adjust = FALSE)
-  logSE <- if(!is.null(temp_vcov) & !all(is.na(temp_vcov))) sqrt(diag(object$Finv)) else NA
+  logSE <- if(!is.null(temp_vcov) & !all(is.na(temp_vcov))) sqrt(diag(temp_vcov)) else NA
   results <- cbind(beta=logEst,SE=logSE,
                 LL=logEst - abs(stats::qnorm(alpha/2, 0, 1)) * logSE,
                 UL=logEst + abs(stats::qnorm(alpha/2, 0, 1)) * logSE,
@@ -204,7 +204,7 @@ summary.Freq_HReg2 <- function (object, alpha = 0.05,
     }
     output.HR <- exp(output.coef[,c("beta1","beta1_LL","beta1_UL",
                                     "beta2","beta2_LL","beta2_UL",
-                                    "beta3","beta3_LL","beta3_UL")])
+                                    "beta3","beta3_LL","beta3_UL"),drop=FALSE])
     colnames(output.HR) <- c("exp(beta1)", "LL", "UL",
                              "exp(beta2)", "LL", "UL",
                              "exp(beta3)", "LL", "UL")
