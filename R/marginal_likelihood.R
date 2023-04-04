@@ -167,6 +167,46 @@ nll_profile_helper_func <- function(other_para, fixed_param, fixed_param_ind,
   return(nll)
 }
 
+
+#' Conditional Negative Log-Likelihood Gradient Function for Illness-Death Model
+#'
+#' Function returning the gradient of the negative log-likelihood for the illness-death model,
+#'   under specified baseline hazard, and specified frailty,
+#'   and specified Markov/semi-Markov transition assumption, fixing some parameters.
+#'   Typically, this function will not be used directly by the user,
+#'   but as part of a larger estimation procedure.
+#' @inheritParams nll_func
+#' @param other_para vector of values for remaining parameters.
+#' @param fixed_param value of parameter being fixed (can be vector if fixed parameters are contiguous)
+#' @param fixed_param_ind index of parameter after which fixed parameters would be inserted
+#'
+#' @return Returns numeric sum of negative log likelihood gradient contributions.
+#' @export
+nll_profile_helper_grad_func <- function(other_para, fixed_param, fixed_param_ind,
+                                    y1, y2, delta1, delta2, yL, anyLT,
+                                    Xmat1, Xmat2, Xmat3,
+                                    hazard, frailty, model, weights,
+                                    basis1, basis2, basis3, basis3_y1,
+                                    basis1_yL,basis2_yL,
+                                    dbasis1, dbasis2, dbasis3){
+  #fixed_param can be multidimensional as long as the "fixed" parameters are contiguous
+  #i.e., fixed_param_ind is a scalar (this is fine bc use case is like theta+betafrail)
+  n_fixed <- length(fixed_param)
+  para <- append(x = other_para,values = fixed_param,after = fixed_param_ind)
+  #note that then gradient for "added" component must be again removed.
+  ngrad <- ngrad_func(para=para, y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                  Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                  hazard=hazard, frailty=frailty, model=model, weights=weights,
+                  basis1=basis1, basis2=basis2, basis3=basis3,
+                  basis3_y1=basis3_y1, basis1_yL=basis1_yL,basis2_yL=basis2_yL,
+                  dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)[-((1+fixed_param_ind):(fixed_param_ind+n_fixed))]
+  return(ngrad)
+}
+
+
+
+
+
 #' Conditional Negative Log-Likelihood Function for Illness-Death Model
 #'
 #' Function returning the negative log-likelihood for the illness-death model,
@@ -185,7 +225,7 @@ nll_profile_func <- function(fixed_param, fixed_param_ind, para_mle,
                              hazard, frailty, model, weights,
                              basis1, basis2, basis3, basis3_y1, basis1_yL,basis2_yL,
                              dbasis1, dbasis2, dbasis3,verbose=FALSE,
-                             control,hessian,optim_method,extra_starts){
+                             control,optim_method,extra_starts){
   # browser()
   fixed_param <- as.matrix(fixed_param)
   n_fixed <- NCOL(fixed_param)
@@ -204,6 +244,7 @@ nll_profile_func <- function(fixed_param, fixed_param_ind, para_mle,
   for(i in 1:n_points){
     if(verbose) print(paste0(i," of ",n_points))
     temp_fit <- stats::optim(par = start_vec, fn = nll_profile_helper_func,
+                      gr = nll_profile_helper_grad_func,
                       fixed_param=fixed_param[i,],fixed_param_ind=fixed_param_ind,
                       y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                       Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,

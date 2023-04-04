@@ -102,13 +102,14 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
   #define list of components to include in model fit output list
   #if any output options have been given, override the defaults
   out_options=list(fit_nf=TRUE, Finv=TRUE, grad_mat=FALSE,
-                   cheese=TRUE, eb_frailties=TRUE, data=FALSE)
+                   cheese=TRUE, eb_frailties=TRUE,
+                   beta_test=TRUE, data=FALSE)
   nmsO <- names(out_options)
   namO <- names(output_options)
   out_options[namO] <- output_options
 
   #initialize placeholder versions of possible objects to export
-  eb_frailties <- grad_mat <- cheese <- fit_nf <- NULL
+  beta_test <- eb_frailties <- grad_mat <- cheese <- fit_nf <- NULL
   frailty_lrtest <- c(frail_ll=NA,nonfrail_ll=NA,test=NA,pvalue=NA)
 
   ##DATA PREPROCESSING##
@@ -247,6 +248,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
     p01 <- ncol(basis1); p02 <- ncol(basis2); p03 <- ncol(basis3)
   } else{ #if not a flexible method, must be weibull
     basis1 <- basis2 <- basis3 <- basis3_y1 <-
+      basis1_yL <- basis2_yL <-
       dbasis1 <- dbasis2 <- dbasis3 <- NULL
     p01 <- p02 <- p03 <- 2
   }
@@ -401,7 +403,45 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
                basis1_yL=basis1_yL, basis2_yL=basis2_yL, weights=weights,
                dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3))
     }
+  }
 
+
+  #if requested, compute score and likelihood ratio tests for every beta
+  if(out_options$beta_test && sum(nP) > 0){
+    para_mle <- as.vector(value$estimate)
+    beta_test <- cbind(beta=para_mle[-(1:(sum(nP0) + as.numeric(frailty)))],
+                         lrtest=NA, scoretest=NA)
+    for(i in 1:sum(nP)){
+      temp_prof <- nll_profile_func(fixed_param=0,
+                       fixed_param_ind=sum(nP0)+i+as.numeric(frailty)-1,
+                       para_mle=para_mle,
+                       y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                       Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                       hazard=hazard, frailty=frailty, model=model, weights=weights,
+                       basis1=basis1, basis2=basis2, basis3=basis3,
+                       basis3_y1=basis3_y1, basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                       dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3,
+                       verbose=FALSE, control=control,
+                       optim_method=optim_method, extra_starts=extra_starts)
+      beta_test[i,"lrtest"] <- 2 * (value$logLike + temp_prof$nll)
+
+      #implement score test of beta
+      score_ngrad <- ngrad_func(para = temp_prof$paramat[1,],
+                     y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                     Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                     hazard=hazard, frailty=frailty, model=model, weights=weights,
+                     basis1=basis1, basis2=basis2, basis3=basis3,
+                     basis3_y1=basis3_y1, basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                     dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+      score_nhess <- pracma::jacobian(f = ngrad_func, x0 = temp_prof$paramat[1,],
+                     y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
+                     Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
+                     hazard=hazard, frailty=frailty, model=model, weights=weights,
+                     basis1=basis1, basis2=basis2, basis3=basis3,
+                     basis3_y1=basis3_y1, basis1_yL=basis1_yL, basis2_yL=basis2_yL,
+                     dbasis1=dbasis1, dbasis2=dbasis2, dbasis3=dbasis3)
+      beta_test[i,"scoretest"] <- t(score_ngrad) %*% MASS::ginv(score_nhess) %*% score_ngrad
+    }
   }
 
   class_temp <- c("Freq_HReg2","ID","Ind",
@@ -431,6 +471,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
              data=if(out_options$data) data else NULL,
              frailty=frailty,
              frailty_lrtest=frailty_lrtest,
+             beta_test=beta_test,
              class=class_temp,
              fit_nf=fit_nf)
 
