@@ -112,15 +112,16 @@ print.Freq_HReg2 <- function (x, digits = 3, alpha = 0.05, ...)
     #print the frailty variance results
     if (x$frailty == TRUE){
       cat("\nVariance of frailties, theta:\n")
-      value_theta <- c(exp(value[sum(x$nP0)+1,1:4]),
-                       x$frailty_lrtest[c("test","pvalue")])
-      names(value_theta) <- c("theta", "SE", "LL", "UL","test","pvalue")
+      theta_ests <- c(exp(value[sum(x$nP0)+1,1:4]))
+      names(theta_ests) <- c("theta", "SE", "LL", "UL")
       #update theta SE using delta method
-      value_theta[2] <- value[sum(x$nP0)+1, 2] * exp(value[sum(x$nP0)+1, 1])
-      print(round(value_theta, digits = digits))
+      theta_ests["SE"] <- theta_ests["SE"] * exp(theta_ests["theta"])
+
+      print(round(c(theta_ests,x$frailty_test[c("lrtest","lrpvalue")]),
+                  digits = digits))
       cat("SE computed from SE(log(theta)) via delta method.")
       cat("\nBounds formed for log(theta) and exponentiated.")
-      cat("\nLikelihood ratio of theta=0 vs. theta>0 using mixture of chi-squareds null.\n")
+      cat("\nLikelihood ratio test of theta=0 vs. theta>0 using mixture of chi-squareds null.\n")
     } else{
       #no frailty variance estimate, so just say so.
       cat("\nNon-frailty model fit\n")
@@ -212,14 +213,14 @@ summary.Freq_HReg2 <- function (object, alpha = 0.05,
     output.theta <- output.ltheta <- rep(NA,6)
     if(object$frailty){
       output.ltheta <- c(results[nP.0,1:4],
-                         object$frailty_lrtest[c("test","pvalue")])
+                         object$frailty_test[c("lrtest","lrpvalue")])
       output.theta <- c(exp(results[nP.0,1:4]),
-                        object$frailty_lrtest[c("test","pvalue")])
+                        object$frailty_test[c("lrtest","lrpvalue")])
       #replace with standard error of theta from delta method
       output.theta[2] <- results[nP.0,2] * exp(results[nP.0,1])
     }
-    names(output.ltheta) <- c("log(theta)", "SE", "LL", "UL", "test", "pvalue")
-    names(output.theta) <- c("theta", "SE", "LL", "UL", "test", "pvalue")
+    names(output.ltheta) <- c("log(theta)", "SE", "LL", "UL", "lrtest", "lrpvalue")
+    names(output.theta) <- c("theta", "SE", "LL", "UL", "lrtest", "lrpvalue")
 
     knots_mat <- NULL
     if(object$class[4]=="Weibull"){
@@ -257,7 +258,7 @@ summary.Freq_HReg2 <- function (object, alpha = 0.05,
 
     value <- list(HR = output.HR,
                   coef = output.coef,
-                  coef_long = results[-(1:nP.0),],
+                  coef_long = results[-(1:nP.0),,drop=FALSE],
                   theta = output.theta,
                   ltheta = output.ltheta,
                   h0 = output.h0,
@@ -290,7 +291,7 @@ print.summ.Freq_HReg2 <- function (x, digits = 3, ...)
     if(x$var_type=="sandwich"){
       cat("Variances estimated by robust sandwich estimator.")
     } else if(x$var_type=="outer"){
-      cat("Variances estimated")
+      cat("Variances estimated by outer product of gradients.")
     }
   }
 
@@ -459,8 +460,8 @@ pred_helper <- function(tseq, xnew, func_type,
   }
 
   return(as.data.frame(cbind(time=tseq,out=out_temp,
-                             LL=if(get_se) LL,
-                             UL=if(get_se) UL)))
+                             LL=LL,
+                             UL=UL)))
 }
 
 #' @export

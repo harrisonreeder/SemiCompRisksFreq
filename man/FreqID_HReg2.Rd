@@ -98,20 +98,22 @@ starts to try when optimizing.}
 certain additional components should be included in
 the model object output. Options include
 \itemize{
-\item{Finv}{Variance-covariance matrix. Defaults to \code{TRUE}.}
-\item{fit_nf}{If \code{frailty} is \code{TRUE}, include an
+\item{\code{Finv} Variance-covariance matrix. Defaults to \code{TRUE}.}
+\item{\code{fit_nf} If \code{frailty} is \code{TRUE}, include an
 additional fit object for the corresponding non-frailty model.
 Defaults to \code{TRUE}.}
-\item{eb_frailties}{Include vector of empirical Bayes
+\item{\code{eb_frailties} Include vector of empirical Bayes
 predicted gamma frailty values. Defaults to \code{TRUE}.}
-\item{grad_mat}{Matrix with rowwise
+\item{\code{grad_mat} Matrix with rowwise
 score vectors for each individual evaluated at the MLE.
 Used to compute "cheese" or "meat" in robust standard error computation.
 Defaults to \code{FALSE}.}
-\item{cheese}{Sum of outer products of individual score vectors,
+\item{\code{beta_test} Matrix in "long" form giving Likelihood Ratio Test
+and Score Test statistics for each regression coefficient. Defaults to \code{TRUE}.}
+\item{\code{cheese} Sum of outer products of individual score vectors,
 used as the "cheese" or "meat" in robust standard error computation.
 Defaults to \code{TRUE}.}
-\item{data}{Original data frame used to fit model.
+\item{\code{data} Original data frame used to fit model.
 Defaults to \code{FALSE}.}
 }}
 }
