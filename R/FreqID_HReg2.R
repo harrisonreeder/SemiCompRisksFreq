@@ -572,7 +572,7 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
              optim_method=optim_method, extra_starts=extra_starts, control=con,
              n_quad=n_quad, quad_method=quad_method,
              data=if(out_options$data) data else NULL,
-             frailty=frailty,
+             hazard=hazard, model=model, frailty=frailty,
              frailty_test=frailty_lrtest,
              # frailty_test=c(frailty_lrtest,frailty_scoretest),
              # beta_test=beta_test,

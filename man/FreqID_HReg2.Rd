@@ -108,8 +108,6 @@ predicted gamma frailty values. Defaults to \code{TRUE}.}
 score vectors for each individual evaluated at the MLE.
 Used to compute "cheese" or "meat" in robust standard error computation.
 Defaults to \code{FALSE}.}
-\item{\code{beta_test} Matrix in "long" form giving Likelihood Ratio Test
-and Score Test statistics for each regression coefficient. Defaults to \code{TRUE}.}
 \item{\code{cheese} Sum of outer products of individual score vectors,
 used as the "cheese" or "meat" in robust standard error computation.
 Defaults to \code{TRUE}.}

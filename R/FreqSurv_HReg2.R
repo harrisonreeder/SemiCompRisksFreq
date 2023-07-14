@@ -281,6 +281,7 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
     optim_method=optim_method, extra_starts=extra_starts, control=con,
     n_quad=n_quad, quad_method=quad_method,
     data=if(out_options$data) data else NULL,
+    hazard=hazard,
     class=class_temp)
 
   names(value$estimate) <- names(startVals)
