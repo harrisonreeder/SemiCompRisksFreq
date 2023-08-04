@@ -17,6 +17,6 @@ get_outcome_mat(y1, y2, delta1, delta2, t_cutoff)
 a matrix or array.
 }
 \description{
-This function returns a matrix giving the observed outcome categories of each observation at various
-time cutoffs.
+This function returns a matrix giving the observed outcome
+categories of each observation at various time cutoffs.
 }

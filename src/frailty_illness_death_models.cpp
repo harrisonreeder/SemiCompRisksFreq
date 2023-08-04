@@ -1,10 +1,327 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 #include <RcppArmadillo.h>
+#include <chrono>
+#include <ctime>
+
 
 arma::vec getCommonVec(const arma::vec& delta1,const arma::vec& delta2,const arma::vec& AVec, double h){
   //computes a quantity found in many gradient components of the illness-death model
 	return (delta1 + delta2 + exp(-h)) / (1 + exp(h) * AVec);
 }
+
+
+// [[Rcpp::export]]
+double getHUM(const arma::mat& outcome_mat, const arma::mat& euclid_mat,
+              const arma::vec& weight_vec, int tie_correction){
+
+  //find all nonzero elements of each class column (multiply by weight vec to remove those with weight 0)
+  arma::uvec indices1 = arma::find(outcome_mat.col(0) % weight_vec);
+  arma::uvec indices2 = arma::find(outcome_mat.col(1) % weight_vec);
+  arma::uvec indices3 = arma::find(outcome_mat.col(2) % weight_vec);
+  arma::uvec indices4 = arma::find(outcome_mat.col(3) % weight_vec);
+
+  double tie_factor = 1.0;
+  int n_mins = 1;
+
+  // //PREVIOUSLY, INPUT WAS AN arma::uvec unique_ids vector of ids for each unique prediction pairing
+  // int len_unique_ids = unique_ids.n_elem;
+  // arma::uvec ids(4);
+  // int tie_counter = 0;
+
+  int n1 = indices1.n_elem;
+  int n2 = indices2.n_elem;
+  int n3 = indices3.n_elem;
+  int n4 = indices4.n_elem;
+
+  long n1_long = indices1.n_elem;
+  long n2_long = indices2.n_elem;
+  long n3_long = indices3.n_elem;
+  long n4_long = indices4.n_elem;
+  long ntot_long = n1_long * n2_long * n3_long * n4_long;
+  // Rcpp::Rcout << "n1_long: " << n1_long << " n2_long: " << n2_long << " n3_long: " << n3_long << " n4_long: " << n4_long << "\n";
+  // Rcpp::Rcout << "ntot_reallong: " << ntot_reallong << "\n";
+
+  //arma::vec out_vec(ntot, arma::fill::zeros);
+
+  //arma::vec CP_vec(n1+n2+n3,arma::fill::zeros);
+  double CP = 0;
+  double denom = 0;
+  double temp_weight = 0;
+
+  arma::vec temp(24,arma::fill::zeros);
+
+  //used during development to test specific indices
+  //arma::uvec indices_temp(4);
+
+  //timekeeping object
+  std::time_t newt;
+  newt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  //Rcpp::Rcout << "Begin Computation: " << ctime(&newt) << "\n";
+
+  unsigned int i, j, k, l, a, b, c, d;
+  long counter = 0;
+  for(j = 0; j < n2; j++) {
+    b = indices2(j);
+    for(i = 0; i < n1; i++) {
+      a = indices1(i);
+      for(k = 0; k < n3; k++) {
+        c = indices3(k);
+        for(l = 0; l < n4; l++){
+          d = indices4(l);
+          temp(0) = euclid_mat(a,0) * euclid_mat(b,1) * euclid_mat(c,2) * euclid_mat(d,3);
+
+          temp(1) = euclid_mat(a,0) * euclid_mat(b,1) * euclid_mat(c,3) * euclid_mat(d,2);
+          temp(2) = euclid_mat(a,0) * euclid_mat(b,2) * euclid_mat(c,1) * euclid_mat(d,3);
+          temp(3) = euclid_mat(a,0) * euclid_mat(b,2) * euclid_mat(c,3) * euclid_mat(d,1);
+          temp(4) = euclid_mat(a,0) * euclid_mat(b,3) * euclid_mat(c,1) * euclid_mat(d,2);
+          temp(5) = euclid_mat(a,0) * euclid_mat(b,3) * euclid_mat(c,2) * euclid_mat(d,1);
+
+          temp(6) = euclid_mat(a,1) * euclid_mat(b,0) * euclid_mat(c,2) * euclid_mat(d,3);
+          temp(7) = euclid_mat(a,1) * euclid_mat(b,0) * euclid_mat(c,3) * euclid_mat(d,2);
+          temp(8) = euclid_mat(a,1) * euclid_mat(b,2) * euclid_mat(c,0) * euclid_mat(d,3);
+          temp(9) = euclid_mat(a,1) * euclid_mat(b,2) * euclid_mat(c,3) * euclid_mat(d,0);
+          temp(10) = euclid_mat(a,1) * euclid_mat(b,3) * euclid_mat(c,0) * euclid_mat(d,2);
+          temp(11) = euclid_mat(a,1) * euclid_mat(b,3) * euclid_mat(c,2) * euclid_mat(d,0);
+
+          temp(12) = euclid_mat(a,2) * euclid_mat(b,0) * euclid_mat(c,1) * euclid_mat(d,3);
+          temp(13) = euclid_mat(a,2) * euclid_mat(b,0) * euclid_mat(c,3) * euclid_mat(d,1);
+          temp(14) = euclid_mat(a,2) * euclid_mat(b,1) * euclid_mat(c,0) * euclid_mat(d,3);
+          temp(15) = euclid_mat(a,2) * euclid_mat(b,1) * euclid_mat(c,3) * euclid_mat(d,0);
+          temp(16) = euclid_mat(a,2) * euclid_mat(b,3) * euclid_mat(c,0) * euclid_mat(d,1);
+          temp(17) = euclid_mat(a,2) * euclid_mat(b,3) * euclid_mat(c,1) * euclid_mat(d,0);
+
+          temp(18) = euclid_mat(a,3) * euclid_mat(b,0) * euclid_mat(c,1) * euclid_mat(d,2);
+          temp(19) = euclid_mat(a,3) * euclid_mat(b,0) * euclid_mat(c,2) * euclid_mat(d,1);
+          temp(20) = euclid_mat(a,3) * euclid_mat(b,1) * euclid_mat(c,0) * euclid_mat(d,2);
+          temp(21) = euclid_mat(a,3) * euclid_mat(b,1) * euclid_mat(c,2) * euclid_mat(d,0);
+          temp(22) = euclid_mat(a,3) * euclid_mat(b,2) * euclid_mat(c,0) * euclid_mat(d,1);
+          temp(23) = euclid_mat(a,3) * euclid_mat(b,2) * euclid_mat(c,1) * euclid_mat(d,0);
+
+          temp_weight = weight_vec(a) * weight_vec(b) * weight_vec(c) * weight_vec(d);
+
+          //denominator shouldn't be "corrected" by ties
+          denom = denom + temp_weight;
+
+          // if(temp.index_min() == 0){
+          if(std::abs(temp.min() - temp(0)) <  1e-5){ //give a bit of buffer in choosing "minimum" (this is the same tolerance as max.col() used in ccp calculation)
+
+            if(tie_correction > 0){
+              n_mins = sum( abs(temp - temp(0)) < 1e-5);
+              tie_factor = 1.0 / n_mins;
+              temp_weight = temp_weight * tie_factor;
+            }
+
+            // if(len_unique_ids > 0){
+            //   //method 1: make vector to find unique values of current elements
+            //   ids = { a, b, c, d };
+            //   arma::uvec unique_id_samp = unique(unique_ids.elem(ids));
+            //   tie_counter = unique_id_samp.n_elem;
+            //   if(tie_counter == 4){
+            //     tie_factor = 1.0;
+            //   } else if(tie_counter == 3){
+            //     tie_factor = 0.5;
+            //   } else if(tie_counter == 2){ //trickiest one, because there's two patterns
+            //     if((unique_ids(a) == unique_ids(b) && unique_ids(c) == unique_ids(d)) ||
+            //        (unique_ids(a) == unique_ids(c) && unique_ids(b) == unique_ids(d)) ||
+            //        (unique_ids(a) == unique_ids(d) && unique_ids(b) == unique_ids(c))){
+            //       tie_factor = 1/4;
+            //     } else{
+            //       tie_factor = 1/6;
+            //     }
+            //   } else { // implied there is one unique value and therefore they're all tied
+            //     tie_factor = 1/24;
+            //   }
+            //
+            //   // //method two: use branching logic
+            //   // tie_counter = 0;
+            //   // if(unique_ids(a) == unique_ids(b)){ tie_counter++; }
+            //   // if(unique_ids(a) == unique_ids(c)){ tie_counter++; }
+            //   // if(unique_ids(a) == unique_ids(d)){ tie_counter++; }
+            //   // if(tie_counter == 3){
+            //   //   tie_factor = 1/24;
+            //   // } else if(tie_counter == 2){
+            //   //   tie_factor = 1/6;
+            //   // } else if(tie_counter == 1){
+            //   //   if(unique_ids(b) == unique_ids(c)){ tie_counter++; }
+            //   //   if(unique_ids(b) == unique_ids(d)){ tie_counter++; }
+            //   //   if(tie_counter == 2){
+            //   //     tie_factor = 1/6;
+            //   //   } else{
+            //   //     if(unique_ids(c) == unique_ids(d)){ tie_counter ++; }
+            //   //     if(tie_counter == 2){
+            //   //       tie_factor = 1/4;
+            //   //     } else{
+            //   //       tie_factor = 1/2;
+            //   //     }
+            //   //   }
+            //   // } else { // no ties between a and anything else
+            //   //   if(unique_ids(b) == unique_ids(c)){ tie_counter++; }
+            //   //   if(unique_ids(b) == unique_ids(d)){ tie_counter++; }
+            //   //   if(tie_counter == 2){
+            //   //     tie_factor = 1/6;
+            //   //   } else if(tie_counter == 1){
+            //   //     tie_factor = 1/4;
+            //   //   } else { // no ties still
+            //   //     if(unique_ids(c) == unique_ids(d)){ tie_counter ++; }
+            //   //     if(tie_counter == 1){
+            //   //       tie_factor = 1/2;
+            //   //     } else{
+            //   //       tie_factor = 1;
+            //   //     }
+            //   //   }
+            //   // }
+            //
+            //   temp_weight = temp_weight * tie_factor;
+            //
+            // }
+
+            // out_vec(counter) = temp_weight;
+            CP = CP + temp_weight;
+            // CP++;
+          }
+
+          counter++;
+          if( ( (counter) % 50000000 ) == 0){
+            newt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            Rcpp::Rcout << "iteration: " << counter << " of " << ntot_long <<" (";
+            Rprintf("%2.3f", (1.0*counter) / (1.0*ntot_long) * 100);
+            Rcpp::Rcout << "%): " << ctime(&newt) << "\n";
+            Rcpp::checkUserInterrupt(); //checks if the user hit the "stop" icon to cancel running sampler.
+          }
+
+          // if(counter == 424784 || counter == 426456 || counter == 6163){
+          //   indices_temp(0) = a; indices_temp(1) = b; indices_temp(2) = c; indices_temp(3) = d;
+          //   Rcpp::Rcout << "counter at end of iteration: " << counter << "\n";
+          //   Rcpp::Rcout << "a: " << a << " b: " << b << " c: " << c << " d: " << d << "\n";
+          //   Rcpp::Rcout << "euclid_mat.rows(indices): \n" << euclid_mat.rows(indices_temp) << " temp: \n";
+          //   Rcpp::Rcout << temp << "\n";
+          //   Rcpp::Rcout << "temp.index_min(): " << temp.index_min() << "\n";
+          //   Rcpp::Rcout << "std::abs(temp.min() - temp(0)): " << std::abs(temp.min() - temp(0)) << "\n";
+          // }
+
+
+
+        }
+      }
+    }
+  }
+
+  return(CP/denom);
+  // return(out_vec);
+}
+
+
+
+
+// [[Rcpp::export]]
+arma::vec getPDI(const arma::mat& outcome_mat, const arma::mat& pred_mat,
+              const arma::vec& weight_vec, int tie_correction){
+
+  //find all nonzero elements of each class column (multiply by weight vec to remove those with weight 0)
+  arma::uvec indices1 = arma::find(outcome_mat.col(0) % weight_vec);
+  arma::uvec indices2 = arma::find(outcome_mat.col(1) % weight_vec);
+  arma::uvec indices3 = arma::find(outcome_mat.col(2) % weight_vec);
+  arma::uvec indices4 = arma::find(outcome_mat.col(3) % weight_vec);
+
+  int n1 = indices1.n_elem;
+  int n2 = indices2.n_elem;
+  int n3 = indices3.n_elem;
+  int n4 = indices4.n_elem;
+
+  long n1_long = indices1.n_elem;
+  long n2_long = indices2.n_elem;
+  long n3_long = indices3.n_elem;
+  long n4_long = indices4.n_elem;
+  long ntot_long = n1_long * n2_long * n3_long * n4_long;
+
+  arma::vec PDI_num(4, arma::fill::zeros);
+  arma::vec temp(4);
+  double temp_weight = 0;
+
+  arma::vec denom(4, arma::fill::zeros);
+  denom(0) = sum(weight_vec.elem(indices1));
+  denom(1) = sum(weight_vec.elem(indices2));
+  denom(2) = sum(weight_vec.elem(indices3));
+  denom(3) = sum(weight_vec.elem(indices4));
+  double denom_tot = prod(denom);
+
+  double tie_factor = 1.0;
+  int n_mins = 1;
+
+  //timekeeping object
+  std::time_t newt;
+  newt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  //Rcpp::Rcout << "Begin Computation: " << ctime(&newt) << "\n";
+
+  unsigned int i, j, k, l, m, a, b, c, d;
+  long counter = 0;
+  for(j = 0; j < n2; j++) {
+    b = indices2(j);
+    for(i = 0; i < n1; i++) {
+      a = indices1(i);
+      for(k = 0; k < n3; k++) {
+        c = indices3(k);
+        for(l = 0; l < n4; l++){
+          d = indices4(l);
+
+          temp_weight = weight_vec(a) * weight_vec(b) * weight_vec(c) * weight_vec(d);
+
+          //for each of the four categories
+          for(m = 0; m < 4; m++){
+            //PDI_1
+            temp(0) = pred_mat(a,m);
+            temp(1) = pred_mat(b,m);
+            temp(2) = pred_mat(c,m);
+            temp(3) = pred_mat(d,m);
+
+            // if(temp.max() == temp(m)){ //give a bit of buffer in choosing "minimum"
+            //   PDI_num(m) = PDI_num(m) + temp_weight;
+            // }
+
+            if(std::abs(temp.max() - temp(m)) <  1e-5){ //give a bit of buffer in choosing "minimum" (this is the same tolerance as max.col() used in ccp calculation)
+              if(tie_correction > 0){
+                n_mins = sum( abs(temp - temp(m)) < 1e-5 );
+                tie_factor = 1.0 / n_mins;
+                PDI_num(m) = PDI_num(m) + temp_weight * tie_factor;
+              } else{ PDI_num(m) = PDI_num(m) + temp_weight; }
+            }
+
+          }
+
+          counter++;
+          if( ( (counter) % 50000000 ) == 0){
+            newt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            Rcpp::Rcout << "iteration: " << counter << " of " << ntot_long <<" (";
+            Rprintf("%2.3f", (1.0*counter) / (1.0*ntot_long) * 100);
+            Rcpp::Rcout << "%): " << ctime(&newt) << "\n";
+            Rcpp::checkUserInterrupt(); //checks if the user hit the "stop" icon to cancel running sampler.
+          }
+
+        }
+      }
+    }
+  }
+
+  // Rcpp::Rcout << "denom_vec: " << denom << "\n";
+  // Rcpp::Rcout << "PDI_num: " << PDI_num << "\n";
+
+  arma::vec PDI(6, arma::fill::zeros);
+  PDI(2) = PDI_num(0) / denom_tot;
+  PDI(3) = PDI_num(1) / denom_tot;
+  PDI(4) = PDI_num(2) / denom_tot;
+  PDI(5) = PDI_num(3) / denom_tot;
+  PDI(0) = sum(PDI(arma::span(2,5))) / 4;
+  PDI(1) = sum(PDI(arma::span(2,5)) % denom) / sum(denom);
+
+  return(PDI);
+
+}
+
+
+
+
+
+
 
 /*******
  Piecewise Constant

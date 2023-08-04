@@ -4,16 +4,16 @@
 \alias{compute_score}
 \title{Compute prediction performance score}
 \usage{
-compute_score(outcome_mat, pred_mat, ipcw_mat, score = "brier")
+compute_score(outcome_mat, pred_mat, weight_mat, score = "brier")
 }
 \arguments{
 \item{outcome_mat}{Output from get_outcome_mat function}
 
 \item{pred_mat}{Output from calc_risks function}
 
-\item{ipcw_mat}{Output from get_ipcw_mat function}
-
 \item{score}{String indicating whether 'brier' score, or 'entropy' should be computed.}
+
+\item{ipcw_mat}{Output from get_ipcw_mat function}
 }
 \value{
 a vector.

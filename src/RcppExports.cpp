@@ -11,6 +11,34 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// getHUM
+double getHUM(const arma::mat& outcome_mat, const arma::mat& euclid_mat, const arma::vec& weight_vec, int tie_correction);
+RcppExport SEXP _SemiCompRisksFreq_getHUM(SEXP outcome_matSEXP, SEXP euclid_matSEXP, SEXP weight_vecSEXP, SEXP tie_correctionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type outcome_mat(outcome_matSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type euclid_mat(euclid_matSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weight_vec(weight_vecSEXP);
+    Rcpp::traits::input_parameter< int >::type tie_correction(tie_correctionSEXP);
+    rcpp_result_gen = Rcpp::wrap(getHUM(outcome_mat, euclid_mat, weight_vec, tie_correction));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getPDI
+arma::vec getPDI(const arma::mat& outcome_mat, const arma::mat& pred_mat, const arma::vec& weight_vec, int tie_correction);
+RcppExport SEXP _SemiCompRisksFreq_getPDI(SEXP outcome_matSEXP, SEXP pred_matSEXP, SEXP weight_vecSEXP, SEXP tie_correctionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type outcome_mat(outcome_matSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type pred_mat(pred_matSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weight_vec(weight_vecSEXP);
+    Rcpp::traits::input_parameter< int >::type tie_correction(tie_correctionSEXP);
+    rcpp_result_gen = Rcpp::wrap(getPDI(outcome_mat, pred_mat, weight_vec, tie_correction));
+    return rcpp_result_gen;
+END_RCPP
+}
 // nlogLikPW_uni
 double nlogLikPW_uni(const arma::vec& para, const arma::vec& y, const arma::vec& delta, const arma::mat& X, const arma::mat& basis, const arma::mat& dbasis, const arma::vec& weights);
 RcppExport SEXP _SemiCompRisksFreq_nlogLikPW_uni(SEXP paraSEXP, SEXP ySEXP, SEXP deltaSEXP, SEXP XSEXP, SEXP basisSEXP, SEXP dbasisSEXP, SEXP weightsSEXP) {
@@ -640,6 +668,8 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_SemiCompRisksFreq_getHUM", (DL_FUNC) &_SemiCompRisksFreq_getHUM, 4},
+    {"_SemiCompRisksFreq_getPDI", (DL_FUNC) &_SemiCompRisksFreq_getPDI, 4},
     {"_SemiCompRisksFreq_nlogLikPW_uni", (DL_FUNC) &_SemiCompRisksFreq_nlogLikPW_uni, 7},
     {"_SemiCompRisksFreq_ngradPW_uni", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_uni, 7},
     {"_SemiCompRisksFreq_ngradPW_uni_mat", (DL_FUNC) &_SemiCompRisksFreq_ngradPW_uni_mat, 7},

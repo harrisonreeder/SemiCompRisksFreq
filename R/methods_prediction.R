@@ -242,30 +242,9 @@ get_jac <- function(tseq, xnew, beta, eta,
 pred_helper_uni <- function(tseq, xnew=NULL, beta,
                             phi, hazard, knots_vec,
                             n_quad, quad_method,
-                            vcov_sub, alpha, output_options=NULL){
+                            vcov_sub, alpha, offset = 0){
   # browser()
-  #define list of components to include in model fit output list
-  #if any output options have been given, override the defaults
-  out_options <- list(h=TRUE,se_h=TRUE,se_logh=TRUE,ll_h=TRUE,ul_h=TRUE,
-                      H=TRUE,se_H=TRUE,se_logH=TRUE,ll_H=TRUE,ul_H=TRUE,
-                      S=TRUE,se_S=FALSE,ll_S=TRUE,ul_S=TRUE)
-  out_names <- names(out_options)
-  nmsO <- names(out_options)
-  namO <- names(output_options)
-  out_options[namO] <- output_options
-  if(is.null(vcov_sub)){
-    out_options$ll_h <- out_options$ul_h <-
-      out_options$ll_H <- out_options$ul_H <-
-      out_options$ll_S <- out_options$ul_S <-
-      out_options$se_h <- out_options$se_H <- out_options$se_S <-
-      out_options$se_logh <- out_options$se_logH <- FALSE
-  }
-
-  # if (tseq[1] == 0) {
-  #   tseq <- tseq[-1]
-  # }
-
-  eta <- if(!is.null(xnew) & length(beta) > 0) as.vector(xnew %*% beta) else 0
+  eta <- if(!is.null(xnew) & length(beta) > 0) as.vector(xnew %*% beta) + offset else offset
 
   basis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = hazard, deriv = FALSE)
   dbasis <- get_basis(y = tseq,knots_vec = knots_vec,hazard = hazard, deriv = TRUE)
@@ -281,16 +260,14 @@ pred_helper_uni <- function(tseq, xnew=NULL, beta,
                 S=NULL,se_S=NULL,ll_S=NULL,ul_S=NULL)
 
   for(type in c("h","H")){
-    if(out_options[[type]]){
-      value[[type]] <- get_haz(tseq=tseq, eta=eta,
-                               hazard=hazard,
-                               phi=phi, basis=basis, dbasis=dbasis,
-                               basis_quad=basis_quad, quad_weights=quad_weights,
-                               func_type=type, log_out=FALSE)
-    }
+    value[[type]] <- get_haz(tseq=tseq, eta=eta,
+                             hazard=hazard,
+                             phi=phi, basis=basis, dbasis=dbasis,
+                             basis_quad=basis_quad, quad_weights=quad_weights,
+                             func_type=type, log_out=FALSE)
 
     for(log_out_temp in c("","log")){
-      if(out_options[[paste0("se_",log_out_temp,type)]]){
+      if(!is.null(vcov_sub)){
         value[[paste0("se_",log_out_temp,type)]] <- sapply(X = 1:length(eta),
              function(i){
                J <- get_jac(tseq=tseq, xnew=xnew[i,,drop=FALSE], beta=beta, eta=eta[i],
@@ -308,44 +285,33 @@ pred_helper_uni <- function(tseq, xnew=NULL, beta,
   }
 
   #fill in survivor function using H, or if needed, computing it freshly
-  if(out_options[["S"]]){
-    if(!out_options[["H"]]){
-      value[["S"]] <- exp(-get_haz(tseq=tseq, eta=eta,
-                                   hazard=hazard,
-                                   phi=phi, basis=basis, dbasis=dbasis,
-                                   basis_quad=basis_quad, quad_weights=quad_weights,
-                                   func_type=type, log_out=FALSE))
-    } else{ value[["S"]] <- exp(-value$H) }
-  }
+  value[["S"]] <- exp(-value$H)
 
-  #second, take the "alpha" given and generate confidence bounds
-  #use log-scale CI unless se_logh is unavailable, then try direct scale
-  if(!is.null(value$se_logh)){
+  if(!is.null(vcov_sub)){
+    #second, take the "alpha" given and generate confidence bounds
+    #use log-scale CI by default
     value$ll_h <- value$h * exp(stats::qnorm(alpha/2) * value$se_logh)
     value$ul_h <- value$h * exp(-stats::qnorm(alpha/2) * value$se_logh)
-  } else if(!is.null(value$se_h)){
-    value$ll_h <- value$h - stats::qnorm(alpha/2) * value$se_h
-    value$ul_h <- value$h + stats::qnorm(alpha/2) * value$se_h
-  }
-  #use log-log-scale CI unless se_logH is unavailable, then try log scale then direct
-  if(!is.null(value$se_logH)){
+    # value$ll_h <- value$h - stats::qnorm(alpha/2) * value$se_h
+    # value$ul_h <- value$h + stats::qnorm(alpha/2) * value$se_h
+
+    #use log-log-scale CI by default
     value$ll_H <- value$H * exp(stats::qnorm(alpha/2) * value$se_logH)
     value$ul_H <- value$H * exp(-stats::qnorm(alpha/2) * value$se_logH)
     value$ll_S <- exp(-value$ll_H)
     value$ul_S <- exp(-value$ul_H)
-  } else if(!is.null(value$se_H)){
-    value$ll_H <- value$H - stats::qnorm(alpha/2) * value$se_H
-    value$ul_H <- value$H + stats::qnorm(alpha/2) * value$se_H
-    value$ll_S <- exp(-value$ll_H)
-    value$ul_S <- exp(-value$ul_H)
-  } else if(!is.null(value$se_S)){
-    value$ll_S <- value$S - stats::qnorm(alpha/2) * value$se_S
-    value$ul_S <- value$S + stats::qnorm(alpha/2) * value$se_S
+    # #Former log-scale CIs
+    # value$ll_H <- value$H - stats::qnorm(alpha/2) * value$se_H
+    # value$ul_H <- value$H + stats::qnorm(alpha/2) * value$se_H
+    # value$ll_S <- exp(-value$ll_H)
+    # value$ul_S <- exp(-value$ul_H)
+    # #Former direct CI for survival
+    # value$ll_S <- value$S - stats::qnorm(alpha/2) * value$se_S
+    # value$ul_S <- value$S + stats::qnorm(alpha/2) * value$se_S
   }
 
   value
 }
-
 
 #ok, so I have the univariate prediction function done!
 #now, the motherlode: illness-death model prediction
@@ -353,37 +319,15 @@ pred_helper_uni <- function(tseq, xnew=NULL, beta,
 #dependence of h3 on t1.
 
 #' @export
-pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL,
+pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL, frailnew=NULL,
                            para, nP0, nP, frailty, model,
                            hazard, knots_list, n_quad, quad_method,
-                           Finv, alpha, output_options=NULL){
+                           Finv, alpha){
   # browser()
-
-  # # #define list of components to include in model fit output list
-  # # #if any output options have been given, override the defaults
-  # out_options <- list(h1=TRUE,se_h1=FALSE,se_logh1=TRUE, ll_h1=TRUE, ul_h1=TRUE,
-  #                     h2=TRUE,se_h2=FALSE,se_logh2=TRUE, ll_h2=TRUE, ul_h2=TRUE,
-  #                     h3=TRUE,se_h3=FALSE,se_logh3=TRUE, ll_h3=TRUE, ul_h3=TRUE,
-  #                     H1=TRUE,se_H1=FALSE,se_logH1=TRUE, ll_H1=TRUE, ul_H1=TRUE,
-  #                     H2=TRUE,se_H2=FALSE,se_logH2=TRUE, ll_H2=TRUE, ul_H2=TRUE,
-  #                     H3=TRUE,se_H3=FALSE,se_logH3=TRUE, ll_H3=TRUE, ul_H3=TRUE,
-  #                     h1_marg=TRUE,h2_marg=TRUE,h3_marg=TRUE,
-  #                     H1_marg=TRUE,H2_marg=TRUE,H3_marg=TRUE,
-  #                     p_term_only=TRUE,p_nonterm=TRUE,
-  #                     p_nonterm_only=TRUE,p_both=TRUE,p_neither=TRUE,
-  #                     p_term_only_marg=TRUE,p_nonterm_marg=TRUE,
-  #                     p_nonterm_only_marg=TRUE,p_both_marg=TRUE,p_neither_marg=TRUE)
-  #
-  # nmsO <- names(out_options)
-  # namO <- names(output_options)
-  # out_options[namO] <- output_options
-  # if(is.null(Finv)){
-  #   out_options[grep(pattern="se_",x=names(out_options))] <- FALSE
-  # }
-
-  # if (tseq[1] == 0) {
-  #   tseq <- tseq[-1]
-  # }
+  marg_flag <- is.null(frailnew)
+  if(is.null(frailnew)){
+    frailnew <- 1
+  }
 
   #setting up some preliminary quantities
   nP0_tot <- if(frailty) sum(nP0) + 1 else sum(nP0)
@@ -391,15 +335,16 @@ pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL,
   nP0_end <- c(nP0[1],nP0[1]+nP0[2],nP0[1]+nP0[2]+nP0[3])
   nP_start <- 1 + c(nP0_tot,nP0_tot+nP[1],nP0_tot+nP[1]+nP[2])
   nP_end <- c(nP0_tot+nP[1],nP0_tot+nP[1]+nP[2],nP0_tot+nP[1]+nP[2]+nP[3])
-  x_list <- list(x1new,x2new,x3new)
 
   eta_list <- beta_list <- vector(mode="list",3)
   beta_list[[1]] <- if(!is.null(x1new)) para[nP_start[1]:nP_end[1]] else numeric(0)
   beta_list[[2]] <- if(!is.null(x2new)) para[nP_start[2]:nP_end[2]] else numeric(0)
   beta_list[[3]] <- if(!is.null(x3new)) para[nP_start[3]:nP_end[3]] else numeric(0)
-  eta_list[[1]] <- if(length(beta_list[[1]]) > 0) as.vector(x1new %*% beta_list[[1]]) else 0
-  eta_list[[2]] <- if(length(beta_list[[2]]) > 0) as.vector(x2new %*% beta_list[[2]]) else 0
-  eta_list[[3]] <- if(length(beta_list[[3]]) > 0) as.vector(x3new %*% beta_list[[3]]) else 0
+  eta_list[[1]] <- if(length(beta_list[[1]]) > 0) as.vector(x1new %*% beta_list[[1]] + log(frailnew)) else 0
+  eta_list[[2]] <- if(length(beta_list[[2]]) > 0) as.vector(x2new %*% beta_list[[2]] + log(frailnew)) else 0
+  eta_list[[3]] <- if(length(beta_list[[3]]) > 0) as.vector(x3new %*% beta_list[[3]] + log(frailnew)) else 0
+
+  se_fit_flag <- !is.null(Finv)
 
   if(frailty){
     theta <- exp(para[sum(nP0) + 1])
@@ -430,28 +375,35 @@ pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL,
                 p_nonterm=NULL, se_p_nonterm=NULL,
                 p_nonterm_only=NULL, se_p_nonterm_only=NULL,
                 p_both=NULL, se_p_both=NULL,
-                p_neither=NULL, se_p_neither=NULL,
+                p_neither=NULL, se_p_neither=NULL, se_logp_neither=NULL,
                 p_term_only_marg=NULL, se_p_term_only_marg=NULL,
                 p_nonterm_marg=NULL, se_p_nonterm_marg=NULL,
                 p_nonterm_only_marg=NULL, se_p_nonterm_only_marg=NULL,
                 p_both_marg=NULL, se_p_both_marg=NULL,
                 p_neither_marg=NULL, se_p_neither_marg=NULL,
-                x1new=x1new, x2new=x2new, x3new=x3new, class=NULL)
+                x1new=x1new, x2new=x2new, x3new=x3new, frailnew=frailnew, class=NULL)
 
   #could technically be more efficient by calling get_haz and get_jac separately, but
   #would make code a little less concise I suppose.
   for(i in 1:3){
+    xtemp <- switch(i, x1new, x2new, x3new)
+
+    if(se_fit_flag){
+      Finv_temp <- Finv[c(nP0_start[i]:nP0_end[i],
+             if(!is.null(xtemp)) nP_start[i]:nP_end[i]),
+           c(nP0_start[i]:nP0_end[i],
+             if(!is.null(xtemp)) nP_start[i]:nP_end[i])]
+    } else Finv_temp <- NULL
+
     value_temp <- pred_helper_uni(tseq = tseq,
-                                  xnew = x_list[[i]],
+                                  xnew = xtemp,
                                   phi = para[nP0_start[i]:nP0_end[i]],
                                   beta = para[nP_start[i]:nP_end[i]],
                                   hazard = hazard, knots_vec = knots_list[[i]],
                                   n_quad = n_quad, quad_method = quad_method,
-                                  vcov_sub = Finv[c(nP0_start[i]:nP0_end[i],
-                                                if(!is.null(x_list[[i]])) nP_start[i]:nP_end[i]),
-                                              c(nP0_start[i]:nP0_end[i],
-                                                if(!is.null(x_list[[i]])) nP_start[i]:nP_end[i])],
-                                  alpha=alpha, output_options = NULL) #as in, give me everything!
+                                  vcov_sub = Finv_temp, offset = log(frailnew),
+                                  alpha=alpha) #as in, give me everything!
+    #loop through and copy over the results from the univariate fit into the output list
     for(temp_name in names(value_temp)){
       if(temp_name=="tseq"){next}
       value[[paste0(temp_name,"",i)]] <- value_temp[[temp_name]]
@@ -471,7 +423,7 @@ pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL,
   value$p_nonterm <- 0.5 *
     apply(S2_a*S1_a + S2_b*S1_a - S2_a*S1_b - S2_b*S1_b, MARGIN = 2, cumsum)
 
-  if(frailty){
+  if(frailty & marg_flag){
     #Following Xu (2010), marginal hazards reflect interplay of H1 and H2
     #this could be computed on log-scale, fyi! could be useful for some reason
     value$p_neither_marg <- exp( (-1/theta) * log1p(theta * (value$H1 + value$H2)) )
@@ -513,140 +465,148 @@ pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL,
 
   }
 
-
-
-
-
   #now compute SEs for these quantities
   #loop through "individuals" (I know this is woefully inefficient but idk what to say...)
 
+  if(se_fit_flag){
+    Finv_sub12 <- Finv[c(nP0_start[1]:nP0_end[1], if(!is.null(x1new)) nP_start[1]:nP_end[1],
+                         nP0_start[2]:nP0_end[2], if(!is.null(x2new)) nP_start[2]:nP_end[2]),
+                       c(nP0_start[1]:nP0_end[1], if(!is.null(x1new)) nP_start[1]:nP_end[1],
+                         nP0_start[2]:nP0_end[2], if(!is.null(x2new)) nP_start[2]:nP_end[2])]
+    #while I'm here, set up the matrix for the more complicated  probabilities in the loop far below
+    Finv_sub123 <- Finv[c(nP0_start[1]:nP0_end[1], if(!is.null(x1new)) nP_start[1]:nP_end[1],
+                          nP0_start[2]:nP0_end[2], if(!is.null(x2new)) nP_start[2]:nP_end[2],
+                          nP0_start[3]:nP0_end[3], if(!is.null(x3new)) nP_start[3]:nP_end[3]),
+                        c(nP0_start[1]:nP0_end[1], if(!is.null(x1new)) nP_start[1]:nP_end[1],
+                          nP0_start[2]:nP0_end[2], if(!is.null(x2new)) nP_start[2]:nP_end[2],
+                          nP0_start[3]:nP0_end[3], if(!is.null(x3new)) nP_start[3]:nP_end[3])]
+    if(frailty & marg_flag){
+      Finv_sub12_marg <- Finv[c(nP0_start[1]:nP0_end[1], if(!is.null(x1new)) nP_start[1]:nP_end[1],
+                                nP0_start[2]:nP0_end[2], if(!is.null(x2new)) nP_start[2]:nP_end[2],
+                                nP0_tot), #add frailty
+                              c(nP0_start[1]:nP0_end[1], if(!is.null(x1new)) nP_start[1]:nP_end[1],
+                                nP0_start[2]:nP0_end[2], if(!is.null(x2new)) nP_start[2]:nP_end[2],
+                                nP0_tot)] #add frailty
+      #while I'm here, set up the matrix for the more complicated probabilities in the loop far below
+      Finv_sub123_marg <- Finv[c(nP0_start[1]:nP0_end[1], if(!is.null(x1new)) nP_start[1]:nP_end[1],
+                                 nP0_start[2]:nP0_end[2], if(!is.null(x2new)) nP_start[2]:nP_end[2],
+                                 nP0_start[3]:nP0_end[3], if(!is.null(x3new)) nP_start[3]:nP_end[3],
+                                 nP0_tot),
+                               c(nP0_start[1]:nP0_end[1], if(!is.null(x1new)) nP_start[1]:nP_end[1],
+                                 nP0_start[2]:nP0_end[2], if(!is.null(x2new)) nP_start[2]:nP_end[2],
+                                 nP0_start[3]:nP0_end[3], if(!is.null(x3new)) nP_start[3]:nP_end[3],
+                                 nP0_tot)]
+    }
 
-  Finv_sub12 <- Finv[c(nP0_start[1]:nP0_end[1],
-                     if(!is.null(x_list[[1]])) nP_start[1]:nP_end[1],
-                     nP0_start[2]:nP0_end[2],
-                     if(!is.null(x_list[[2]])) nP_start[2]:nP_end[2]),
-                   c(nP0_start[1]:nP0_end[1],
-                     if(!is.null(x_list[[1]])) nP_start[1]:nP_end[1],
-                     nP0_start[2]:nP0_end[2],
-                     if(!is.null(x_list[[2]])) nP_start[2]:nP_end[2])]
-  if(frailty){
-    Finv_sub12_marg <- Finv[c(nP0_start[1]:nP0_end[1],
-                              if(!is.null(x_list[[1]])) nP_start[1]:nP_end[1],
-                              nP0_start[2]:nP0_end[2],
-                              if(!is.null(x_list[[2]])) nP_start[2]:nP_end[2],
-                              nP0_tot), #add frailty
-                            c(nP0_start[1]:nP0_end[1],
-                              if(!is.null(x_list[[1]])) nP_start[1]:nP_end[1],
-                              nP0_start[2]:nP0_end[2],
-                              if(!is.null(x_list[[2]])) nP_start[2]:nP_end[2],
-                              nP0_tot)] #add frailty
-  }
+    value$se_p_neither_marg <-
+      value$se_p_neither <- value$se_logp_neither <-
+      value$se_p_nonterm <- value$se_p_term_only <-
+      value$se_p_nonterm_marg <- value$se_p_term_only_marg <-
+      matrix(data=NA, nrow=NROW(value$H1),ncol=NCOL(value$H1))
 
-  value$se_p_neither_marg <-
-    value$se_p_neither <- value$se_logp_neither <-
-    value$se_p_nonterm <- value$se_p_term_only <-
-    value$se_p_nonterm_marg <- value$se_p_term_only_marg <- matrix(data=NA, nrow=NROW(value$H1),ncol=NCOL(value$H1))
-  for(j in 1:NCOL(value$H1)){
+    #again set up containers for the p values to be computed in the loop far below
+    value$se_p_both_marg <- value$se_p_nonterm_only_marg <-
+      value$se_p_both <- value$se_p_nonterm_only <-
+      matrix(data = NA, nrow = length(tseq), ncol=NCOL(value$H1))
 
-    basis <- get_basis(y = tseq,knots_vec = knots_list[[1]],hazard = hazard,deriv = FALSE)
-    dbasis <- get_basis(y = tseq,knots_vec = knots_list[[1]],hazard = hazard,deriv = TRUE)
-    basis_quad <- get_basis(y=quad_points, knots_vec=knots_list[[1]],hazard=hazard,deriv = FALSE)
-    dH1b <- get_jac(tseq=tseq, xnew=x1new[j,,drop=FALSE], beta=beta_list[[1]],
-                     eta=eta_list[[1]][j], #WILL THIS CAUSE A PROBLEM IF ONE X HAS NO ELEMENTS BUT ANOTHER HAS SEVERAL?
-                     hazard=hazard, phi=para[nP0_start[1]:nP0_end[1]],
-                     basis=basis, dbasis=dbasis,
-                     basis_quad=basis_quad, quad_weights=quad_weights,
-                     func_type="H", H = value[["H1"]][,j],
-                     log_out = FALSE )
+    for(j in 1:NCOL(value$H1)){
 
-    basis <- get_basis(y = tseq,knots_vec = knots_list[[2]],hazard = hazard,deriv = FALSE)
-    dbasis <- get_basis(y = tseq,knots_vec = knots_list[[2]],hazard = hazard,deriv = TRUE)
-    basis_quad <- get_basis(y=quad_points, knots_vec=knots_list[[2]], hazard = hazard,deriv = FALSE)
-    dH2b <- get_jac(tseq=tseq, xnew=x2new[j,,drop=FALSE], beta=beta_list[[2]],
-                     eta=eta_list[[2]][j], #WILL THIS CAUSE A PROBLEM IF ONE X HAS NO ELEMENTS BUT ANOTHER HAS SEVERAL?
-                     hazard=hazard, phi=para[nP0_start[2]:nP0_end[2]],
-                     basis=basis, dbasis=dbasis,
-                     basis_quad=basis_quad, quad_weights=quad_weights,
-                     func_type="H", H = value[["H2"]][,j],
-                     log_out = FALSE )
+      basis <- get_basis(y = tseq,knots_vec = knots_list[[1]],hazard = hazard,deriv = FALSE)
+      dbasis <- get_basis(y = tseq,knots_vec = knots_list[[1]],hazard = hazard,deriv = TRUE)
+      basis_quad <- get_basis(y=quad_points, knots_vec=knots_list[[1]],hazard=hazard,deriv = FALSE)
+      dH1b <- get_jac(tseq=tseq, xnew=x1new[j,,drop=FALSE], beta=beta_list[[1]],
+                      eta=eta_list[[1]][j], #WILL THIS CAUSE A PROBLEM IF ONE X HAS NO ELEMENTS BUT ANOTHER HAS SEVERAL?
+                      hazard=hazard, phi=para[nP0_start[1]:nP0_end[1]],
+                      basis=basis, dbasis=dbasis,
+                      basis_quad=basis_quad, quad_weights=quad_weights,
+                      func_type="H", H = value[["H1"]][,j],
+                      log_out = FALSE )
 
-    dH1a <- rbind(0,dH1b[-NROW(dH1b),,drop=FALSE])
-    dH2a <- rbind(0,dH2b[-NROW(dH2b),,drop=FALSE])
+      basis <- get_basis(y = tseq,knots_vec = knots_list[[2]],hazard = hazard,deriv = FALSE)
+      dbasis <- get_basis(y = tseq,knots_vec = knots_list[[2]],hazard = hazard,deriv = TRUE)
+      basis_quad <- get_basis(y=quad_points, knots_vec=knots_list[[2]], hazard = hazard,deriv = FALSE)
+      dH2b <- get_jac(tseq=tseq, xnew=x2new[j,,drop=FALSE], beta=beta_list[[2]],
+                      eta=eta_list[[2]][j], #WILL THIS CAUSE A PROBLEM IF ONE X HAS NO ELEMENTS BUT ANOTHER HAS SEVERAL?
+                      hazard=hazard, phi=para[nP0_start[2]:nP0_end[2]],
+                      basis=basis, dbasis=dbasis,
+                      basis_quad=basis_quad, quad_weights=quad_weights,
+                      func_type="H", H = value[["H2"]][,j],
+                      log_out = FALSE )
 
-    #see scratchwork for this derivation, basically it's leveraging the summation of trapezoid rule
-    #for p_term_only (aka CIF_t)
-    #apply(S1_a*S2_a + S1_b*S2_a - S1_a*S2_b - S1_b*S2_b, MARGIN = 2, cumsum)
-    J <- 0.5 * cbind(
-      dH1a*S1_a[,j]*(S2_a[,j] - S2_b[,j]) + dH1b*S1_b[,j]*(S2_a[,j] - S2_b[,j]),
-      dH2a*S2_a[,j]*(S1_a[,j] + S1_b[,j]) - dH2b*S2_b[,j]*(S1_a[,j] + S1_b[,j])
-    )
-    value$se_p_term_only[,j] <- sqrt(diag(apply(apply(J %*% Finv_sub12 %*% t(J),1,cumsum),1,cumsum)))
+      dH1a <- rbind(0,dH1b[-NROW(dH1b),,drop=FALSE])
+      dH2a <- rbind(0,dH2b[-NROW(dH2b),,drop=FALSE])
 
-    #for p_nonterm (aka CIF_nt)
-    #apply(S2_a*S1_a + S2_b*S1_a - S2_a*S1_b - S2_b*S1_b, MARGIN = 2, cumsum)
-    J <- 0.5 * cbind(
-      dH1a*S1_a[,j]*(S2_a[,j] + S2_b[,j]) - dH1b*S1_b[,j]*(S2_a[,j] + S2_b[,j]),
-      dH2a*S2_a[,j]*(S1_a[,j] - S1_b[,j]) + dH2b*S2_b[,j]*(S1_a[,j] - S1_b[,j])
-    )
-    value$se_p_nonterm[,j] <- sqrt(diag(apply(apply(J %*% Finv_sub12 %*% t(J),1,cumsum),1,cumsum)))
-
-
-    #SE of "neither" probability
-    J <- -cbind(dH1b, dH2b)
-    value$se_logp_neither[,j] <- sqrt(rowSums(J * (J %*% Finv_sub12)))
-    J <- value$p_neither[,j] * J
-    value$se_p_neither[,j] <- sqrt(rowSums(J * (J %*% Finv_sub12)))
-
-    if(frailty){
-
+      #see scratchwork for this derivation, basically it's leveraging the summation of trapezoid rule
       #for p_term_only (aka CIF_t)
       #apply(S1_a*S2_a + S1_b*S2_a - S1_a*S2_b - S1_b*S2_b, MARGIN = 2, cumsum)
       J <- 0.5 * cbind(
-        dH1a * (1 + theta * (H1_a[,j] + H2_a[,j]))^(-1/theta - 1) +
-        dH1b * (1 + theta * (H1_b[,j] + H2_a[,j]))^(-1/theta - 1) -
-        dH1a * (1 + theta * (H1_a[,j] + H2_b[,j]))^(-1/theta - 1) -
-        dH1b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
-          dH2a * (1 + theta * (H1_a[,j] + H2_a[,j]))^(-1/theta - 1) +
-          dH2a * (1 + theta * (H1_b[,j] + H2_a[,j]))^(-1/theta - 1) -
-          dH2b * (1 + theta * (H1_a[,j] + H2_b[,j]))^(-1/theta - 1) -
-          dH2b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
-        -marg_logtheta_deriv(a = H1_a[,j] + H2_a[,j], ltheta = log(theta)) +
-        -marg_logtheta_deriv(a = H1_b[,j] + H2_a[,j], ltheta = log(theta)) -
-        -marg_logtheta_deriv(a = H1_a[,j] + H2_b[,j], ltheta = log(theta)) -
-        -marg_logtheta_deriv(a = H1_b[,j] + H2_b[,j], ltheta = log(theta)))
-      value$se_p_term_only_marg[,j] <- sqrt(diag(apply(apply(J %*% Finv_sub12_marg %*% t(J),1,cumsum),1,cumsum)))
+        dH1a*S1_a[,j]*(S2_a[,j] - S2_b[,j]) + dH1b*S1_b[,j]*(S2_a[,j] - S2_b[,j]),
+        dH2a*S2_a[,j]*(S1_a[,j] + S1_b[,j]) - dH2b*S2_b[,j]*(S1_a[,j] + S1_b[,j])
+      )
+      value$se_p_term_only[,j] <- sqrt(diag(apply(apply(J %*% Finv_sub12 %*% t(J),1,cumsum),1,cumsum)))
 
       #for p_nonterm (aka CIF_nt)
       #apply(S2_a*S1_a + S2_b*S1_a - S2_a*S1_b - S2_b*S1_b, MARGIN = 2, cumsum)
       J <- 0.5 * cbind(
-        dH1a * (1 + theta * (H1_a[,j] + H2_a[,j]))^(-1/theta - 1) +
-        dH1a * (1 + theta * (H1_a[,j] + H2_b[,j]))^(-1/theta - 1) -
-        dH1b * (1 + theta * (H1_b[,j] + H2_a[,j]))^(-1/theta - 1) -
-        dH1b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
+        dH1a*S1_a[,j]*(S2_a[,j] + S2_b[,j]) - dH1b*S1_b[,j]*(S2_a[,j] + S2_b[,j]),
+        dH2a*S2_a[,j]*(S1_a[,j] - S1_b[,j]) + dH2b*S2_b[,j]*(S1_a[,j] - S1_b[,j])
+      )
+      value$se_p_nonterm[,j] <- sqrt(diag(apply(apply(J %*% Finv_sub12 %*% t(J),1,cumsum),1,cumsum)))
+
+      #SE of "neither" probability
+      J <- -cbind(dH1b, dH2b)
+      value$se_logp_neither[,j] <- sqrt(rowSums(J * (J %*% Finv_sub12)))
+      J <- value$p_neither[,j] * J
+      value$se_p_neither[,j] <- sqrt(rowSums(J * (J %*% Finv_sub12)))
+
+      if(frailty & marg_flag){
+        #for p_term_only (aka CIF_t)
+        #apply(S1_a*S2_a + S1_b*S2_a - S1_a*S2_b - S1_b*S2_b, MARGIN = 2, cumsum)
+        J <- 0.5 * cbind(
+          dH1a * (1 + theta * (H1_a[,j] + H2_a[,j]))^(-1/theta - 1) +
+            dH1b * (1 + theta * (H1_b[,j] + H2_a[,j]))^(-1/theta - 1) -
+            dH1a * (1 + theta * (H1_a[,j] + H2_b[,j]))^(-1/theta - 1) -
+            dH1b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
           dH2a * (1 + theta * (H1_a[,j] + H2_a[,j]))^(-1/theta - 1) +
-          dH2b * (1 + theta * (H1_a[,j] + H2_b[,j]))^(-1/theta - 1) -
-          dH2a * (1 + theta * (H1_b[,j] + H2_a[,j]))^(-1/theta - 1) -
-          dH2b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
-        -marg_logtheta_deriv(a = H1_a[,j] + H2_a[,j], ltheta = log(theta)) +
-        -marg_logtheta_deriv(a = H1_a[,j] + H2_b[,j], ltheta = log(theta)) -
-        -marg_logtheta_deriv(a = H1_b[,j] + H2_a[,j], ltheta = log(theta)) -
-        -marg_logtheta_deriv(a = H1_b[,j] + H2_b[,j], ltheta = log(theta)))
-      value$se_p_nonterm_marg[,j] <- sqrt(diag(apply(apply(J %*% Finv_sub12_marg %*% t(J),1,cumsum),1,cumsum)))
+            dH2a * (1 + theta * (H1_b[,j] + H2_a[,j]))^(-1/theta - 1) -
+            dH2b * (1 + theta * (H1_a[,j] + H2_b[,j]))^(-1/theta - 1) -
+            dH2b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
+          -marg_logtheta_deriv(a = H1_a[,j] + H2_a[,j], ltheta = log(theta)) +
+            -marg_logtheta_deriv(a = H1_b[,j] + H2_a[,j], ltheta = log(theta)) -
+            -marg_logtheta_deriv(a = H1_a[,j] + H2_b[,j], ltheta = log(theta)) -
+            -marg_logtheta_deriv(a = H1_b[,j] + H2_b[,j], ltheta = log(theta)))
+        value$se_p_term_only_marg[,j] <- sqrt(diag(apply(apply(J %*% Finv_sub12_marg %*% t(J),1,cumsum),1,cumsum)))
 
+        #for p_nonterm (aka CIF_nt)
+        #apply(S2_a*S1_a + S2_b*S1_a - S2_a*S1_b - S2_b*S1_b, MARGIN = 2, cumsum)
+        J <- 0.5 * cbind(
+          dH1a * (1 + theta * (H1_a[,j] + H2_a[,j]))^(-1/theta - 1) +
+            dH1a * (1 + theta * (H1_a[,j] + H2_b[,j]))^(-1/theta - 1) -
+            dH1b * (1 + theta * (H1_b[,j] + H2_a[,j]))^(-1/theta - 1) -
+            dH1b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
+          dH2a * (1 + theta * (H1_a[,j] + H2_a[,j]))^(-1/theta - 1) +
+            dH2b * (1 + theta * (H1_a[,j] + H2_b[,j]))^(-1/theta - 1) -
+            dH2a * (1 + theta * (H1_b[,j] + H2_a[,j]))^(-1/theta - 1) -
+            dH2b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
+          -marg_logtheta_deriv(a = H1_a[,j] + H2_a[,j], ltheta = log(theta)) +
+            -marg_logtheta_deriv(a = H1_a[,j] + H2_b[,j], ltheta = log(theta)) -
+            -marg_logtheta_deriv(a = H1_b[,j] + H2_a[,j], ltheta = log(theta)) -
+            -marg_logtheta_deriv(a = H1_b[,j] + H2_b[,j], ltheta = log(theta)))
+        value$se_p_nonterm_marg[,j] <- sqrt(diag(apply(apply(J %*% Finv_sub12_marg %*% t(J),1,cumsum),1,cumsum)))
 
-      #SE of marginal "neither" probability
-      J <- cbind(dH1b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
-                 dH2b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
-                 -marg_logtheta_deriv(a = H1_b[,j] + H2_b[,j], ltheta = log(theta)))
-      value$se_p_neither_marg[,j] <- sqrt(rowSums(J * (J %*% Finv_sub12_marg)))
+        #SE of marginal "neither" probability
+        J <- cbind(dH1b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
+                   dH2b * (1 + theta * (H1_b[,j] + H2_b[,j]))^(-1/theta - 1),
+                   -marg_logtheta_deriv(a = H1_b[,j] + H2_b[,j], ltheta = log(theta)))
+        value$se_p_neither_marg[,j] <- sqrt(rowSums(J * (J %*% Finv_sub12_marg)))
+      }
     }
+
   }
 
   # browser()
 
   #I think now, we'll have to use loops to incorporate h3 correctly
-  value$se_p_both_marg <- value$se_p_nonterm_only_marg <-
-    value$se_p_both <- value$se_p_nonterm_only <-
   value$p_both_marg <- value$p_nonterm_only_marg <-
     value$p_both <- value$p_nonterm_only <-
     matrix(data = NA, nrow = length(tseq),
@@ -654,38 +614,6 @@ pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL,
 
   if(abs(max(diff(tseq)) - min(diff(tseq))) > 1e-6){
     warning("tseq points are not equally spaced. Some predicted functions may be incorrect.")
-  }
-
-
-
-
-  Finv_sub123 <- Finv[c(nP0_start[1]:nP0_end[1],
-                       if(!is.null(x_list[[1]])) nP_start[1]:nP_end[1],
-                       nP0_start[2]:nP0_end[2],
-                       if(!is.null(x_list[[2]])) nP_start[2]:nP_end[2],
-                       nP0_start[3]:nP0_end[3],
-                       if(!is.null(x_list[[3]])) nP_start[3]:nP_end[3]),
-                      c(nP0_start[1]:nP0_end[1],
-                        if(!is.null(x_list[[1]])) nP_start[1]:nP_end[1],
-                        nP0_start[2]:nP0_end[2],
-                        if(!is.null(x_list[[2]])) nP_start[2]:nP_end[2],
-                        nP0_start[3]:nP0_end[3],
-                        if(!is.null(x_list[[3]])) nP_start[3]:nP_end[3])]
-  if(frailty){
-    Finv_sub123_marg <- Finv[c(nP0_start[1]:nP0_end[1],
-                          if(!is.null(x_list[[1]])) nP_start[1]:nP_end[1],
-                          nP0_start[2]:nP0_end[2],
-                          if(!is.null(x_list[[2]])) nP_start[2]:nP_end[2],
-                          nP0_start[3]:nP0_end[3],
-                          if(!is.null(x_list[[3]])) nP_start[3]:nP_end[3],
-                          nP0_tot),
-                        c(nP0_start[1]:nP0_end[1],
-                          if(!is.null(x_list[[1]])) nP_start[1]:nP_end[1],
-                          nP0_start[2]:nP0_end[2],
-                          if(!is.null(x_list[[2]])) nP_start[2]:nP_end[2],
-                          nP0_start[3]:nP0_end[3],
-                          if(!is.null(x_list[[3]])) nP_start[3]:nP_end[3],
-                          nP0_tot)]
   }
 
   for(i in 1:length(tseq)){
@@ -719,7 +647,7 @@ pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL,
       colSums(integrand_a_sub*S1_a_sub + integrand_b_sub*S1_a_sub -
                 integrand_a_sub*S1_b_sub - integrand_b_sub*S1_b_sub)
 
-    if(frailty){
+    if(frailty & marg_flag){
       H1_a_sub <- H1_a[1:i,,drop=FALSE]
       H1_b_sub <- H1_b[1:i,,drop=FALSE]
       H2_a_sub <- H2_a[1:i,,drop=FALSE]
@@ -735,149 +663,151 @@ pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL,
       value$p_both_marg[i,] <- value$p_nonterm_marg[i,] - value$p_nonterm_only_marg[i,]
     }
 
-    # browser()
 
-    #now, to generate standard errors for these predictions
-    basis <- get_basis(y = tseq[1:i],knots_vec = knots_list[[3]],hazard = hazard,deriv = FALSE)
-    dbasis <- get_basis(y = tseq[1:i],knots_vec = knots_list[[3]],hazard = hazard,deriv = TRUE)
-    quad_points_sub <- transform_quad_points(n_quad = n_quad,
-                                         quad_method=quad_method, a = 0,b = tseq[1:i])
-    basis_quad <- get_basis(y=quad_points_sub, knots_vec=knots_list[[3]], hazard = hazard,deriv = FALSE)
+    if(se_fit_flag){
+      #now, to generate standard errors for these predictions
+      basis <- get_basis(y = tseq[1:i],knots_vec = knots_list[[3]],hazard = hazard,deriv = FALSE)
+      dbasis <- get_basis(y = tseq[1:i],knots_vec = knots_list[[3]],hazard = hazard,deriv = TRUE)
+      quad_points_sub <- transform_quad_points(n_quad = n_quad,
+                                               quad_method=quad_method, a = 0,b = tseq[1:i])
+      basis_quad <- get_basis(y=quad_points_sub, knots_vec=knots_list[[3]], hazard = hazard,deriv = FALSE)
 
-    dH1a_sub <- dH1a[1:i,,drop=FALSE]
-    dH1b_sub <- dH1b[1:i,,drop=FALSE]
-    dH2a_sub <- dH2a[1:i,,drop=FALSE]
-    dH2b_sub <- dH2b[1:i,,drop=FALSE]
+      dH1a_sub <- dH1a[1:i,,drop=FALSE]
+      dH1b_sub <- dH1b[1:i,,drop=FALSE]
+      dH2a_sub <- dH2a[1:i,,drop=FALSE]
+      dH2b_sub <- dH2b[1:i,,drop=FALSE]
 
-    for(j in 1:NCOL(value$H1)){
-      #jacobian for H3 has to follow the same structure as H3 itself does above
-      #this dH3a will be "updated" below absed on the model type
-      dH3a <- get_jac(tseq=tseq[1:i], xnew=x1new[j,,drop=FALSE], beta=beta_list[[3]],
-                      eta=eta_list[[1]][j], #WILL THIS CAUSE A PROBLEM IF ONE X HAS NO ELEMENTS BUT ANOTHER HAS SEVERAL?
-                      hazard=hazard, phi=para[nP0_start[3]:nP0_end[3]],
-                      basis=basis, dbasis=dbasis,
-                      basis_quad=basis_quad, quad_weights=quad_weights,
-                      func_type="H", H = value[["H3"]][1:i,j],
-                      log_out = FALSE )
+      for(j in 1:NCOL(value$H1)){
+        #jacobian for H3 has to follow the same structure as H3 itself does above
+        #this dH3a will be "updated" below absed on the model type
+        dH3a <- get_jac(tseq=tseq[1:i], xnew=x1new[j,,drop=FALSE], beta=beta_list[[3]],
+                        eta=eta_list[[1]][j], #WILL THIS CAUSE A PROBLEM IF ONE X HAS NO ELEMENTS BUT ANOTHER HAS SEVERAL?
+                        hazard=hazard, phi=para[nP0_start[3]:nP0_end[3]],
+                        basis=basis, dbasis=dbasis,
+                        basis_quad=basis_quad, quad_weights=quad_weights,
+                        func_type="H", H = value[["H3"]][1:i,j],
+                        log_out = FALSE )
 
-      if(tolower(model) %in% c("m","markov")){
-        #last row of H3[1:i] is H3(t2i), so
-        #compute matrix of H3(t2) - H3(t1) for every t1 between 0 and t1i
-        #by "sweeping" out H3(t2i) from every row of H3(t1) matrix
-        dH3a <- t( -t(dH3a[1:i,,drop=FALSE]) + dH3a[i,])
-      } else{
-        #take the first i entries, and then reverse their order
-        #to get a vector that increments from H3(t2i-0) to H3(t2i-t2i)
-        dH3a <- dH3a[i:1,,drop=FALSE]
-      }
-      dH3b <- rbind(dH3a[-1,,drop=FALSE],0)
+        if(tolower(model) %in% c("m","markov")){
+          #last row of H3[1:i] is H3(t2i), so
+          #compute matrix of H3(t2) - H3(t1) for every t1 between 0 and t1i
+          #by "sweeping" out H3(t2i) from every row of H3(t1) matrix
+          dH3a <- t( -t(dH3a[1:i,,drop=FALSE]) + dH3a[i,])
+        } else{
+          #take the first i entries, and then reverse their order
+          #to get a vector that increments from H3(t2i-0) to H3(t2i-t2i)
+          dH3a <- dH3a[i:1,,drop=FALSE]
+        }
+        dH3b <- rbind(dH3a[-1,,drop=FALSE],0)
 
-      #for p_term_only (aka CIF_t)
-      #apply(S1_a*S2_a + S1_b*S2_a - S1_a*S2_b - S1_b*S2_b, MARGIN = 2, cumsum)
-      S2_a_sub <- S2_a[1:i,,drop=FALSE]
-      S2_b_sub <- S2_b[1:i,,drop=FALSE]
-      J <- 0.5 * cbind(
-        dH1a_sub * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_a_sub[,j] +
-        dH1a_sub * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_a_sub[,j] -
-        dH1b_sub * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_b_sub[,j] -
-        dH1b_sub * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_b_sub[,j],
+        #for p_term_only (aka CIF_t)
+        #apply(S1_a*S2_a + S1_b*S2_a - S1_a*S2_b - S1_b*S2_b, MARGIN = 2, cumsum)
+        S2_a_sub <- S2_a[1:i,,drop=FALSE]
+        S2_b_sub <- S2_b[1:i,,drop=FALSE]
+        J <- 0.5 * cbind(
+          dH1a_sub * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_a_sub[,j] +
+            dH1a_sub * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_a_sub[,j] -
+            dH1b_sub * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_b_sub[,j] -
+            dH1b_sub * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_b_sub[,j],
           dH2a_sub * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_a_sub[,j] +
-          dH2b_sub * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_a_sub[,j] -
-          dH2a_sub * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_b_sub[,j] -
-          dH2b_sub * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_b_sub[,j],
-        dH3a * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_a_sub[,j] +
-        dH3b * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_a_sub[,j] -
-        dH3a * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_b_sub[,j] -
-        dH3b * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_b_sub[,j])
-      value$se_p_nonterm_only[i,j] <- sqrt(sum(J %*% Finv_sub123 %*% t(J)))
+            dH2b_sub * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_a_sub[,j] -
+            dH2a_sub * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_b_sub[,j] -
+            dH2b_sub * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_b_sub[,j],
+          dH3a * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_a_sub[,j] +
+            dH3b * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_a_sub[,j] -
+            dH3a * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_b_sub[,j] -
+            dH3b * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_b_sub[,j])
+        value$se_p_nonterm_only[i,j] <- sqrt(sum(J %*% Finv_sub123 %*% t(J)))
 
-      J <- 0.5 * cbind(
-        dH1a_sub * S2_a_sub[,j] * (1-exp(-H3_a_sub[,j])) * S1_a_sub[,j] +
-        dH1a_sub * S2_b_sub[,j] * (1-exp(-H3_b_sub[,j])) * S1_a_sub[,j] -
-        dH1b_sub * S2_a_sub[,j] * (1-exp(-H3_a_sub[,j])) * S1_b_sub[,j] -
-        dH1b_sub * S2_b_sub[,j] * (1-exp(-H3_b_sub[,j])) * S1_b_sub[,j],
+        J <- 0.5 * cbind(
+          dH1a_sub * S2_a_sub[,j] * (1-exp(-H3_a_sub[,j])) * S1_a_sub[,j] +
+            dH1a_sub * S2_b_sub[,j] * (1-exp(-H3_b_sub[,j])) * S1_a_sub[,j] -
+            dH1b_sub * S2_a_sub[,j] * (1-exp(-H3_a_sub[,j])) * S1_b_sub[,j] -
+            dH1b_sub * S2_b_sub[,j] * (1-exp(-H3_b_sub[,j])) * S1_b_sub[,j],
           dH2a_sub * S2_a_sub[,j] * (1-exp(-H3_a_sub[,j])) * S1_a_sub[,j] +
-          dH2b_sub * S2_b_sub[,j] * (1-exp(-H3_b_sub[,j])) * S1_a_sub[,j] -
-          dH2a_sub * S2_a_sub[,j] * (1-exp(-H3_a_sub[,j])) * S1_b_sub[,j] -
-          dH2b_sub * S2_b_sub[,j] * (1-exp(-H3_b_sub[,j])) * S1_b_sub[,j],
-        -dH3a * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_a_sub[,j] +
-        -dH3b * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_a_sub[,j] -
-        -dH3a * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_b_sub[,j] -
-        -dH3b * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_b_sub[,j])
-      value$se_p_both[i,j] <- sqrt(sum(J %*% Finv_sub123 %*% t(J)))
+            dH2b_sub * S2_b_sub[,j] * (1-exp(-H3_b_sub[,j])) * S1_a_sub[,j] -
+            dH2a_sub * S2_a_sub[,j] * (1-exp(-H3_a_sub[,j])) * S1_b_sub[,j] -
+            dH2b_sub * S2_b_sub[,j] * (1-exp(-H3_b_sub[,j])) * S1_b_sub[,j],
+          -dH3a * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_a_sub[,j] +
+            -dH3b * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_a_sub[,j] -
+            -dH3a * S2_a_sub[,j] * exp(-H3_a_sub[,j]) * S1_b_sub[,j] -
+            -dH3b * S2_b_sub[,j] * exp(-H3_b_sub[,j]) * S1_b_sub[,j])
+        value$se_p_both[i,j] <- sqrt(sum(J %*% Finv_sub123 %*% t(J)))
 
 
-      #last piece, se for marginal probabilities of "both" and "nonterm only"
-      if(frailty){
-        #for p_nonterm (aka CIF_nt)
-        #apply(S2_a*S1_a + S2_b*S1_a - S2_a*S1_b - S2_b*S1_b, MARGIN = 2, cumsum)
-        J <- 0.5 * cbind(
-          dH1a_sub * (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) +
-          dH1a_sub * (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1) -
-          dH1b_sub * (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) -
-          dH1b_sub * (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1),
+        #last piece, se for marginal probabilities of "both" and "nonterm only"
+        if(frailty & marg_flag){
+          #for p_nonterm (aka CIF_nt)
+          #apply(S2_a*S1_a + S2_b*S1_a - S2_a*S1_b - S2_b*S1_b, MARGIN = 2, cumsum)
+          J <- 0.5 * cbind(
+            dH1a_sub * (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) +
+              dH1a_sub * (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1) -
+              dH1b_sub * (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) -
+              dH1b_sub * (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1),
             dH2a_sub * (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) +
-            dH2b_sub * (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1) -
-            dH2a_sub * (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) -
-            dH2b_sub * (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1),
-          dH3a * (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) +
-          dH3b * (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1) -
-          dH3a * (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) -
-          dH3b * (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1),
+              dH2b_sub * (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1) -
+              dH2a_sub * (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) -
+              dH2b_sub * (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1),
+            dH3a * (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) +
+              dH3b * (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1) -
+              dH3a * (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) -
+              dH3b * (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1),
             -marg_logtheta_deriv(a = H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j], ltheta = log(theta)) +
-            -marg_logtheta_deriv(a = H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j], ltheta = log(theta)) -
-            -marg_logtheta_deriv(a = H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j], ltheta = log(theta)) -
-            -marg_logtheta_deriv(a = H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j], ltheta = log(theta)))
-        value$se_p_nonterm_only_marg[i,j] <- sqrt(sum(J %*% Finv_sub123_marg %*% t(J)))
+              -marg_logtheta_deriv(a = H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j], ltheta = log(theta)) -
+              -marg_logtheta_deriv(a = H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j], ltheta = log(theta)) -
+              -marg_logtheta_deriv(a = H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j], ltheta = log(theta)))
+          value$se_p_nonterm_only_marg[i,j] <- sqrt(sum(J %*% Finv_sub123_marg %*% t(J)))
 
-        #for p_both
-        J <- 0.5 * cbind(
-          dH1a_sub * (
-            (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j]))^(-1/theta - 1) -
-            (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1)) +
-          dH1a_sub * (
-            (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j]))^(-1/theta - 1) -
-            (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1)) -
-          dH1b_sub * (
-            (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j]))^(-1/theta - 1) -
-            (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1)) -
-          dH1b_sub * (
-            (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j]))^(-1/theta - 1) -
-            (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1)),
-          dH2a_sub * (
-            (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j]))^(-1/theta - 1) -
-            (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1)) +
-          dH2b_sub * (
-            (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j]))^(-1/theta - 1) -
-            (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1)) -
-          dH2a_sub * (
-            (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j]))^(-1/theta - 1) -
-            (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1)) -
-          dH2b_sub * (
-            (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j]))^(-1/theta - 1) -
-            (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1)),
-          -dH3a * (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) +
-          -dH3b * (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1) -
-          -dH3a * (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) -
-          -dH3b * (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1),
-          (marg_logtheta_deriv(a = H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j], ltheta = log(theta)) -
-          marg_logtheta_deriv(a = H1_a_sub[,j] + H2_a_sub[,j], ltheta = log(theta))) +
-          (marg_logtheta_deriv(a = H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j], ltheta = log(theta)) -
-          marg_logtheta_deriv(a = H1_a_sub[,j] + H2_b_sub[,j], ltheta = log(theta))) -
-          (marg_logtheta_deriv(a = H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j], ltheta = log(theta)) -
-          marg_logtheta_deriv(a = H1_b_sub[,j] + H2_a_sub[,j], ltheta = log(theta))) -
-          (marg_logtheta_deriv(a = H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j], ltheta = log(theta)) -
-          marg_logtheta_deriv(a = H1_b_sub[,j] + H2_b_sub[,j], ltheta = log(theta))))
-        value$se_p_both_marg[i,j] <- sqrt(sum(J %*% Finv_sub123_marg %*% t(J)))
-
+          #for p_both
+          J <- 0.5 * cbind(
+            dH1a_sub * (
+              (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j]))^(-1/theta - 1) -
+                (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1)) +
+              dH1a_sub * (
+                (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j]))^(-1/theta - 1) -
+                  (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1)) -
+              dH1b_sub * (
+                (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j]))^(-1/theta - 1) -
+                  (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1)) -
+              dH1b_sub * (
+                (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j]))^(-1/theta - 1) -
+                  (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1)),
+            dH2a_sub * (
+              (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j]))^(-1/theta - 1) -
+                (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1)) +
+              dH2b_sub * (
+                (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j]))^(-1/theta - 1) -
+                  (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1)) -
+              dH2a_sub * (
+                (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j]))^(-1/theta - 1) -
+                  (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1)) -
+              dH2b_sub * (
+                (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j]))^(-1/theta - 1) -
+                  (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1)),
+            -dH3a * (1 + theta * (H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) +
+              -dH3b * (1 + theta * (H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1) -
+              -dH3a * (1 + theta * (H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j]))^(-1/theta - 1) -
+              -dH3b * (1 + theta * (H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j]))^(-1/theta - 1),
+            (marg_logtheta_deriv(a = H1_a_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j], ltheta = log(theta)) -
+               marg_logtheta_deriv(a = H1_a_sub[,j] + H2_a_sub[,j], ltheta = log(theta))) +
+              (marg_logtheta_deriv(a = H1_a_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j], ltheta = log(theta)) -
+                 marg_logtheta_deriv(a = H1_a_sub[,j] + H2_b_sub[,j], ltheta = log(theta))) -
+              (marg_logtheta_deriv(a = H1_b_sub[,j] + H2_a_sub[,j] + H3_a_sub[,j], ltheta = log(theta)) -
+                 marg_logtheta_deriv(a = H1_b_sub[,j] + H2_a_sub[,j], ltheta = log(theta))) -
+              (marg_logtheta_deriv(a = H1_b_sub[,j] + H2_b_sub[,j] + H3_b_sub[,j], ltheta = log(theta)) -
+                 marg_logtheta_deriv(a = H1_b_sub[,j] + H2_b_sub[,j], ltheta = log(theta))))
+          value$se_p_both_marg[i,j] <- sqrt(sum(J %*% Finv_sub123_marg %*% t(J)))
+        }
       }
+
     }
+
   }
 
   #lastly, the marginal hazards!
   #Following Xu (2010), marginal hazards reflect interplay of H1 and H2
   #I really ought to think more about this and what it's doing...
-  if(frailty){
+  if(frailty & marg_flag){
     value$h1_marg <- value$h1 / (1 + theta*(value$H1 + value$H2))
     value$h2_marg <- value$h2 / (1 + theta*(value$H1 + value$H2))
     #marginal hazard of h3, setting t1=0. Note extra (1+theta) in numerator
@@ -934,8 +864,8 @@ pred_helper_ID <- function(tseq, x1new=NULL, x2new=NULL, x3new=NULL,
 predict.Freq_HReg2 <- function (object, xnew = NULL,
                                 x1new = NULL, x2new = NULL, x3new = NULL,
                                 tseq = seq(0,object$ymax,length.out = 101)[-1],
-                                alpha = 0.05, n_quad=15, quad_method="kronrod",
-                                output_options = NULL, ...) {
+                                se.fit = TRUE, frailnew = NULL,
+                                alpha = 0.05, n_quad=15, quad_method="kronrod", ...) {
   # browser()
   yLim <- NULL
   nP = object$nP
@@ -951,20 +881,25 @@ predict.Freq_HReg2 <- function (object, xnew = NULL,
                 hazard=object$hazard,
                 knots_vec=object$knots_vec,
                 n_quad=n_quad, quad_method=quad_method,
-                vcov_sub=object$Finv[c(1:nP0, if(!is.null(xnew)) (nP0+1):(nP0+nP)),
-                                     c(1:nP0, if(!is.null(xnew)) (nP0+1):(nP0+nP))],
-                alpha = alpha, output_options=output_options)
+                vcov_sub= if(se.fit) object$Finv[c(1:nP0, if(!is.null(xnew)) (nP0+1):(nP0+nP)),
+                                     c(1:nP0, if(!is.null(xnew)) (nP0+1):(nP0+nP))] else NULL,
+                alpha = alpha)
 
   } else if(object$class[2]=="ID"){
     if (!is.null(xnew)) {
       stop("'xnew' is for univariate models so it must be specified as NULL for semi-competing risks models")
     }
-    value <- pred_helper_ID(tseq=tseq, x1new=x1new, x2new=x2new, x3new=x3new,
+
+    if(!is.null(x1new) & !is.null(x2new)) stopifnot(NROW(x1new) == NROW(x2new))
+    if(!is.null(x1new) & !is.null(x3new)) stopifnot(NROW(x1new) == NROW(x3new))
+    if(!is.null(x2new) & !is.null(x3new)) stopifnot(NROW(x2new) == NROW(x3new))
+
+    value <- pred_helper_ID(tseq=tseq, x1new=x1new, x2new=x2new, x3new=x3new, frailnew=frailnew,
                             para=object$estimate, nP0=object$nP0, nP=object$nP,
                             frailty=object$frailty, model=object$model,
                             hazard=object$hazard, knots_list=object$knots_list,
                             n_quad=n_quad, quad_method=quad_method,
-                            Finv=object$Finv, alpha = alpha, output_options=NULL)
+                            Finv= if(se.fit) object$Finv else NULL, alpha = alpha)
   }
   value$xnew <- xnew
   value$x1new <- x1new; value$x2new <- x2new; value$x3new <- x3new
