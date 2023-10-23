@@ -7,10 +7,10 @@
 vcov_helper(
   Finv = NULL,
   cheese = NULL,
-  n,
-  name_vec = NULL,
   var_type = c("modelbased", "sandwich", "outer"),
-  df_adjust = FALSE
+  name_vec = NULL,
+  df_adjust = FALSE,
+  n
 )
 }
 \arguments{
@@ -18,19 +18,19 @@ vcov_helper(
 
 \item{cheese}{summed score function outer products}
 
-\item{n}{number of observations}
-
-\item{name_vec}{String vector giving the desired names of each row/column of the matrix}
-
 \item{var_type}{String giving type of variance covariance matrix estimate to return.
 Options are "modelbased" which returns the inverse of the observed information,
 "outer" which returns the inverse of the summed score function outer products,
 or "sandwich" which returns the sandwich estimator}
 
+\item{name_vec}{String vector giving the desired names of each row/column of the matrix}
+
 \item{df_adjust}{Boolean for whether to include "finite sample"
 degrees-of-freedom adjustment by multiplication with \eqn{n/(n-k)}
 where \eqn{n} is the number of observations and
 \eqn{k} is the number of estimated parameters.}
+
+\item{n}{number of observations}
 }
 \description{
 This function computes different variance estimate from frequentist

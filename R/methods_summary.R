@@ -19,9 +19,9 @@
 #'
 #' @export
 vcov_helper <- function (Finv=NULL, cheese=NULL,
-                         n, name_vec=NULL,
                          var_type=c("modelbased","sandwich","outer"),
-                         df_adjust = FALSE){
+                         name_vec=NULL,
+                         df_adjust = FALSE, n){
   var_type <- match.arg(var_type)
 
   if(var_type %in% c("modelbased","sandwich") & is.null(Finv)){
@@ -65,17 +65,23 @@ vcov.Freq_HReg2 <- function (object, ...){
   val
 }
 
+#logLik is also used by such methods as stats:::AIC.default
+#note that for now, I'm defining degrees of freedom excluding exact 0's
+#because in practice, this will be something I've "set" to zero for a reason
+
 #' @export
 logLik.Freq_HReg2 <- function (object, ...){
   val <- object$logLike; class(val) <- "logLik"
-  attr(x = val,which = "df") <- length(object$estimate)
+  attr(x = val,which = "df") <- sum(object$estimate != 0) #length(object$estimate)
   attr(x = val,which = "nobs") <- object$nobs
   val
 }
 
+
 #' @export
 extractAIC.Freq_HReg2 <- function (fit, scale, k=2, ...){
-  c(fit$nobs,stats::AIC(fit,k=k))
+  c(sum(fit$estimate != 0), #length(fit$estimate),
+    stats::AIC(fit,k=k))
 }
 
 #' @export
