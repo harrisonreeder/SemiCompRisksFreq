@@ -307,7 +307,7 @@ print.summ.Freq_HReg2 <- function (x, digits = 3, ...)
       cat("\nVariance of frailties:\n")
       print(round(x$theta, digits = digits))
       cat("SE(theta) computed from SE(log(theta)) via delta method.")
-      cat("LL and UL computed on scale of log(theta) and exponentiated, e.g., exp(log(theta) + 1.96 * SE(log(theta)))")
+      cat("\nLL and UL computed on scale of log(theta) and exponentiated, e.g., exp(log(theta) + 1.96 * SE(log(theta)))")
       cat("\nLikelihood ratio test of theta=0 vs. theta>0 using mixture of chi-squareds null.\n")
     } else{
       #no frailty variance estimate, so just say so.
