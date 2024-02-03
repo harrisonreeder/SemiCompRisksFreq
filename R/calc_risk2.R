@@ -338,7 +338,7 @@ calc_risk <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
 
     #now, we have to be careful computing the probabilities that include h3 because it may depend on t1
     p_both_start <- p_ntonly_start <- rep(0,n)
-    if(h3_tv %in% c("piecewise")){
+    if(h3_tv %in% c("pw","piecewise")){
       #a piecewise effect cannot be integrated in one go, because it is discontinuous
       #instead it must be divided into constant regions, integrated one region at a time and summed up
       curr_interval <- findInterval(x = t_temp,h3tv_knots,left.open = TRUE)

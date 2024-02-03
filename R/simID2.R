@@ -21,10 +21,14 @@
 #' @param beta2frail.true,beta3frail.true scalar for the coefficient
 #' of the shared frailty in the \eqn{h_2} and \eqn{h_3} submodels.
 #' @param beta3tv.true Vectors of true regression parameter values
-#' for direct effects of \eqn{T_1} on the \eqn{h_3} submodel.
+#' for direct effects of \eqn{t_1} on the \eqn{h_3} submodel.
 #' @param h3tv_degree either the string "cs" indicating restricted
 #' cubic spline, or an integer for degree of time-varying hazard/odds ratio
 #' B-spline basis. (0 is piecewise constant)
+#' @param h3tv_knots if a direct effect of \eqn{t_1} on the \eqn{h_3} submodel
+#' is specified in terms of a spline,
+#' this can be used to specify the knots used in the spline basis definition.
+#' By default quantiles of the observed non-terminal events are used.
 #' @param LT_interval A numeric vector of two elements. The left truncation
 #'  times are generated from Uniform(\eqn{LT_interval[1]}, \eqn{LT_interval[2]}).
 #'  Setting to \code{c(0,0)} corresponds with no left-truncation.
@@ -47,13 +51,34 @@
 #'   \item{Vmat}{an \eqn{n \times 3} matrix of true cluster-specific random effects}
 #'   }
 #'   \cr
-#'   Additionally, if a direct time-varying effect of \eqn{T_1} on \eqn{h_3} is
+#'   Additionally, if a direct time-varying effect of \eqn{t_1} on \eqn{h_3} is
 #'   specified, the returned data frame is given the following attributes:
 #'   \describe{
 #'   \item{p3tv}{total number of parameters corresponding to effect}
 #'   \item{h3tv_degree}{degree of spline effect, as specified by user}
 #'   \item{h3tv_knots}{vector of knots corresponding with effect}
 #'   }
+#'
+#' @examples
+#' n <- 5000
+#' set.seed(1234)
+#' x_sim <- matrix(rnorm(3*n),ncol=3)
+#' colnames(x_sim) <- c("x1","x2","x3")
+#'
+#' #h3tv_knots
+#' knots_temp <- c(3,8,15.5)
+#' simDat <- SemiCompRisksFreq::simID2(x1=x_sim,x2=x_sim,x3=x_sim,
+#'                                     beta1.true = c(0.25,0.6,-0.3),beta2.true = c(0.4,0.75,-0.4),beta3.true = c(0.7,0.9,-0.9),
+#'                                     alpha1.true = exp(-0.6),alpha2.true = exp(-0.3),alpha3.true = exp(-0.4),
+#'                                     kappa1.true = exp(-1.2),kappa2.true = exp(-2.9),kappa3.true = exp(-3.2),
+#'                                     hazard = "Weibull",model = "semi-Markov",
+#'                                     frailty_type = "gamma",theta.true = 0,
+#'                                     h3tv_degree = 0, h3tv_knots = c(0,knots_temp,Inf),beta3tv.true = c(1.5,0,-1.5),
+#'                                     LT_interval=c(0,0), cens = c(60,60))
+#' fit_WB <- FreqID_HReg2(Formula(y1 + delta1 | y2 + delta2 ~ x1 + x2 + x3 | x1 + x2 + x3 | x1 + x2 + x3 + h3tv1 + h3tv2 + h3tv3),
+#'                        data = cbind(simDat,x_sim), hazard = "Weibull", frailty=TRUE,
+#'                        model = "semi-Markov")
+#' fit_WB
 #'
 #' @export
 simID2 <- function(id = NULL, x1, x2, x3,
@@ -64,7 +89,7 @@ simID2 <- function(id = NULL, x1, x2, x3,
                   theta.true, SigmaV.true = NULL, hazard="weibull", knots_list,
                   model="semi-markov", frailty_type="gamma",
                   beta2frail.true=1, beta3frail.true=1,
-                  beta3tv.true=NULL, h3tv_degree=3,
+                  beta3tv.true=NULL, h3tv_degree=3, h3tv_knots=NULL,
                   LT_interval = c(0,0), cens = c(0,0)) {
   # browser()
 
@@ -128,6 +153,21 @@ simID2 <- function(id = NULL, x1, x2, x3,
     }
   }
 
+  #to start, generate random censoring which is sometimes used below
+  if(cens[2] == 0){
+    Cen <- rep(Inf,n)
+  } else{
+    #fix what to do about intersection of left truncation and censoring interval!
+
+    # if(cens[1] < LT_interval[2]){
+    #   warning(paste0("Censoring distribution cannot overlap truncation distribution.",
+    #                  "Setting minimum censoring time to ", LT_interval[2],"."))
+    #   cens[1] <- LT_interval[2]
+    # }
+    Cen <- stats::runif(n, cens[1], cens[2])
+  }
+
+
   if(anyLT){
     yL <- stats::runif(n,min=LT_interval[1],max=LT_interval[2])
     if(tolower(hazard) %in% c("weibull","wb")){
@@ -178,18 +218,20 @@ simID2 <- function(id = NULL, x1, x2, x3,
     if(h3tv_degree == "linear"){ #linear
       stopifnot(p3tv==1)
       x3tv <- as.matrix(pmin(R,D,Cen))
-      h3_knots <- c(0,Inf)
+      h3tv_knots <- c(0,Inf)
     } else if(h3tv_degree == "log1p") {
       stopifnot(p3tv==1)
       x3tv <- as.matrix(log1p(pmin(R,D,Cen)))
-      h3_knots <- c(0,Inf)
+      h3tv_knots <- c(0,Inf)
     } else if(h3tv_degree == "cs"){ #cubic spline model
       #in cubic spline model, boundary knots are set directly at min/max endpoints,
       #so no need to fix at 0
       h3_quantile_seq <- seq(from = 0,to = 1, length.out = p3tv+1)
-      h3_knots <- stats::quantile(pmin(R,Cen)[yesR==1 & R<Cen], h3_quantile_seq)
-      x3tv <- splines::ns(x = pmin(R,D,Cen), knots = h3_knots[-c(1,length(h3_knots))],
-                          Boundary.knots = h3_knots[c(1,length(h3_knots))],
+      if(is.null(h3tv_knots)){
+        h3tv_knots <- stats::quantile(pmin(R,Cen)[yesR==1 & R<Cen], h3_quantile_seq)
+      }
+      x3tv <- splines::ns(x = pmin(R,D,Cen), knots = h3tv_knots[-c(1,length(h3tv_knots))],
+                          Boundary.knots = h3tv_knots[c(1,length(h3tv_knots))],
                           intercept = FALSE)
     } else { #if we don't use restricted cubic, then we are using a regular b-spline with specified degree
       #this also includes piecewise constant if degree is 0
@@ -197,11 +239,13 @@ simID2 <- function(id = NULL, x1, x2, x3,
       stopifnot(p3tv>=h3tv_degree)
       h3_quantile_seq <- seq(from = 0,to = 1, length.out = p3tv+2-h3tv_degree)[-c(1,p3tv+2-h3tv_degree)]
       #fixing piecewise endpoint at maximum is ok, because splines2 prediction will extrapolate beyond it
-      h3_knots <- c(0,stats::quantile(pmin(R,Cen)[yesR==1 & R<Cen],
-                                      h3_quantile_seq),max(pmin(R,D,Cen)))
+      if(is.null(h3tv_knots)){
+        h3tv_knots <- c(0,stats::quantile(pmin(R,Cen)[yesR==1 & R<Cen],
+                                        h3_quantile_seq),max(pmin(R,D,Cen)))
+      }
       x3tv <- splines2::bSpline(x = pmin(R,D,Cen), intercept = FALSE, degree = h3tv_degree,
-                                knots = h3_knots[-c(1,length(h3_knots))],
-                                Boundary.knots = h3_knots[c(1,length(h3_knots))])
+                                knots = h3tv_knots[-c(1,length(h3tv_knots))],
+                                Boundary.knots = h3tv_knots[c(1,length(h3tv_knots))])
     }
     colnames(x3tv) <- paste0("h3tv",1:p3tv)
     LP3 <- LP3 + x3tv %*% beta3tv.true
@@ -243,19 +287,6 @@ simID2 <- function(id = NULL, x1, x2, x3,
   y1 <- R
   y2 <- D
 
-  if(cens[2] == 0){
-    Cen <- rep(Inf,n)
-  } else{
-    #fix what to do about intersection of left truncation and censoring interval!
-
-    # if(cens[1] < LT_interval[2]){
-    #   warning(paste0("Censoring distribution cannot overlap truncation distribution.",
-    #                  "Setting minimum censoring time to ", LT_interval[2],"."))
-    #   cens[1] <- LT_interval[2]
-    # }
-    Cen <- stats::runif(n, cens[1], cens[2])
-  }
-
   #cases where terminal occurs before non-terminal and censoring
   ind01 <- which(D < R & D < Cen)
   y1[ind01] <- D[ind01]
@@ -290,7 +321,7 @@ simID2 <- function(id = NULL, x1, x2, x3,
   if(!is.null(beta3tv.true)){
     attr(ret,which = "p3tv") <- p3tv
     attr(ret,which = "h3tv_degree") <- h3tv_degree
-    attr(ret,which = "h3tv_knots") <- h3_knots
+    attr(ret,which = "h3tv_knots") <- h3tv_knots
   }
 
   # if(!(tolower(hazard) %in% c("weibull","wb"))){

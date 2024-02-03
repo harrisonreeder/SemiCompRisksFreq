@@ -32,6 +32,7 @@ simID2(
   beta3frail.true = 1,
   beta3tv.true = NULL,
   h3tv_degree = 3,
+  h3tv_knots = NULL,
   LT_interval = c(0, 0),
   cens = c(0, 0)
 )
@@ -80,11 +81,16 @@ frailty with log-frailty variance \code{theta}}
 of the shared frailty in the \eqn{h_2} and \eqn{h_3} submodels.}
 
 \item{beta3tv.true}{Vectors of true regression parameter values
-for direct effects of \eqn{T_1} on the \eqn{h_3} submodel.}
+for direct effects of \eqn{t_1} on the \eqn{h_3} submodel.}
 
 \item{h3tv_degree}{either the string "cs" indicating restricted
 cubic spline, or an integer for degree of time-varying hazard/odds ratio
 B-spline basis. (0 is piecewise constant)}
+
+\item{h3tv_knots}{if a direct effect of \eqn{t_1} on the \eqn{h_3} submodel
+is specified in terms of a spline,
+this can be used to specify the knots used in the spline basis definition.
+By default quantiles of the observed non-terminal events are used.}
 
 \item{LT_interval}{A numeric vector of two elements. The left truncation
 times are generated from Uniform(\eqn{LT_interval[1]}, \eqn{LT_interval[2]}).
@@ -110,7 +116,7 @@ time-varying effect of \eqn{T_1} on \eqn{h_3}, if applicable.}
 \item{Vmat}{an \eqn{n \times 3} matrix of true cluster-specific random effects}
 }
 \cr
-Additionally, if a direct time-varying effect of \eqn{T_1} on \eqn{h_3} is
+Additionally, if a direct time-varying effect of \eqn{t_1} on \eqn{h_3} is
 specified, the returned data frame is given the following attributes:
 \describe{
 \item{p3tv}{total number of parameters corresponding to effect}
@@ -121,4 +127,26 @@ specified, the returned data frame is given the following attributes:
 \description{
 The function that simulates independent/cluster-correlated semi-competing
 risks data under Markov/semi-Markov Weibull models.
+}
+\examples{
+n <- 5000
+set.seed(1234)
+x_sim <- matrix(rnorm(3*n),ncol=3)
+colnames(x_sim) <- c("x1","x2","x3")
+
+#h3tv_knots
+knots_temp <- c(3,8,15.5)
+simDat <- SemiCompRisksFreq::simID2(x1=x_sim,x2=x_sim,x3=x_sim,
+                                    beta1.true = c(0.25,0.6,-0.3),beta2.true = c(0.4,0.75,-0.4),beta3.true = c(0.7,0.9,-0.9),
+                                    alpha1.true = exp(-0.6),alpha2.true = exp(-0.3),alpha3.true = exp(-0.4),
+                                    kappa1.true = exp(-1.2),kappa2.true = exp(-2.9),kappa3.true = exp(-3.2),
+                                    hazard = "Weibull",model = "semi-Markov",
+                                    frailty_type = "gamma",theta.true = 0,
+                                    h3tv_degree = 0, h3tv_knots = c(0,knots_temp,Inf),beta3tv.true = c(1.5,0,-1.5),
+                                    LT_interval=c(0,0), cens = c(60,60))
+fit_WB <- FreqID_HReg2(Formula(y1 + delta1 | y2 + delta2 ~ x1 + x2 + x3 | x1 + x2 + x3 | x1 + x2 + x3 + h3tv1 + h3tv2 + h3tv3),
+                       data = cbind(simDat,x_sim), hazard = "Weibull", frailty=TRUE,
+                       model = "semi-Markov")
+fit_WB
+
 }

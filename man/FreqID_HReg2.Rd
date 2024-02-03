@@ -134,7 +134,7 @@ extra_starts = 0,hazard = "weibull",frailty = TRUE,optim_method = c("BFGS"))
 fit_WB
 summ.fit_WB <- summary(fit_WB); names(summ.fit_WB)
 summ.fit_WB
-pred_WB <- predict(fit_WB, tseq=seq(from=0.1, to=30, length.out=100))
+pred_WB <- predict(fit_WB, tseq=seq(from=0, to=30, length.out=100))
 plot(pred_WB, plot.est="Haz")
 plot(pred_WB, plot.est="Surv")
 
