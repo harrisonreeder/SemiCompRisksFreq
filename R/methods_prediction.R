@@ -286,6 +286,12 @@ pred_helper_uni <- function(tseq, xnew=NULL, beta, phi, hazard, knots_vec,
     }
   }
 
+  #avoid any weirdness that might happen if you start at 0
+  if(tseq[1]==0){
+    value[["H"]][1,] <- 0
+  }
+
+
   #fill in survivor function using H, or if needed, computing it freshly
   value[["S"]] <- exp(-value$H)
 
@@ -398,6 +404,12 @@ pred_helper_ID_simple <- function(tseq,
   if(tseq[1]==0){
     value$H1[1,] <- 0; value$H2[1,] <- 0; value$H3[1,] <- 0
     value$S1[1,] <- 1; value$S2[1,] <- 1; value$S3[1,] <- 1
+    if(se_fit_flag){
+      value$ll_H1[1,] <- 0; value$ll_H2[1,] <- 0; value$ll_H3[1,] <- 0
+      value$ul_H1[1,] <- 0; value$ul_H2[1,] <- 0; value$ul_H3[1,] <- 0
+      value$ll_S1[1,] <- 1; value$ll_S2[1,] <- 1; value$ll_S3[1,] <- 1
+      value$ul_S1[1,] <- 1; value$ul_S2[1,] <- 1; value$ul_S3[1,] <- 1
+    }
   }
 
   value
@@ -476,11 +488,11 @@ plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
       main_temp <- expression(paste("Estimated ", S(t), ""))
     }
     if (tolower(plot.est) %in% c("haz","h")) {
-      yLim <- if(ci) c(0,max(x$ul_h)) else c(0,max(x$h))
+      yLim <- if(ci) c(0,max(x$ul_h[is.finite(x$ul_h)])) else c(0,max(x$h[is.finite(x$h)]))
       main_temp <- expression(paste("Estimated ", h(t), ""))
     }
     if (tolower(plot.est) %in% c("cumhaz","ch")){
-      yLim <- if(ci) c(0,max(x$ul_H)) else c(0,max(x$H))
+      yLim <- if(ci) c(0,max(x$ul_H[is.finite(x$ul_H)])) else c(0,max(x$H[is.finite(x$H)]))
       main_temp <- expression(paste("Estimated ", H(t), ""))
     }
 
@@ -525,14 +537,30 @@ plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
       main_temp[[3]] <- expression(paste("Estimated ", S[3](t), ""))
     }
     if (tolower(plot.est) %in% c("haz","h")) {
-      maxy <- if(ci) max(x$ul_h1,x$ul_h2,x$ul_h3) else max(x$h1,x$h2,x$h3)
+      if(ci){
+        maxy <- max(x$ul_h1[is.finite(x$ul_h1)],
+                    x$ul_h2[is.finite(x$ul_h2)],
+                    x$ul_h3[is.finite(x$ul_h3)])
+      }  else{
+        maxy <- max(x$h1[is.finite(x$h1)],
+                    x$h2[is.finite(x$h2)],
+                    x$h3[is.finite(x$h3)])
+      }
       yLim <- c(0,maxy)
       main_temp[[1]] <- expression(paste("Estimated ", h[1](t), ""))
       main_temp[[2]] <- expression(paste("Estimated ", h[2](t), ""))
       main_temp[[3]] <- expression(paste("Estimated ", h[3](t), ""))
     }
     if (tolower(plot.est) %in% c("cumhaz","ch")){
-      maxy <- if(ci) max(x$ul_H1,x$ul_H2,x$ul_H3) else max(x$H1,x$H2,x$H3)
+      if(ci){
+        maxy <- max(x$ul_H1[is.finite(x$ul_H1)],
+                    x$ul_H2[is.finite(x$ul_H2)],
+                    x$ul_H3[is.finite(x$ul_H3)])
+      }  else{
+        maxy <- max(x$H1[is.finite(x$H1)],
+                    x$H2[is.finite(x$H2)],
+                    x$H3[is.finite(x$H3)])
+      }
       yLim <- c(0,maxy)
       main_temp[[1]] <- expression(paste("Estimated ", H[1](t), ""))
       main_temp[[2]] <- expression(paste("Estimated ", H[2](t), ""))
@@ -600,10 +628,10 @@ plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
 #dependence of h3 on t1.
 
 #' @export
-pred_helper_ID_full <- function(tseq,
+pred_risk_ID <- function(tseq,
                             x1new=NULL, x2new=NULL, x3new=NULL, frailnew=NULL,
                             para, nP0, nP, frailty, model,
-                            p3tv, h3tv_basis_func, h3tv_dbasis_func,
+                            p3tv, h3tv_basis_func,
                             hazard, knots_list, n_quad, quad_method,
                             Finv, alpha){
   # browser()
