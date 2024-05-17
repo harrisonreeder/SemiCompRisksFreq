@@ -65,3 +65,10 @@ qpwexp <- function(p, phi, knots_vec, eta, lower.tail = TRUE, log.p = FALSE){
   out <- invHaz_pwexp(t = temp_t,phi = phi,knots_vec=knots_vec,eta = eta)
   if(log.p) log(out) else out
 }
+
+#' @export
+rpwexp <- function(n, phi=0, knots_vec=0, eta=0){
+  qpwexp(stats::runif(n), lower.tail = FALSE, log.p = FALSE,
+         phi=phi, knots_vec=knots_vec, eta = eta)
+}
+
