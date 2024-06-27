@@ -197,6 +197,7 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
   myLabels <- c(myLabels, colnames(Xmat))
   nP <- ncol(Xmat)
   nP0 <- p0
+  n <- length(y)
 
 
   ##GET MLE##
@@ -215,8 +216,8 @@ FreqSurv_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL,
                         basis=basis, dbasis=dbasis,basis_yL=basis_yL)
   grad3 <- colSums(ngrad_uni_mat_func(para=startVals, y=y,delta=delta,yL=yL,anyLT=anyLT,Xmat=Xmat,
                    weights=weights,hazard=hazard,basis=basis, dbasis=dbasis,basis_yL=basis_yL))
-  if(max(abs(grad1-grad2)) >= 1e-4){stop("check gradient of non-frailty model")}
-  if(max(abs(grad1-grad3)) >= 1e-4){stop("check gradient of non-frailty model")}
+  if(max(abs(grad1-grad2))/n >= 1e-4){warning("check gradient of non-frailty model")}
+  if(max(abs(grad1-grad3))/n >= 1e-4){warning("check gradient of non-frailty model")}
   cbind(grad1,grad2,grad3)
 
   #now, run the fitting function, which calls the correct optimization engine

@@ -159,6 +159,17 @@ FreqID_HReg2 <- function(Formula, data, na.action="na.fail", subset=NULL, weight
     stopifnot(length(weights) == length(y1))
   }
 
+
+  #a few quick data checks
+  if(any( (y2-y1)[delta1==1] == 0 )){
+    warning("Some rows with nonterminal event (delta1==1) have sojourn time of 0 (y2-y1==0).\nThis will cause an error.")
+  }
+  if(any( (y2-y1)[delta1==0] != 0 )){
+    warning("Some rows without the nonterminal event (delta1==0) have nonzero sojourn time (y2-y1 =/= 0).\nThis will cause incorrect estimation.")
+  }
+
+
+
   ##PREPARE KNOTS AND BASIS FUNCTIONS FOR FLEXIBLE MODELS##
   ##*****************************************************##
   if(hazard %in% c("bspline","royston-parmar","piecewise","pw","rp","bs")){
