@@ -20,6 +20,7 @@ nll_marg_profile_func(
   weights,
   hazard,
   model,
+  fraildist = "gamma",
   frailtyparam_num,
   n_quad,
   verbose = FALSE,

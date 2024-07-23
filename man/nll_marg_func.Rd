@@ -15,6 +15,7 @@ nll_marg_func(
   Xmat1,
   Xmat2,
   Xmat3,
+  fraildist = "gamma",
   hazard,
   frailtyparam_num,
   model,
@@ -37,6 +38,8 @@ then the last\eqn{q_1+q_2+q_3} elements correspond with the regression parameter
 \item{anyLT}{Boolean (or 1/0) value that is \code{TRUE} (or 1) if there are any non-zero left truncation times, and \code{FALSE} (or 0) otherwise}
 
 \item{Xmat1, Xmat2, Xmat3}{Numeric matrices with \eqn{n} rows and \eqn{q_1,q_2,q_3} columns containing covariates.}
+
+\item{fraildist}{distribution}
 
 \item{hazard}{String (not case sensitive) specifying the form of the baseline hazard.
 Options are \code{"weibull"} for Weibull,

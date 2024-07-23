@@ -7,13 +7,14 @@
 #'   but as part of a larger estimation procedure.
 #' @inheritParams nll_func
 #' @inheritParams FreqSurv_HReg2
+#' @param fraildist distribution
 #' @param frailtyparam_num count of parameters associated with frailty
 #'
 #' @return Returns numeric sum of negative log likelihood contributions.
 #' @importFrom statmod gauss.quad.prob
 #' @export
 nll_marg_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
-                          Xmat1, Xmat2, Xmat3,
+                          Xmat1, Xmat2, Xmat3, fraildist="gamma",
                           hazard, frailtyparam_num, model, weights, n_quad){
   # browser()
   nP1 <- if(!is.null(Xmat1)) ncol(Xmat1) else 0
@@ -22,9 +23,17 @@ nll_marg_func <- function(para, y1, y2, delta1, delta2, yL, anyLT,
   n <- length(y1)
 
   if(tolower(hazard) %in% c("weibull","wb")){
-    #assume logtheta is in the 7th position for now!!
-    gauss_list <- statmod::gauss.quad.prob(n = n_quad, dist = "gamma",
-                                           alpha=exp(-para[7]),beta=exp(para[7]))
+
+    if(tolower(fraildist) %in% c("gamma")){
+      #assume logtheta is in the 7th position for now!!
+      gauss_list <- statmod::gauss.quad.prob(n = n_quad, dist = "gamma",
+                                             alpha=exp(-para[7]),beta=exp(para[7]))
+    } else{
+      #implement log-normal as an alternative, with
+      gauss_list <- statmod::gauss.quad.prob(n = n_quad, dist = "normal",mu=0,
+                                             sigma=exp(para[7]))
+      gauss_list$nodes <- exp(gauss_list$nodes) #transform them to then be 'logged' within the function
+    }
 
     nP0 <- 6 + frailtyparam_num
     stopifnot(length(para) == nP0 + nP1 + nP2 + nP3)
@@ -59,13 +68,14 @@ nll_marg_profile_helper_func <- function(other_para, fixed_param, fixed_param_in
                                     y1, y2, delta1, delta2, yL, anyLT,
                                     Xmat1, Xmat2, Xmat3,
                                     hazard, model, weights,
-                                    frailtyparam_num, n_quad){
+                                    fraildist, frailtyparam_num, n_quad){
   #fixed_param can be multidimensional as long as the "fixed" parameters are contiguous
   #i.e., fixed_param_ind is a scalar (this is fine bc use case is like theta+betafrail)
   para <- append(x = other_para,values = fixed_param,after = fixed_param_ind)
   nll <- nll_marg_func(para=para, y1=y1, y2=y2, delta1=delta1, delta2=delta2,
                   Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                   yL=yL, anyLT=anyLT, weights=weights,
+                  fraildist = fraildist,
                   frailtyparam_num = frailtyparam_num,
                   hazard=hazard, model=model, n_quad = n_quad)
   return(nll)
@@ -88,7 +98,7 @@ nll_marg_profile_helper_func <- function(other_para, fixed_param, fixed_param_in
 nll_marg_profile_func <- function(fixed_param, fixed_param_ind, para_mle,
                              y1, y2, delta1, delta2, yL, anyLT,
                              Xmat1, Xmat2, Xmat3, weights,
-                             hazard, model, frailtyparam_num, n_quad,
+                             hazard, model, fraildist="gamma", frailtyparam_num, n_quad,
                              verbose=FALSE, control, hessian,
                              optim_method, extra_starts){
   # browser()
@@ -114,7 +124,7 @@ nll_marg_profile_func <- function(fixed_param, fixed_param_ind, para_mle,
                       y1=y1, y2=y2, delta1=delta1, delta2=delta2, yL=yL, anyLT=anyLT,
                       Xmat1=Xmat1, Xmat2=Xmat2, Xmat3=Xmat3,
                       hazard=hazard, model=model, weights=weights,
-                      frailtyparam_num=frailtyparam_num, n_quad=n_quad,
+                      fraildist=fraildist, frailtyparam_num=frailtyparam_num, n_quad=n_quad,
                       method=optim_method, control=control, hessian=hessian)
     #warm start next iteration at previous
     start_vec <- temp_fit$par

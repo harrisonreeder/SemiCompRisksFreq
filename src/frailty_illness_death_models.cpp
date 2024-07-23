@@ -3436,12 +3436,18 @@ double nlogLikWB_ID_marg(const arma::vec& para,
     logfrail = log(gauss_nodes(j)); //note we're making adjustment here
     AVec = Lambda1 * exp(logfrail)
       + Lambda2 * exp(beta2frail * logfrail)
-      + Lambda3 * exp(beta3frail * logfrail);
+      + delta1 % (Lambda3 * exp(beta3frail * logfrail));
 
     loglik_vec_j = delta1 %    (a1 + k1 + (exp(a1) - 1) * arma::log(y1) + eta1 + logfrail)
       + (1-delta1) % delta2 %  (a2 + k2 + (exp(a2) - 1) * arma::log(y1) + eta2 + beta2frail * logfrail)
       + delta1 % delta2 %      (a3 + k3 + (exp(a3) - 1) * logdiff +       eta3 + beta3frail * logfrail)
       - AVec;
+
+    if(j == 0){
+      loglik_vec_marg = loglik_vec_j + log_gauss_weights(j);
+    } else{
+      loglik_vec_marg = logsumexp_vec(loglik_vec_marg, loglik_vec_j + log_gauss_weights(j));
+    }
 
     //For left truncation, separately integrate over
     //probability of being event free at yL.

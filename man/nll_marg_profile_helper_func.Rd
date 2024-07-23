@@ -20,6 +20,7 @@ nll_marg_profile_helper_func(
   hazard,
   model,
   weights,
+  fraildist,
   frailtyparam_num,
   n_quad
 )
