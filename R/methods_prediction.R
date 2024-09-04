@@ -832,7 +832,7 @@ pred_risk_ID <- function(tseq,
     #again set up containers for the p values to be computed in the loop far below
     value$se_p_both_marg <- value$se_p_nonterm_only_marg <-
       value$se_p_both <- value$se_p_nonterm_only <-
-      matrix(data = NA, nrow = length(tseq), ncol=NCOL(value$H1))
+      matrix(data = NA, nrow = length(tseq), ncol=NCOL(H_list[[1]]))
 
 
     basis1 <- get_basis(y = tseq,knots_vec = knots_list[[1]],hazard = hazard,deriv = FALSE)
@@ -842,7 +842,7 @@ pred_risk_ID <- function(tseq,
     dbasis2 <- get_basis(y = tseq,knots_vec = knots_list[[2]],hazard = hazard,deriv = TRUE)
     basis2_quad <- get_basis(y=quad_points, knots_vec=knots_list[[2]],hazard=hazard,deriv = FALSE)
 
-    for(j in 1:NCOL(value$H1)){
+    for(j in 1:NCOL(H_list[[1]])){
       dH1b <- get_jac(tseq=tseq, xnew=x1new[j,,drop=FALSE], beta=beta_list[[1]],
                       eta=eta_list[[1]][j], #WILL THIS CAUSE A PROBLEM IF ONE X HAS NO ELEMENTS BUT ANOTHER HAS SEVERAL?
                       hazard=hazard, phi=para[nP0_start[1]:nP0_end[1]],
@@ -943,7 +943,7 @@ pred_risk_ID <- function(tseq,
   value$p_both_marg <- value$p_nonterm_only_marg <-
     value$p_both <- value$p_nonterm_only <-
     matrix(data = NA, nrow = length(tseq),
-           ncol=NCOL(value$H1))
+           ncol=NCOL(H_list[[1]]))
 
   # if(abs(max(diff(tseq)) - min(diff(tseq))) > 1e-6){
   #   warning("tseq points are not equally spaced. Some predicted functions may be incorrect.")
@@ -1070,7 +1070,7 @@ pred_risk_ID <- function(tseq,
 
       # browser()
 
-      for(j in 1:NCOL(value$H1)){
+      for(j in 1:NCOL(H_list[[1]])){
         #jacobian for H3 has to follow the same structure as H3 itself does above
         #this dH3a will be "updated" below absed on the model type
         dH3a <- get_jac(tseq=tseq_temp, xnew=x1new[j,,drop=FALSE], beta=beta_list[[3]],
