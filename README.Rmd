@@ -1,0 +1,61 @@
+---
+bibliography: biblio.bib
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# SemiCompRisksFreq
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of SemiCompRisksFreq is to fit parametric fraity-based illness-death models for analyzing semi-competing risks data. This package is meant as a development extension of the
+SemiCompRisks package found on CRAN; whereas that package focuses on Bayesian estimation
+of various illness-death models, this package focuses on frequentist estimation, with
+a variety of additional features implemented for summary and prediction. For more information, these methods have been examined and demonstrated in [@reeder2019joint], [@reeder2022methods], [@reeder2023novel], and [@reeder2023penalized].
+
+## Installation
+
+You can install the development version of SemiCompRisksFreq from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("harrisonreeder/SemiCompRisksFreq")
+```
+
+## Example
+
+This is a basic example which shows you how to solve a common problem:
+
+```{r example}
+library(SemiCompRisksFreq)
+## basic example code
+
+#loading a data set
+data(scrData)
+
+#fitting Weibull semi-Markov illness-death model with gamma frailties
+form <- Formula::Formula(time1 + event1 | time2 + event2 ~ x1 + x2 + x3 | x1 + x2 | x1 + x2)
+fit_WB	<- FreqID_HReg2(Formula = form, data=scrData, model="semi-Markov",
+                       extra_starts = 0,hazard = "weibull",frailty = TRUE,optim_method = c("BFGS"))
+
+#exploring results
+fit_WB
+summ.fit_WB <- summary(fit_WB); names(summ.fit_WB)
+summ.fit_WB
+pred_WB <- predict(fit_WB, tseq=seq(from=0, to=30, length.out=100))
+plot(pred_WB, plot.est="Haz")
+plot(pred_WB, plot.est="Surv")
+
+```
+
