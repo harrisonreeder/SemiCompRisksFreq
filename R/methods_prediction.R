@@ -354,9 +354,9 @@ pred_helper_ID_simple <- function(tseq,
   nP_start <- 1 + c(nP0_tot,nP0_tot+nP[1],nP0_tot+nP[1]+nP[2])
   nP_end <- c(nP0_tot+nP[1],nP0_tot+nP[1]+nP[2],nP0_tot+nP[1]+nP[2]+nP[3])
 
-  quad_weights <- SemiCompRisksFreq:::get_quad_pointsweights(n_quad=n_quad,
+  quad_weights <- get_quad_pointsweights(n_quad=n_quad,
                                                              quad_method=quad_method)$weights
-  quad_points <- SemiCompRisksFreq:::transform_quad_points(n_quad = n_quad,
+  quad_points <- transform_quad_points(n_quad = n_quad,
                                                            quad_method=quad_method, a = 0,b = tseq)
 
   #prefill the list with all potential inputs
@@ -498,16 +498,16 @@ plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
 
     plot_vec <- switch(tolower(plot.est), "surv"=x$S, "s"=x$S,
                        "haz"=x$h, "h"=x$h, "cumhaz"=x$H, "ch"=x$H)
-    matplot(x$tseq, plot_vec, type="l", lwd=3, lty=1,
+    graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=1,
             main = main_temp,
             xlim=c(0,max(x$tseq)), ylim = yLim, xlab=xlab, ylab=ylab)
     if(ci){
       plot_vec <- switch(tolower(plot.est), "surv"=x$ll_S, "s"=x$ll_S,
                          "haz"=x$ll_h, "h"=x$ll_h, "cumhaz"=x$ll_H, "ch"=x$ll_H)
-      matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
+      graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
       plot_vec <- switch(tolower(plot.est), "surv"=x$ul_S, "s"=x$ul_S,
                          "haz"=x$ul_h, "h"=x$ul_h, "cumhaz"=x$ul_H, "ch"=x$ul_H)
-      matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
+      graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
     }
   }
 
@@ -571,44 +571,44 @@ plot.pred.Freq_HReg2 <- function (x, plot.est = "Haz",
 
     plot_vec <- switch(tolower(plot.est), "surv"=x$S1, "s"=x$S1,
                        "haz"=x$h1, "h"=x$h1, "cumhaz"=x$H1, "ch"=x$H1)
-    matplot(x$tseq, plot_vec, type="l", lwd=3, lty=1,
+    graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=1,
             main = main_temp[[1]],
             xlim=c(0,max(x$tseq)), ylim = yLim, xlab=xlab[1], ylab=ylab[1])
     if(ci){
       plot_vec <- switch(tolower(plot.est), "surv"=x$ll_S1, "s"=x$ll_S1,
                          "haz"=x$ll_h1, "h"=x$ll_h1, "cumhaz"=x$ll_H1, "ch"=x$ll_H1)
-      matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
+      graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
       plot_vec <- switch(tolower(plot.est), "surv"=x$ul_S1, "s"=x$ul_S1,
                          "haz"=x$ul_h1, "h"=x$ul_h1, "cumhaz"=x$ul_H1, "ch"=x$ul_H1)
-      matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
+      graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
     }
 
     plot_vec <- switch(tolower(plot.est), "surv"=x$S2, "s"=x$S2,
                        "haz"=x$h2, "h"=x$h2, "cumhaz"=x$H2, "ch"=x$H2)
-    matplot(x$tseq, plot_vec, type="l", lwd=3, lty=1,
+    graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=1,
             main = main_temp[[2]],
             xlim=c(0,max(x$tseq)), ylim = yLim, xlab=xlab[2], ylab=ylab[2])
     if(ci){
       plot_vec <- switch(tolower(plot.est), "surv"=x$ll_S2, "s"=x$ll_S2,
                          "haz"=x$ll_h2, "h"=x$ll_h2, "cumhaz"=x$ll_H2, "ch"=x$ll_H2)
-      matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
+      graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
       plot_vec <- switch(tolower(plot.est), "surv"=x$ul_S2, "s"=x$ul_S2,
                          "haz"=x$ul_h2, "h"=x$ul_h2, "cumhaz"=x$ul_H2, "ch"=x$ul_H2)
-      matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
+      graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
     }
 
     plot_vec <- switch(tolower(plot.est), "surv"=x$S3, "s"=x$S3,
                        "haz"=x$h3, "h"=x$h3, "cumhaz"=x$H3, "ch"=x$H3)
-    matplot(x$tseq, plot_vec, type="l", lwd=3, lty=1,
+    graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=1,
             main = main_temp[[3]],
             xlim=c(0,max(x$tseq)), ylim = yLim, xlab=xlab[3], ylab=ylab[3])
     if(ci){
       plot_vec <- switch(tolower(plot.est), "surv"=x$ll_S3, "s"=x$ll_S3,
                          "haz"=x$ll_h3, "h"=x$ll_h3, "cumhaz"=x$ll_H3, "ch"=x$ll_H3)
-      matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
+      graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
       plot_vec <- switch(tolower(plot.est), "surv"=x$ul_S3, "s"=x$ul_S3,
                          "haz"=x$ul_h3, "h"=x$ul_h3, "cumhaz"=x$ul_H3, "ch"=x$ul_H3)
-      matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
+      graphics::matplot(x$tseq, plot_vec, type="l", lwd=3, lty=3, add=T)
     }
 
     graphics::par(mfrow = c(1, 1))

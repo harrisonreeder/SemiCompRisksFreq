@@ -568,7 +568,7 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots_vec, basis,
     alpha <- 1/fit_survreg$scale
     logkappa <- -alpha * stats::coef(fit_survreg)[1]
     names(logkappa) <- NULL
-    beta <-if(sparse_start) numeric(p) else -stats::coef(fit_survreg)[-1] * alpha
+    beta <- if(sparse_start) numeric(p) else -stats::coef(fit_survreg)[-1] * alpha
     if(length(beta) > 0){
       names(beta) <- if(!is.null(colnames(Xmat))) colnames(Xmat) else NULL
     }
@@ -581,7 +581,7 @@ get_start_uni <- function(y, delta, yL, anyLT, Xmat, knots_vec, basis,
     #for now, just start at the estimates for a non-piecewise exponential model
     fit_exp <- survival::survreg(form_temp, dist="exponential",weights = weights)
     phi <- rep(-stats::coef(fit_exp)[1],p0)
-    beta <- stats::coef(fit_exp)[-1]
+    beta <- if(sparse_start) numeric(p) else stats::coef(fit_exp)[-1]
   } else{
     #all other starting values derived from cox model results
     #change lefthand side to account for left truncation if necessary

@@ -911,7 +911,7 @@ calc_risk2 <- function(para, Xmat1, Xmat2, Xmat3,hazard,knots_list=NULL,
 #'   of probabilities. If Xmat has \code{n} rows, then returns an \code{n} by 4 matrix of probabilities.
 #'   If Xmat has \code{n} rows and t_cutoff is a vector of length \code{s}, then returns an \code{s} by 4 by \code{n} array.
 #' @export
-calc_risk_term <- function(para, Xmat3,hazard,knots_list=NULL,
+calc_risk_term <- function(para, Xmat3, hazard,knots_list=NULL,
                            t_cutoff, t_start, tol=1e-3, frailty=TRUE,
                            type="marginal", gamma=1,model="semi-markov",
                            h3_tv="none",h3tv_knots=NULL){
@@ -1211,7 +1211,7 @@ get_ipcw_list <- function(yL, y2, delta2, t_cutoff,
 
   #now, create an interpolation function for Ghat, which is "left continuous"
   #in the sense that at a time point t, it gives G(t-)
-  Ghat_func <- approxfun(x=Ghat_fit$time,Ghat_fit$surv, method = "constant",
+  Ghat_func <- stats::approxfun(x=Ghat_fit$time,Ghat_fit$surv, method = "constant",
                          f = 0, yleft = 1, yright = min(Ghat_fit$surv))
 
   #additionally, we need to compute an estimate of H(t),
@@ -1229,7 +1229,7 @@ get_ipcw_list <- function(yL, y2, delta2, t_cutoff,
   rev_trunc_fit_summ <- summary(survfit(Surv(-y2, -yL + prec2, rep(1,length(y2))) ~ 1))
   trunc_times <- rev(-rev_trunc_fit_summ$time)
   trunc_surv <- rev(rev_trunc_fit_summ$surv)
-  Hhat_func <- approxfun(x=trunc_times, y=trunc_surv, method = "constant", f=1,
+  Hhat_func <- stats::approxfun(x=trunc_times, y=trunc_surv, method = "constant", f=1,
                       yleft=0, yright = 1)
 
   #note that conceptually, if at a single time point there are failure events,

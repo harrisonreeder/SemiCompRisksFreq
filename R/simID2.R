@@ -9,8 +9,14 @@
 #' @param beta1.true,beta2.true,beta3.true Vectors of true regression
 #' parameter values. The length of each vector should equal
 #' the number of columns in the corresponding covariate matrix.
-#' @param alpha1.true,alpha2.true,alpha3.true,kappa1.true,kappa2.true,kappa3.true scalar true baseline parameter values.
-#' @param phi1.true,phi2.true,phi3.true Vectors of true baseline parameter values.
+#' @param phi1.true,phi2.true,phi3.true
+#' Vectors of true baseline parameter values.
+#' For weibull, each should be a vector with c(log-kappa, log-alpha).
+#' @param alpha1.true,alpha2.true,alpha3.true,kappa1.true,kappa2.true,kappa3.true
+#' Scalar true baseline parameter values for weibull specification (included for backwards-compatibility).
+#' Used if baseline is Weibull and \code{phi1.true}, \code{phi2.true}, or \code{phi3.true} are null.
+#' Note these parameters are exponentiated, and thus are expected to be positive.
+#' By comparison, Weibull model fitting is done using log-transformed versions of these parameters.
 #' @param theta.true True value for \eqn{\theta}.
 #' @param SigmaV.true True value for covariance matrix of MVN
 #' cluster-level random effects. Required only when generating clustered data.
@@ -65,28 +71,71 @@
 #' x_sim <- matrix(rnorm(3*n),ncol=3)
 #' colnames(x_sim) <- c("x1","x2","x3")
 #'
-#' #h3tv_knots
-#' knots_temp <- c(3,8,15.5)
-#' simDat <- SemiCompRisksFreq::simID2(x1=x_sim,x2=x_sim,x3=x_sim,
-#'                                     beta1.true = c(0.25,0.6,-0.3),beta2.true = c(0.4,0.75,-0.4),beta3.true = c(0.7,0.9,-0.9),
-#'                                     alpha1.true = exp(-0.6),alpha2.true = exp(-0.3),alpha3.true = exp(-0.4),
-#'                                     kappa1.true = exp(-1.2),kappa2.true = exp(-2.9),kappa3.true = exp(-3.2),
-#'                                     hazard = "Weibull",model = "semi-Markov",
-#'                                     frailty_type = "gamma",theta.true = 0,
-#'                                     h3tv_degree = 0, h3tv_knots = c(0,knots_temp,Inf),beta3tv.true = c(1.5,0,-1.5),
-#'                                     LT_interval=c(0,0), cens = c(60,60))
-#' fit_WB <- FreqID_HReg2(Formula(y1 + delta1 | y2 + delta2 ~ x1 + x2 + x3 | x1 + x2 + x3 | x1 + x2 + x3 + h3tv1 + h3tv2 + h3tv3),
-#'                        data = cbind(simDat,x_sim), hazard = "Weibull", frailty=TRUE,
-#'                        model = "semi-Markov")
+#' ##Example 1: semi-markov weibull illness-death model
+#' # with piecewise constant effect of t1 on h3 hazard.
+#'
+#' #h3 knots for piecewise constant effect of t1 on h3
+#' h3_knots_temp <- c(0,3,8,15.5,Inf)
+#'
+#' simDat <- simID2(x1=x_sim,x2=x_sim,x3=x_sim,
+#'                  beta1.true = c(0.25,0.6,-0.3),
+#'                  beta2.true = c(0.4,0.75,-0.4),
+#'                  beta3.true = c(0.7,0.9,-0.9),
+#'                  alpha1.true = exp(-0.6),
+#'                  alpha2.true = exp(-0.3),
+#'                  alpha3.true = exp(-0.4),
+#'                  kappa1.true = exp(-1.2),
+#'                  kappa2.true = exp(-2.9),
+#'                  kappa3.true = exp(-3.2),
+#'                  hazard = "Weibull",model = "semi-Markov",
+#'                  frailty_type = "gamma", theta.true = 1,
+#'                  h3tv_degree = 0,
+#'                  h3tv_knots = h3_knots_temp, beta3tv.true = c(1.5,0,-1.5),
+#'                  LT_interval=c(0,0), cens = c(60,60))
+#'
+#' #fitting the corresponding 'correctly specified' illness-death model
+#' fit_WB <- FreqID_HReg2(Formula(y1 + delta1 | y2 + delta2 ~
+#'          x1 + x2 + x3 | x1 + x2 + x3 | x1 + x2 + x3 + h3tv1 + h3tv2 + h3tv3),
+#'              data = cbind(simDat,x_sim), hazard = "Weibull", frailty=TRUE,
+#'              model = "semi-Markov")
 #' fit_WB
+#'
+#'
+#' ##Example 2: Markov illness-death model, piecewise constant baseline hazards
+#'
+#'
+#' knots_pw_list_true <- list(c(0,5,15,20), c(0,5,15,20), c(0,5,10))
+#' phi1_true <- log(c(0.035,0.025,0.020,0.025))
+#' phi2_true <- log(c(0.005,0.010,0.025,0.018))
+#' phi3_true <- log(c(0.008,0.015,0.024))
+#'
+#' simDat_pw <- simID2(x1=x_sim,x2=x_sim,x3=x_sim,
+#'                     beta1.true = c(0.25,0.6,-0.3),
+#'                     beta2.true = c(0.4,0.75,-0.4),
+#'                     beta3.true = c(0.7,0.9,-0.9),
+#'                     phi1.true = phi1_true,
+#'                     phi2.true = phi2_true,
+#'                     phi3.true = phi3_true,
+#'                     hazard = "Piecewise",model = "Markov",
+#'                     knots_list = knots_pw_list_true,
+#'                     frailty_type = "gamma",theta.true = 1,
+#'                     LT_interval=c(0,0), cens = c(60,60))
+#'
+#' #fitting the corresponding 'correctly specified' illness-death model
+#' fit_PW <- FreqID_HReg2(Formula(y1 + delta1 | y2 + delta2 ~
+#'                                 x1 + x2 + x3 | x1 + x2 + x3 | x1 + x2 + x3),
+#'                        data = cbind(simDat,x_sim), hazard = "Piecewise",
+#'                        knots_list = knots_pw_list_true,
+#'                        model = "Markov", frailty=TRUE)
+#' fit_PW
 #'
 #' @export
 simID2 <- function(id = NULL, x1, x2, x3,
                   beta1.true, beta2.true, beta3.true,
-                  alpha1.true, alpha2.true, alpha3.true,
-                  kappa1.true, kappa2.true, kappa3.true,
-                  phi1.true, phi2.true, phi3.true,
-                  theta.true, SigmaV.true = NULL, hazard="weibull", knots_list,
+                  phi1.true = NULL, phi2.true = NULL, phi3.true = NULL,
+                  alpha1.true=NULL, alpha2.true=NULL, alpha3.true=NULL,
+                  kappa1.true=NULL, kappa2.true=NULL, kappa3.true=NULL,
+                  theta.true, SigmaV.true = NULL, hazard, knots_list,
                   model="semi-markov", frailty_type="gamma",
                   beta2frail.true=1, beta3frail.true=1,
                   beta3tv.true=NULL, h3tv_degree=3, h3tv_knots=NULL,
@@ -128,7 +177,7 @@ simID2 <- function(id = NULL, x1, x2, x3,
     LP3 <- LP3 + as.vector(Vmat[,3])
   } else{ Vmat <- NULL }
 
-  #if not weibull, must be piecewise, so set that up
+  #if not weibull, must be piecewise, so set up knot vectors accordingly
   if(!(tolower(hazard) %in% c("weibull","wb"))){
     #make it so that index can be made rowwise whether there is 1 col or 3
     #function already accounts for whether or not knots vectors begin with 0
@@ -140,8 +189,8 @@ simID2 <- function(id = NULL, x1, x2, x3,
       } else if(length(knots_list)==1){
         knots01 <- knots02 <- knots03 <- knots_list[[1]]
       } else{
-        stop("knots must be either vector of knots lambdas,
-           or list with three elements corresponding to hazard-specific knot vectors")
+        stop("knots must be list with three elements corresponding to hazard-specific knot vectors,
+             or single vector of knots for all hazards.")
       }
     } else{
       if(is.vector(knots_list)){
@@ -151,7 +200,37 @@ simID2 <- function(id = NULL, x1, x2, x3,
            or list with three elements corresponding to hazard-specific knot vectors")
       }
     }
+  } else{
+
+    #if using weibull hazard but phi non-null, use those
+    if(!is.null(phi1.true)){
+      if(!is.null(kappa1.true) || !is.null(alpha1.true)){
+        message("Weibull hazard specified and phi1.true non-null.
+              Using phi1.true values instead of alpha1.true and kappa1.true values.")
+      }
+      kappa1.true <- exp(phi1.true[1])
+      alpha1.true <- exp(phi1.true[2])
+    }
+    if(!is.null(phi2.true)){
+      if(!is.null(kappa2.true) || !is.null(alpha2.true)){
+        message("Weibull hazard specified and phi2.true non-null.
+              Using phi2.true values instead of alpha2.true and kappa2.true values.")
+      }
+      kappa2.true <- exp(phi2.true[1])
+      alpha2.true <- exp(phi2.true[2])
+    }
+    if(!is.null(phi3.true)){
+      if(!is.null(kappa3.true) || !is.null(alpha3.true)){
+        message("Weibull hazard specified and phi3.true non-null.
+              Using phi3.true values instead of alpha3.true and kappa3.true values.")
+      }
+      kappa3.true <- exp(phi3.true[1])
+      alpha3.true <- exp(phi3.true[2])
+    }
+
   }
+
+  ## GENERATE RANDOM VARIATES ##
 
   #to start, generate random censoring which is sometimes used below
   if(cens[2] == 0){
